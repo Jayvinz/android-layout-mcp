@@ -1,103 +1,103 @@
 ---
 name: locate-ui-code
-description: 当用户要求“定位当前页面中的 X 按钮/入口/图标”“这个页面或弹窗是哪个 Activity/Fragment/Composable/route 实现的”“这个控件或页面是哪些代码实现的”“按 UI 找已有业务逻辑”“这个文案或图标在哪个 strings.xml/代码里”“这个点击事件、可见性或状态在哪个 ViewModel/Repository”，或说 "trace this UI element to code"、"where is this button implemented"、"which screen/Activity/composable renders this"、"which file implements this screen"、"find the layout/composable for this UI"、"where does this label/click handler come from"、"map this screenshot to Android source" 时使用此技能。适用于基于真机或模拟器当前 UI，在任意规模 Android 仓库中定位 Compose/XML 源码、事件处理、状态与业务调用链。
+description: Use when the user wants to locate a control on the current Android screen and trace it to Compose/XML source code, event handlers, state, or business logic; when they ask which Activity/Fragment/Composable/route implements a page or dialog; or when they ask where a visible label, icon, click handler, visibility rule, or state comes from. Also trigger on Chinese requests such as "定位当前页面中的 X 按钮/入口/图标", "这个页面/弹窗是哪个 Activity/Fragment/Composable/route 实现的", "这个控件/页面是哪些代码实现的", "按 UI 找已有业务逻辑", "这个文案/图标在哪个 strings.xml/代码里", "这个点击事件/可见性/状态在哪个 ViewModel/Repository", and "把当前界面映射到 Android 源码". Works from the live device or emulator UI in Android repositories of any size.
 ---
 
-# UI → 代码定位
+# UI → Code Location
 
-把真机当前屏幕上的一个控件，转成可复核的源码锚点和业务链路。核心原则：**先拿设备证据，再拿代码锚点，最后读代码验证**。不要只凭文本猜实现。
+Turn a control on the live device screen into verifiable source anchors and a business chain. Core principle: **capture device evidence first, then code anchors, then read the code to verify**. Never guess the implementation from text alone.
 
-## 前置检查
+## Prerequisites
 
-1. 确认 `adb` 可用且设备在线：使用 MCP `list_devices`，或 `adb devices`。若返回多台设备，先选定 `serial`，并在后续 `get_state`/`dump_ui`/`find_elements`/`hit_test`/`screenshot`/`tap` 中始终传同一个 `serial`。
-2. 确认当前工作目录是目标 Android 仓库根目录；查看 `settings.gradle(.kts)`、`gradlew`、`app/`。若不在仓库内，先让用户给出仓库路径，或从最近的相关模块推断。
-3. 插件 MCP 工具由 `layout-inspector-android` server 提供：`get_state`、`dump_ui`、`find_elements`、`locate_code`、`hit_test`、`screenshot`、`analyze_ui`、`diff_ui`、`tap`、`swipe`。
-4. MCP 不可用时回退 CLI：
+1. Confirm `adb` is available and the device is online: use MCP `list_devices`, or `adb devices`. If multiple devices are connected, choose a `serial` and pass the same one to `get_state` / `dump_ui` / `find_elements` / `hit_test` / `screenshot` / `tap`.
+2. Confirm the working directory is the target Android repository root; check `settings.gradle(.kts)`, `gradlew`, and `app/`. If you are not inside the repository, ask the user for the path or infer it from the nearest relevant module.
+3. The plugin MCP tools are provided by the `layout-inspector-android` server: `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `screenshot`, `analyze_ui`, `diff_ui`, `tap`, `swipe`.
+4. If MCP is unavailable, fall back to the CLI:
    ```bash
    mkdir -p .dli
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" state --json
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .dli/current.json
    ```
-   若 `dist/` 不存在，说明插件尚未构建；提示用户在插件目录运行 `npm install && npm run build`，不要伪造结果。
-5. 目标 App 需在前台。前台包与仓库 applicationId 不一致时，先指出这一点，避免把别的 App 的 UI 当成目标。
+   If `dist/` does not exist, the plugin has not been built. Tell the user to run `npm install && npm run build` in the plugin directory; do not fabricate results.
+5. The target app must be in the foreground. If the foreground package differs from the repository's applicationId, state the mismatch first so another app's UI is not mistaken for the target.
 
-## Step 1 — 采集界面证据
+## Step 1 — Capture UI evidence
 
-并行调用：
+Call these in parallel:
 
-- `get_state`：设备、屏幕尺寸/密度、前台 `package`、`activity`、pid、窗口。
-- `dump_ui(source="auto", format="tree", visibleOnly=true)`：得到 `uiKind`（`xml` / `compose` / `mixed`）和紧凑树。
+- `get_state`: device, screen size/density, foreground `package`, `activity`, pid, windows.
+- `dump_ui(source="auto", format="tree", visibleOnly=true)`: returns `uiKind` (`xml` / `compose` / `mixed`) and a compact tree.
 
-再按 `uiKind` 决定是否补抓：
+Then decide whether to capture more based on `uiKind`:
 
-| uiKind | 追加动作 | 用途 |
+| uiKind | Additional action | Purpose |
 |---|---|---|
-| `compose` | `dump_ui(source="compose", maxNodes=2000)` | 拿到 Composable 名称、`file:line`、参数文本；8–12 秒，值得等 |
-| `mixed` | 保留 view + semantics；需要源码定位时再抓 compose | 同时覆盖 XML 与 Compose 区域 |
-| `xml` | 无需追加 | View 类名、resource-id、文本已足够 |
-| `unknown` | 先 `dump_ui(source="semantics")` | 非调试包或抓取受限时的兜底 |
+| `compose` | `dump_ui(source="compose", maxNodes=2000)` | Composable names, `file:line`, parameter text; takes 8–12s but is worth it |
+| `mixed` | Keep view + semantics; capture compose only when tracing source | Covers both XML and Compose areas |
+| `xml` | Nothing extra | View classes, resource ids, and text are enough |
+| `unknown` | Try `dump_ui(source="semantics")` first | Fallback for non-debuggable apps or restricted captures |
 
-注意：
+Notes:
 
-- 一次抓取的 `ref`（`v*`/`s*`/`c*`）只对当次有效。界面变化后重新抓取，不要复用旧 ref。
-- `visibleOnly` 只影响 `format="tree"`；JSON 输出仍包含不可见节点，需要自己过滤。
-- 用户提到“屏幕左上角那个”“截图里的位置”时，调用 `screenshot`，用返回的 `width/originalWidth/scale` 做坐标映射；不要把图片像素当设备坐标。随后用 `hit_test` 或 `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`。
-- 只有确实需要视觉信息时才截图。文本、id、Compose 锚点通常已经够用。
-- Compose 抓取失败（非调试包、未安装 Android Studio、Compose 版本不匹配）时，不要反复重试：回退到 semantics + 字符串/id 锚点，并在结论中把源码置信度标为中/低，不要声称来自 Compose 树。
+- `ref` values (`v*` / `s*` / `c*`) are valid only for one capture. Re-capture after the UI changes; never reuse stale refs.
+- `visibleOnly` only affects `format="tree"`; JSON output still contains invisible nodes, so filter them yourself.
+- When the user refers to "the top-left of the screen" or "the position in the screenshot", call `screenshot` and use the returned `width` / `originalWidth` / `scale` for coordinate mapping. Never treat image pixels as device coordinates. Then use `hit_test` or `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`.
+- Take screenshots only when visual information is genuinely needed. Text, ids, and Compose anchors are usually sufficient.
+- If Compose capture fails (non-debuggable app, Android Studio not installed, Compose version mismatch), do not retry repeatedly. Fall back to semantics plus string/id anchors and mark source confidence as medium or low in the conclusion. Do not claim the result came from the Compose tree.
 
-## Step 1.5 — 页面级定位（没有具体控件时）
+## Step 1.5 — Page-level location (no specific control)
 
-当用户问“这个页面/弹窗是哪个 Activity/Fragment/Composable/route 实现的”，跳过控件搜索，直接定位页面入口：
+When the user asks "which Activity/Fragment/Composable/route implements this page/dialog", skip control search and locate the page entry directly:
 
-- XML/View 页面：`get_state` 的 `activity` → `rg 'class .*ProfileActivity'`（替换成实际类名）；在 `AndroidManifest.xml` 找声明；在 Activity 中找 `setContentView(R.layout.x)` 或 Fragment 的 `onCreateView` / Binding `inflate`。
-- Compose 页面：`dump_ui(source="compose", maxNodes=2000)` 取根节点附近的 Composable 名称，再用 `locate_code` 的 `compose-callsite` 找父级和 `NavHost`/`composable("route")`。
-- Dialog/BottomSheet：找 `DialogFragment`、`BottomSheetDialogFragment`、`show()` 调用；Navigation XML 中看 `<dialog>` destination。
-- 只输出页面入口、布局/Composable 和 route，不继续追控件；用户明确要“页面里的 X 控件”时再进入 Step 2。
+- XML/View pages: take the `activity` from `get_state` → `rg 'class .*ProfileActivity'` (replace with the actual class name); find its declaration in `AndroidManifest.xml`; inside the Activity look for `setContentView(R.layout.x)` or the Fragment's `onCreateView` / Binding `inflate`.
+- Compose pages: call `dump_ui(source="compose", maxNodes=2000)` and read the Composable names near the root, then use `locate_code`'s `compose-callsite` to find parents and `NavHost` / `composable("route")`.
+- Dialogs/BottomSheets: look for `DialogFragment`, `BottomSheetDialogFragment`, and `show()` calls; check `<dialog>` destinations in Navigation XML.
+- Output only the page entry, layout/Composable, and route. Do not continue to controls; enter Step 2 only when the user explicitly asks for "the X control on this page".
 
-## Step 2 — 定位目标控件
+## Step 2 — Locate the target control
 
-按优先级搜索：
+Search in this priority order:
 
-1. `find_elements(query="<文本>", by="text", match="exact", both=true)`
-2. 文本不唯一时：`match="contains"`，再用 `contentDescription`、`resourceId`、`clickable`、`visible`、bounds、父路径筛选。
-3. 用户给的是入口/图标而非文本：用 `by="desc"`、`by="id"`，或 `dump_ui` 树里的短类名（`Button`、`ImageButton`、`Text`）。
-4. 用户给坐标或截图位置：`hit_test(x, y)`，用 `index` 切换重叠候选。
+1. `find_elements(query="<text>", by="text", match="exact", both=true)`
+2. When the text is not unique: `match="contains"`, then narrow with `contentDescription`, `resourceId`, `clickable`, `visible`, bounds, and parent path.
+3. When the user points at an entry/icon rather than text: use `by="desc"`, `by="id"`, or a short class name from the `dump_ui` tree (`Button`, `ImageButton`, `Text`).
+4. When the user gives coordinates or a screenshot position: `hit_test(x, y)`, using `index` to cycle through overlapping candidates.
 
-多候选时不要直接选第一个。按以下证据收窄：
+When multiple candidates remain, do not pick the first one. Narrow using:
 
-- 位置（bounds 与用户描述吻合）；
-- `clickable=true`；
-- 可见且面积合理（排除全屏容器）；
-- 同一父路径下的静态兄弟节点；
-- 文本是否来自字符串资源（能解释语言差异）。
+- Position (does the bounds match the user's description?);
+- `clickable=true`;
+- Visible with a reasonable area (exclude full-screen containers);
+- Static siblings under the same parent path;
+- Whether the text comes from a string resource (which explains language differences).
 
-如果仍有两个以上同样合理的候选，把候选列表和判别依据交给用户，不要硬猜。
+If two or more candidates remain equally plausible, give the user the candidate list and distinguishing evidence instead of guessing.
 
-未找到目标时：
+When nothing is found:
 
-1. 目标可能在屏幕外或在折叠区域：`swipe` 滚动/展开后重新 `dump_ui` 和 `find_elements`；提醒用户旧 ref 已失效。
-2. 图标按钮没有文本：改用 `by="desc"` 或 `by="id"`。
-3. 弹窗/浮层可能属于另一个窗口：`get_state` 查看 windows，必要时 `dump_ui(source="view", window="<index>")`。
-4. 仍找不到：进入 Step 3 用邻近静态文本、id 或类名做代码搜索兜底，按 `references/repo-search-recipes.md` 处理。
+1. The target may be offscreen or collapsed: use `swipe` to scroll/expand, then re-run `dump_ui` and `find_elements`; remind the user that old refs are invalid.
+2. Icon buttons without text: use `by="desc"` or `by="id"`.
+3. A dialog/overlay may belong to another window: inspect `windows` in `get_state`, then `dump_ui(source="view", window="<index>")` if needed.
+4. Still nothing: go to Step 3 and fall back to code search using nearby static text, ids, or class names; follow `references/repo-search-recipes.md`.
 
-抽取锚点并记录：
+Extract and record anchors:
 
 - `text` / `contentDescription`
-- `resourceId`（去掉包名，如 `profile_tab`）
-- Compose：`compose.name`、`compose.fileName`、`compose.lineNumber`
+- `resourceId` (drop the package prefix, e.g. `profile_tab`)
+- Compose: `compose.name`, `compose.fileName`, `compose.lineNumber`
 - `className`
-- `bounds`、`center`、`clickable`
-- 抓取时间、`uiKind`、`source`
+- `bounds`, `center`, `clickable`
+- Capture time, `uiKind`, `source`
 
-## Step 3 — 生成代码候选
+## Step 3 — Generate code candidates
 
-优先调用 MCP `locate_code`（只读、无需 shell）：
+Prefer MCP `locate_code` (read-only, no shell required):
 
 ```text
 locate_code(
-  root="<仓库根>",
-  text=["我的"],
-  desc=["打开个人中心"],
+  root="<repo root>",
+  text=["Me"],
+  desc=["Open profile"],
   id=["profile_tab"],
   composeName="ProfileTab",
   composeFile="ProfileScreen.kt",
@@ -107,13 +107,13 @@ locate_code(
 )
 ```
 
-`locate_code` 不可用时，运行等价脚本：
+If `locate_code` is unavailable, run the equivalent script:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/locate-code.mjs" \
   --root . \
-  --text "我的" \
-  --desc "打开个人中心" \
+  --text "Me" \
+  --desc "Open profile" \
   --id "profile_tab" \
   --compose-name "ProfileTab" \
   --compose-file "ProfileScreen.kt" \
@@ -122,95 +122,95 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/locate-code.mjs" \
   --json
 ```
 
-规则：
+Rules:
 
-- 参数可重复；缺什么传什么，不要编造。`--id` 既接受 `profile_tab`，也接受 `com.example:id/profile_tab`。
-- 有 `contentDescription` 时用 `--desc`，不要塞进 `--text`；自定义 View 用 `--class`。
-- `anchors.strings`：文本命中的 `string` 资源（含 `values-zh` 等限定符）。
-- `anchors.ids`：规范化后的 id。
-- `anchors.compose`：Compose 定义（名称、文件、行）。
-- `candidates[]`：按分数排序的代码位置，含 `kind`、`reason`、`snippet`。
-- 先读 `anchors` 判断锚点是否可信，再按分数读取前 5–8 个候选的上下文（行号 ±15）。**分数只是线索，必须打开文件确认。**
-- 仓库很大时，用 `--exclude <path>` 排除 vendored 代码、生成目录、其他产品线；测试代码默认不计入，需要时加 `--include-tests`。
+- Arguments are repeatable; pass only what exists and never invent anchors. `--id` accepts both `profile_tab` and `com.example:id/profile_tab`.
+- If there is a `contentDescription`, pass it with `--desc`, not `--text`. For custom Views use `--class`.
+- `anchors.strings`: string resources matched by text (including `values-zh` and other qualifiers).
+- `anchors.ids`: normalized ids.
+- `anchors.compose`: Compose definitions (name, file, line).
+- `candidates[]`: ranked code locations with `kind`, `reason`, and `snippet`.
+- Read `anchors` first to judge whether the evidence is trustworthy, then read the top 5–8 candidates around the reported lines (±15 lines). **Scores are hints; always open the file to confirm.**
+- In large repositories, use `--exclude <path>` to skip vendored code, generated directories, or other product lines. Tests are excluded by default; add `--include-tests` when needed.
 
-候选 `kind` 的含义（常见值，完整列表以脚本输出为准）：
+Common `kind` values (the script output is authoritative for the full list):
 
-| kind | 含义 |
+| kind | Meaning |
 |---|---|
-| `compose-definition` / `compose-callsite` | Compose 定义 / 调用点 |
-| `compose-location` | inspector 报告的文件:行；可能是定义或调用点，用名称确认 |
-| `layout-id` / `layout-include-chain` | XML 中定义 id / 通过 `<include>` 包含该布局的入口布局 |
-| `binding-usage` / `id-usage` / `id-usage-strong` | ViewBinding 属性 / R.id 引用 / `findViewById` 或监听器 |
-| `string-definition` / `string-usage` / `string-usage-compose` / `string-usage-xml` | 字符串资源定义 / 代码引用 / `stringResource` / XML `@string` |
-| `layout-inflation` / `inflation` / `layout-text` | `setContentView`·`inflate`·Binding 入口 / XML 字面量文本 |
-| `literal-text` / `test-tag` | 源码字面量 / `testTag`、`contentDescription` |
-| `navigation` / `on-click-attr` / `click-handler` | 导航节点、`android:onClick`、处理函数 |
-| `class-definition` | 自定义 View/类定义 |
+| `compose-definition` / `compose-callsite` | Compose definition / call site |
+| `compose-location` | File:line reported by the inspector; may be a definition or a call site, so confirm by name |
+| `layout-id` / `layout-include-chain` | Id defined in XML / entry layouts that include it via `<include>` |
+| `binding-usage` / `id-usage` / `id-usage-strong` | ViewBinding property / `R.id` reference / `findViewById` or listener |
+| `string-definition` / `string-usage` / `string-usage-compose` / `string-usage-xml` | String resource definition / code reference / `stringResource` / XML `@string` |
+| `layout-inflation` / `inflation` / `layout-text` | `setContentView` · `inflate` · Binding entry / XML literal text |
+| `literal-text` / `test-tag` | Source literal / `testTag`, `contentDescription` |
+| `navigation` / `on-click-attr` / `click-handler` | Navigation node, `android:onClick`, handler function |
+| `class-definition` | Custom View/class definition |
 
-若脚本无候选：换更长的静态文本、用邻近标签或 id、加 `--include-tests`、扩大 `--root`；并考虑文本来自服务端、模板拼接或格式化资源。不要用短词（1 个字）强行匹配。具体排查顺序见 `references/repo-search-recipes.md`。
+If the script returns no candidates: use longer static text, a nearby label or id, `--include-tests`, or a wider `--root`. Also consider that the text may be server-driven, templated, or formatted. Do not force a match with a single short character. See `references/repo-search-recipes.md` for the detailed troubleshooting order.
 
-## Step 4 — 按 UI 类型追踪源码
+## Step 4 — Trace source by UI type
 
-详细映射、边界情况和多模块处理见 `references/anchor-resolution.md`。
+For the full mapping, edge cases, and multi-module handling, see `references/anchor-resolution.md`.
 
 ### Compose
 
-1. 用 `compose-definition` 的 `file:line` 打开定义，读函数签名、参数、`Modifier`、`onClick`、状态读取。若只有 `compose-location`（inspector 报告的行），报告行可能是定义也可能是调用点，先用名称确认，不要仅凭行号断言。
-2. 文本来自 `stringResource(R.string.x)` 时，回到 `strings.xml` 确认值；多语言下文本只是入口，真正锚点是 `R.string` 名。
-3. 用 `compose-callsite` 找到父 Composable / NavHost 调用，判断该入口在哪个 route、tab、条件分支下出现。
-4. 点击链路：`onClick` 形参 → 调用方传入的 lambda → ViewModel 方法 / 导航 / 回调。只追 1–2 跳，除非用户要求完整。
-5. 状态链路：`collectAsStateWithLifecycle`、`LaunchedEffect`、`remember`、`uiState` 类型；再追到 ViewModel 的 `StateFlow` 来源。
-6. Compose 页面上的点击可能落在 `pointerInput`、`clickable`、`combinedClickable` 或父容器；不要假设一定是 `Button`。
+1. Open the `compose-definition` `file:line` and read the function signature, parameters, `Modifier`, `onClick`, and state reads. If you only have `compose-location` (the inspector's reported line), the line may be a definition or a call site; confirm by name and do not assert from the line number alone.
+2. When text comes from `stringResource(R.string.x)`, confirm the value in `strings.xml`; under localization the text is only an entry point and the real anchor is the `R.string` name.
+3. Use `compose-callsite` to find the parent Composable / `NavHost` call and determine which route, tab, or conditional branch renders this entry.
+4. Click chain: `onClick` parameter → the lambda passed by the caller → ViewModel method / navigation / callback. Follow 1–2 hops unless the user asks for the full chain.
+5. State chain: `collectAsStateWithLifecycle`, `LaunchedEffect`, `remember`, and the `uiState` type; then follow the `StateFlow` source into the ViewModel.
+6. A tap on a Compose screen may land on `pointerInput`, `clickable`, `combinedClickable`, or a parent container. Do not assume it is always a `Button`.
 
 ### XML
 
-1. `layout-id` 定位定义布局；有 `<include>` 时用 `layout-include-chain` 找到入口布局。
-2. 用 `layout-inflation` / `binding-usage` 找 Activity/Fragment/Adapter/Dialog 的 inflate 点。
-3. 事件：`findViewById` + `setOnClickListener`、`binding.<id>.setOnClickListener`、DataBinding lambda、`android:onClick`（`click-handler` 候选）。
-4. 从事件处理函数追到 ViewModel/Repository；若处理函数只是发事件，继续找订阅方。
-5. 列表项（`item_*.xml`）通常由 Adapter/ViewHolder 绑定，业务逻辑在 Adapter、DiffUtil、item model，而不是布局本身。
-6. 多 flavor / 多 module 下可能有同名 layout 或 id；比较 `sourceSets`、模块依赖和实际使用的 flavor，说明歧义。
+1. Use `layout-id` to locate the defining layout; when `<include>` is present, use `layout-include-chain` to find the entry layout.
+2. Use `layout-inflation` / `binding-usage` to find the Activity/Fragment/Adapter/Dialog inflate site.
+3. Events: `findViewById` + `setOnClickListener`, `binding.<id>.setOnClickListener`, DataBinding lambdas, and `android:onClick` (`click-handler` candidates).
+4. Follow the handler into the ViewModel/Repository. If the handler only emits an event, continue to the subscriber.
+5. List items (`item_*.xml`) are usually bound by an Adapter/ViewHolder; business logic lives in the Adapter, DiffUtil, and item model, not in the item layout.
+6. With multiple flavors/modules there may be duplicate layouts or ids; compare `sourceSets`, module dependencies, and the actually used flavor, and call out the ambiguity.
 
-### Semantics 兜底
+### Semantics fallback
 
-只有 semantics 树时，`text`/`contentDescription` 只是界面证据，不是源码锚点。用字符串资源、`testTag`、字面量建立候选，并在结论中标注置信度较低。不要声称某个 Composable/Activity 就是来源，除非代码中能对应上。
+When only the semantics tree is available, `text` / `contentDescription` are UI evidence, not source anchors. Build candidates from string resources, `testTag`, and literals, and mark confidence as low in the conclusion. Do not claim a Composable/Activity is the source unless the code matches.
 
-## Step 5 — 业务链路
+## Step 5 — Business chain
 
-从 UI 到 ViewModel/UseCase/Repository 的常见结构与停止条件见 `references/business-chain.md`。
+For the typical UI → ViewModel/UseCase/Repository structure and stopping conditions, see `references/business-chain.md`.
 
-用户说“相关代码逻辑”时，至少回答：
+When the user asks for "related code logic", answer at least:
 
-- **入口**：Activity/Fragment/Composable/自定义 View，`file:line`。
-- **交互**：点击/滑动/输入的处理函数，`file:line`。
-- **状态**：UI 状态从哪里来（ViewModel、Repository、本地缓存、接口）。
-- **条件**：登录、权限、实验开关、AB、空状态等是否影响可见性/点击。
-- **副作用**：埋点、导航、刷新、缓存失效。
+- **Entry**: Activity/Fragment/Composable/custom View, `file:line`.
+- **Interaction**: click/scroll/input handler, `file:line`.
+- **State**: where the UI state comes from (ViewModel, Repository, local cache, API).
+- **Conditions**: login, permissions, experiment flags, A/B tests, empty states that affect visibility or clickability.
+- **Side effects**: analytics, navigation, refresh, cache invalidation.
 
-每一跳标注 `confirmed`（已读代码）或 `inferred`（仅凭命名/导航推断）。不要为了“完整”编造调用链。
+Mark every hop as `confirmed` (code read) or `inferred` (deduced from naming/navigation only). Do not invent call chains for the sake of completeness.
 
-## Step 6 — 输出
+## Step 6 — Output
 
-使用简洁的证据报告，不粘贴整文件。模板见 `references/output-template.md`，最小结构：
+Use a compact evidence report; do not paste entire files. The template is in `references/output-template.md`. Minimum structure:
 
-1. **结论**：入口 + `file:line`，一句话说明。
-2. **UI 证据**：文本/描述、id、bounds、uiKind、抓取时间。
-3. **代码锚点**：字符串/布局/Compose 定义。
-4. **链路**：编号步骤，每步 `file:line` + `confirmed|inferred`。
-5. **不确定项**：多 flavor、动态文本、服务端下发、未找到的调用方。
-6. **下一步**：建议先读/改的文件与验证方式（MCP `dump_ui` + `diff_ui` + `analyze_ui`，或 CLI `layout-inspector dump`/`diff`/`analyze`、单测）。
+1. **Conclusion**: entry + `file:line`, one or two sentences.
+2. **UI evidence**: text/description, id, bounds, uiKind, capture time.
+3. **Code anchors**: string/layout/Compose definitions.
+4. **Chain**: numbered steps, each with `file:line` and `confirmed|inferred`.
+5. **Uncertainties**: multiple flavors, dynamic text, server-driven content, missing call sites.
+6. **Next steps**: files to read/change first and how to verify (MCP `dump_ui` + `diff_ui` + `analyze_ui`, or CLI `dump`/`diff`/`analyze`, plus unit tests).
 
-## 质量规则
+## Quality rules
 
-- 没有 `file:line` 的结论必须标为推断。
-- 先读候选代码再下结论；`snippet` 不能替代上下文。
-- 不修改代码，除非用户明确要求；本技能默认只读定位。
-- 不把 `snippet` 里的局部行当成完整实现。
-- 设备 UI 与仓库版本可能不一致（未重新安装、分支不同）；在结论里说明抓取时间与包名，发现明显不一致时提醒用户重新构建安装。
+- Any conclusion without `file:line` must be marked as inference.
+- Read candidate code before concluding; a `snippet` does not replace context.
+- Do not modify code unless the user explicitly asks; this skill is read-only by default.
+- Do not treat a snippet line as the complete implementation.
+- The device UI and the repository may differ (not reinstalled, different branch). State the capture time and package in the conclusion, and flag obvious mismatches.
 
-## 附加资源
+## Additional resources
 
-- `references/anchor-resolution.md` — Compose/XML/字符串/导航/ViewBinding 的完整映射与边界情况。
-- `references/business-chain.md` — 从控件事件追到 ViewModel/UseCase/Repository 的常见结构与停止条件。
-- `references/repo-search-recipes.md` — 大仓库 `rg` 配方、排除规则、候选验证与去重。
-- `references/output-template.md` — 定位报告模板与示例。
+- `references/anchor-resolution.md` — complete Compose/XML/string/navigation/ViewBinding mapping and edge cases.
+- `references/business-chain.md` — common structures and stopping conditions from a control event to ViewModel/UseCase/Repository.
+- `references/repo-search-recipes.md` — `rg` recipes for large repositories, exclusions, and candidate verification.
+- `references/output-template.md` — report template and examples.

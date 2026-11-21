@@ -1,0 +1,150 @@
+# layout-inspector-android
+
+[English](README.md) | [简体中文](README.zh.md)
+
+面向 coding agent 的 Android 布局检查工具：通过 ADB 读取真实设备/模拟器上的 UI
+（XML View 树 / Compose 语义树 / Compose JVMTI 树），支持搜索、命中测试、截图、
+布局/无障碍检查、改码前后布局对比，并能把界面上的控件追溯到 Compose/XML 源码与业务逻辑。
+
+参考 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
+
+```
+CLI (layout-inspector) ──┐
+                         ├── core ──┬── JDWP + DDM → ViewDebug v2 视图树
+MCP Server ──────────────┘          ├── adb uiautomator → Semantics 树
+                                    └── Android Studio transport/JVMTI → Compose 树
+```
+
+## 快速上手
+
+### 前置条件
+
+- Node.js ≥ 20（插件 / MCP / CLI 均需要）
+- Android platform-tools：`adb` 在 PATH 中，或设置 `DLI_ADB` / `ADB_PATH`
+- 已开启 USB 调试的设备或模拟器，目标 App 运行在前台
+- `view` / `compose` 数据源要求 App 为可调试构建（`android:debuggable=true`）；`semantics` 无此要求
+- 使用 Claude Code 插件时，Claude Code 需能从 PATH 调用 `node` / `npm`
+
+### 1. 接入 Claude Code 插件（推荐）
+
+```text
+/plugin marketplace add Jayvinz/layout-inspector-android
+/plugin install layout-inspector-android@jayvinz-tools
+```
+
+安装成功后即获得：
+
+| 组件 | 内容 |
+|---|---|
+| MCP server `layout-inspector-android` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`diff_ui`、`tap` 等工具 |
+| Slash 命令 | `/layout-inspector-android:locate`（UI→源码定位）、`:screen`（当前页面速览）、`:verify`（真机验证改动） |
+| Skills | `locate-ui-code`、`verify-ui-change` |
+| 只读子代理 | `ui-code-locator` |
+
+安装后可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
+
+**本地开发/调试**：先在仓库根目录执行 `npm install && npm run build`，再把 marketplace 指向本地路径：
+
+```text
+/plugin marketplace add E:/repo/layout-inspector-android
+/plugin install layout-inspector-android@jayvinz-tools
+```
+
+组件清单、发布、版本号等细节见 [docs/plugin.zh.md](docs/plugin.zh.md)。
+
+### 2. 接入 MCP Server（其他客户端）
+
+```bash
+node dist/cli.js mcp --print-config
+```
+
+把打印出的配置放进客户端的 MCP 配置文件（例如 Claude Code 项目根目录的 `.mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "layout-inspector-android": {
+      "command": "node",
+      "args": ["E:/repo/layout-inspector-android/dist/mcp.js"]
+    }
+  }
+}
+```
+
+工具清单、参数与推荐调用顺序见 [docs/mcp.zh.md](docs/mcp.zh.md)。
+
+### 3. 作为 CLI 使用
+
+```bash
+npm install && npm run build
+npm link                       # 提供全局 layout-inspector 命令
+
+layout-inspector devices       # 已连接设备
+layout-inspector state         # 屏幕、前台 App、pid
+layout-inspector dump          # 抓取当前 UI（默认 auto）
+layout-inspector find "开拍"   # 按文本查找
+```
+
+完整命令表、分析规则、截图与坐标映射见 [docs/cli.zh.md](docs/cli.zh.md)。
+
+### 4. 跑通第一个任务
+
+把目标 App 摆到想要的页面，在 Claude Code 里直接说：
+
+> 定位当前页面中的 **个人页** 按钮，以及其相关代码逻辑。
+
+或运行命令：
+
+```text
+/layout-inspector-android:locate 个人页
+```
+
+工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。UI 改动完成后用 `/layout-inspector-android:verify` 做改前/改后对比验证。
+
+### 能做什么
+
+| 想做的事 | 入口 |
+|---|---|
+| 定位控件对应的 Compose/XML 源码与业务链路 | `/layout-inspector-android:locate` / `locate_code` |
+| 看懂当前页面（前台 App、Activity、可见入口） | `/layout-inspector-android:screen` / `get_state` + `dump_ui` |
+| 真机验证 UI 改动（diff + 规则 + 截图） | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
+| 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text` |
+| 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `layout-inspector shot` |
+| 布局与无障碍问题检查 | `analyze_ui` / `layout-inspector analyze` |
+| 改码前后布局对比 | `diff_ui` / `layout-inspector diff` |
+
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 三个数据源（view / semantics / compose）原理与对照、auto 选择策略、Compose JVMTI 细节 |
+| [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、分析规则、截图与坐标映射、环境变量 |
+| [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、推荐调用顺序 |
+| [docs/plugin.zh.md](docs/plugin.zh.md) | Claude Code 插件组件、安装、典型流程、发布与版本号 |
+| [docs/development.zh.md](docs/development.zh.md) | 开发、测试与实现说明 |
+
+## 限制
+
+- `view` / `compose` 要求 App `android:debuggable=true`；release 包只能用 `semantics`。
+- JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
+- `compose` 额外需要本机 Android Studio 与 Java 17+，单次抓取约 8–12s。
+- `input text` 只可靠支持 ASCII；每次命令都是全新快照，没有实时监听。
+
+各数据源的完整边界见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
+
+## 开发
+
+```bash
+npm test          # 基于 fixture 的单元测试，无需真机
+npm run typecheck
+npm run build     # 重新生成 dist/（需随源码一起提交）
+```
+
+详见 [docs/development.zh.md](docs/development.zh.md)。
+
+## 致谢 / Attribution
+
+- 协议与命中测试算法参考 [CoXier/LayoutInspectorV2-Pro](https://github.com/CoXier/LayoutInspectorV2-Pro)（Apache-2.0）。
+- ViewDebug / DDM 协议来自 AOSP `android.view.ViewDebug`、`DdmHandleViewDebug` 与 ddmlib。
+- Compose 树复用本机 Android Studio 的 transport/JVMTI agent 与 `androidx.compose.ui:ui-inspection`，协议来自 AOSP `tools/base` 的 `transport` / `app-inspection` / `dynamic-layout-inspector` 和 AndroidX `compose/ui/ui-inspection`（均为 Apache-2.0）。本项目不重新分发这些二进制，运行时从用户已安装的 Android Studio 读取。
+- 本项目代码为独立实现，以 MIT License 发布；详见 `NOTICE`。

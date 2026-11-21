@@ -1,0 +1,88 @@
+# MCP server
+
+[English](mcp.md) | [简体中文](mcp.zh.md)
+
+The MCP server speaks MCP over stdio and exposes the same core as the CLI. Start the built server with `node dist/mcp.js`, or print a client config with `node dist/cli.js mcp --print-config`.
+
+## Configuration
+
+Claude Code (`.mcp.json` at the project root):
+
+```json
+{
+  "mcpServers": {
+    "layout-inspector-android": {
+      "command": "node",
+      "args": ["E:/repo/layout-inspector-android/dist/mcp.js"]
+    }
+  }
+}
+```
+
+Or with the CLI:
+
+```bash
+claude mcp add layout-inspector-android -- node E:/repo/layout-inspector-android/dist/mcp.js
+```
+
+(Examples use the repository name `layout-inspector-android` in the path; substitute your actual directory if different.)
+
+The MCP server also accepts the Compose-related flags: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
+
+Multiple devices / custom adb:
+
+```json
+{
+  "mcpServers": {
+    "layout-inspector-android": {
+      "command": "node",
+      "args": [
+        "E:/repo/layout-inspector-android/dist/mcp.js",
+        "--serial", "<serial>",
+        "--adb", "D:/Android/Sdk/platform-tools/adb.exe",
+        "--timeout", "30000"
+      ]
+    }
+  }
+}
+```
+
+When installed through the Claude Code plugin no manual configuration is needed: the plugin manifest's `mcpServers` starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js` automatically (see [plugin.md](plugin.md)).
+
+## Tools
+
+| Tool | Purpose |
+|---|---|
+| `list_devices` | Device list |
+| `get_state` | Screen, foreground app, pid, windows |
+| `dump_ui` | Capture UI; `source=auto/view/semantics/compose/both`, `format=json/tree`, `depth`, `maxNodes`, `savePath` |
+| `find_elements` | Search by text/description/id/class/ref; returns bounds, tap center, clickable, full path |
+| `locate_code` | Scan an Android repository from UI anchors (text/desc/id/Compose file+line/class) and return string/layout/Compose definitions plus ranked `file:line` candidates |
+| `hit_test` | Coordinate hit test; returns view and semantics by default; `source=compose` reaches the Compose tree |
+| `analyze_ui` | Layout/accessibility checks (rules in [cli.md](cli.md#analysis-rules)) |
+| `screenshot` | Returns PNG image content; downscaled to 720px wide by default (`fullResolution=true` to disable); can save and produce an SVG overlay |
+| `diff_ui` | Compare two JSON files written by `dump_ui(savePath)` |
+| `tap` | Tap by coordinate or by `text/id/ref`; supports `imageX/imageY/imageWidth/imageHeight` image-coordinate mapping |
+| `swipe` / `input_text` / `press_key` | Interaction |
+
+## Recommended call order
+
+1. `get_state` → confirm the foreground app;
+2. `dump_ui(source="auto", format="tree")` or `find_elements` → view the screen / locate;
+3. `tap` → interact;
+4. `screenshot` → visual confirmation;
+5. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
+6. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
+
+### Locating UI source code
+
+```text
+get_state → dump_ui(source="auto") → (Compose screens) dump_ui(source="compose")
+→ find_elements / hit_test → locate_code → read candidate files → report file:line and the business chain
+```
+
+`locate_code` takes the text/desc/id/Compose name/file/line/class found in the previous step; it only ranks candidates and never modifies the repository. Standalone usage of the locate script `scripts/locate-code.mjs` is documented in [plugin.md](plugin.md#locate-script).
+
+## Environment variables
+
+The MCP process inherits the user's shell environment; the full variable table lives in [cli.md](cli.md#environment-variables). To pin serial/adb/Studio parameters, prefer environment variables or pass them explicitly as server args (see the configuration examples above).
