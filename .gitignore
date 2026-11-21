@@ -14,3 +14,4 @@ helper/build/
 /dli-fallback-*.png
 .dli/
 .tmp-locate/
+.workbuddy/
