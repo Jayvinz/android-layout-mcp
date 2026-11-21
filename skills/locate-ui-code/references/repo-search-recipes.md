@@ -1,8 +1,8 @@
-# 大仓库搜索配方
+# Repository Search Recipes
 
-优先使用 `locate-code.mjs` 生成候选，再用 `rg` 验证。不要让 agent 从仓库根目录盲目遍历。
+Prefer running `locate-code.mjs` to generate candidates, then verify with `rg`. Do not have the agent blindly walk the repository from its root.
 
-## 通用排除
+## Common exclusions
 
 ```bash
 rg <pattern> \
@@ -16,45 +16,45 @@ rg <pattern> \
   --glob '!**/androidTest/**'
 ```
 
-`rg` 默认遵守 `.gitignore`；不要随意 `--no-ignore`，否则会把构建产物和缓存算进候选。
+`rg` respects `.gitignore` by default. Do not add `--no-ignore` casually, or build artifacts and caches will pollute the candidates.
 
-## XML id
+## XML ids
 
-定义：
+Definition:
 
 ```bash
 rg '@\+id/profile_tab' --glob '*.xml'
 ```
 
-引用（排除定义）：
+References (excluding the definition):
 
 ```bash
 rg 'R\.id\.profile_tab' --glob '*.kt' --glob '*.java'
 rg '\bprofileTab\b' --glob '*.kt' --glob '*.java'
 ```
 
-布局入口：
+Layout entry:
 
 ```bash
 rg 'R\.layout\.(fragment|activity)_profile' --glob '*.kt' --glob '*.java'
 rg 'setContentView|\.inflate\(' --glob '*.kt' --glob '*.java'
 ```
 
-`<include>`：
+`<include>`:
 
 ```bash
 rg '<include[^>]*layout="@layout/(item|fragment)_profile"' --glob '*.xml'
 ```
 
-`android:onClick`：
+`android:onClick`:
 
 ```bash
 rg 'android:onClick=' --glob '*.xml'
-# 把 openProfile 替换为布局里 onClick 的方法名
+# Replace openProfile with the method name used by onClick in the layout
 rg 'fun openProfile\s*\(|void openProfile\s*\(' --glob '*.kt' --glob '*.java'
 ```
 
-## 字符串资源
+## String resources
 
 ```bash
 rg 'name="profile_title"' --glob '**/res/values*/strings.xml'
@@ -63,7 +63,7 @@ rg 'stringResource\(.*R\.string\.profile_title' --glob '*.kt'
 rg 'android:text="@string/profile_title"' --glob '*.xml'
 ```
 
-多语言/复数：
+Localization/plurals:
 
 ```bash
 rg '<plurals|<string-array' --glob '**/res/values*/strings.xml'
@@ -71,34 +71,34 @@ rg '<plurals|<string-array' --glob '**/res/values*/strings.xml'
 
 ## Compose
 
-定义：
+Definition:
 
 ```bash
 rg -n '@Composable' --glob '*.kt' -A 3 | rg 'fun ProfileTab'
 rg -n 'fun ProfileTab\s*\(' --glob '*.kt'
 ```
 
-调用点：
+Call sites:
 
 ```bash
 rg -n '\bProfileTab\s*\(' --glob '*.kt'
 ```
 
-字符串/状态：
+Strings/state:
 
 ```bash
 rg 'stringResource\(R\.string\.profile_title\)' --glob '*.kt'
 rg 'collectAsState|collectAsStateWithLifecycle|LaunchedEffect|remember' --glob '*.kt' -n
 ```
 
-导航：
+Navigation:
 
 ```bash
 rg 'NavHost|composable\("' --glob '*.kt' -n
 rg 'navigate\(' --glob '*.kt' -n
 ```
 
-## 页面入口
+## Page entry points
 
 ```bash
 rg 'class .*Activity' --glob '*.kt' --glob '*.java'
@@ -107,40 +107,40 @@ rg 'setContentView|onCreateView|ViewBinding|Binding\.inflate' --glob '*.kt' --gl
 rg '<activity|<fragment' --glob '**/AndroidManifest.xml'
 ```
 
-Navigation XML：
+Navigation XML:
 
 ```bash
 rg '@\+id/profile' --glob '**/res/navigation/*.xml'
 rg 'android:name=".*Profile' --glob '*.xml'
 ```
 
-## 多 module / flavor 定位
+## Multi-module / flavor resolution
 
-1. 先看 `settings.gradle(.kts)` 的 include 列表，确定哪些模块属于当前产品。
-2. 再看 `app/build.gradle(.kts)` 的 `productFlavors`、`sourceSets`、`dependencies`。
-3. 候选文件路径里带 `src/<flavor>/` 或 `src/<buildType>/` 时，确认当前构建变体。
-4. 同名文件出现在多个模块时，按依赖方向（`:app` → `:feature:profile` → `:core:designsystem`）排序。
-5. `build/`、`generated/`、`ksp/`、`kapt/`、`safeArgs` 输出不是手写源码；找触发它们的注解/协议。
+1. Read the include list in `settings.gradle(.kts)` to determine which modules belong to the current product.
+2. Then inspect `productFlavors`, `sourceSets`, and `dependencies` in `app/build.gradle(.kts)`.
+3. When a candidate path contains `src/<flavor>/` or `src/<buildType>/`, confirm the active build variant.
+4. When the same file exists in several modules, order by dependency direction (`:app` → `:feature:profile` → `:core:designsystem`).
+5. `build/`, `generated/`, `ksp/`, `kapt/`, and `safeArgs` outputs are not hand-written source; find the annotation or contract that generates them.
 
-## 候选验证清单
+## Candidate verification checklist
 
-对每个候选，打开文件确认：
+For each candidate, open the file and confirm:
 
-- [ ] 行号上下文确实是该控件/字符串/布局，而不是同名变量或注释。
-- [ ] 定义所在模块在当前构建变体中生效。
-- [ ] 事件处理函数确实由该控件触发（检查 listener 或 `android:onClick`）。
-- [ ] Compose 定义确实渲染了该 `Text`/`contentDescription`（而不是同名但不同参数的预览）。
-- [ ] 若有多语言，资源名一致，值只是限定符不同。
-- [ ] 没有把 `@id/foo` 引用误当 `@+id/foo` 定义。
-- [ ] 没有把生成代码或第三方库当成本仓库业务。
+- [ ] The line context really is that control/string/layout, not a same-named variable or comment.
+- [ ] The defining module is active in the current build variant.
+- [ ] The event handler is actually triggered by this control (check the listener or `android:onClick`).
+- [ ] The Compose definition really renders that `Text`/`contentDescription` (not a same-named preview with different arguments).
+- [ ] With localization, the resource names match and only qualifiers differ.
+- [ ] An `@id/foo` reference was not mistaken for an `@+id/foo` definition.
+- [ ] Generated code or third-party libraries were not treated as this repository's business logic.
 
-## 没有候选时
+## When there are no candidates
 
-按顺序尝试：
+Try in order:
 
-1. 用邻近静态文本（“设置”“消息”）代替动态文案。
-2. 用 `resourceId` 或 `contentDescription`。
-3. 加 `--include-tests`，测试里常有 `testTag` 和固定文案。
-4. 扩大 `--root` 到 monorepo 根或包含 `feature` 模块的目录。
-5. 检查 `values-*/strings.xml` 之外的资源（`assets/`、JSON、远端配置、CMS）。
-6. 如果仍然没有，结论写“源码中未找到静态锚点”，并给出可能的数据来源，不要编造。
+1. Use nearby static text ("Settings", "Messages") instead of dynamic copy.
+2. Use `resourceId` or `contentDescription`.
+3. Add `--include-tests`; tests often contain `testTag` values and fixed copy.
+4. Widen `--root` to the monorepo root or a directory that contains the `feature` modules.
+5. Check resources outside `values-*/strings.xml` (`assets/`, JSON, remote config, CMS).
+6. If there is still nothing, conclude "no static anchor found in source" and list possible data sources. Do not invent one.

@@ -1,26 +1,26 @@
-# 从控件到业务链路
+# From Control to Business Chain
 
-“相关代码逻辑”通常不是一行 `onClick`。按下面的顺序追，避免停在 UI 层。
+"Related code logic" is rarely a single `onClick` line. Follow the order below so you do not stop at the UI layer.
 
-## 1. 先确认控件是不是入口
+## 1. Confirm the control is the entry point
 
-- `Button`、`IconButton`、`FloatingActionButton`、`ListItem`、`Tab`、`MenuItem`、`Switch` 等通常是入口。
-- `Text`、`Icon`、`Image`、容器多数只是展示；但 Compose 里任何节点都可能有 `Modifier.clickable`。
-- 点击可能由**父节点**处理（`clickable` 在 `Row`/`Card`/`ListItem` 上），子节点只是内容。先看命中节点的父链。
-- `enabled`、`visible`、`alpha`、`clickable` 可能由外部状态控制；展示层看不到条件。
+- `Button`, `IconButton`, `FloatingActionButton`, `ListItem`, `Tab`, `MenuItem`, and `Switch` are usually entry points.
+- `Text`, `Icon`, `Image`, and containers are usually display-only; in Compose, however, any node may carry `Modifier.clickable`.
+- The click may be handled by a **parent** (`clickable` on `Row`/`Card`/`ListItem`) while the child only provides content. Check the hit node's parent chain first.
+- `enabled`, `visible`, `alpha`, and `clickable` may be controlled by external state that is not visible in the UI layer.
 
-## 2. Compose 链路
+## 2. Compose chain
 
-按以下顺序读：
+Read in this order:
 
-1. 定义 Composable 的 `onClick`/`onValueChange`/`onAction` 形参。
-2. 调用这个 Composable 的父级，找到传入的 lambda。
-3. lambda 里的 `viewModel::method`、`navigate(...)`、`onEvent(UiEvent.X)`。
-4. ViewModel 方法：更新 `MutableStateFlow`、发事件、调用 UseCase/Repository。
-5. UI 状态：`uiState.collectAsStateWithLifecycle()`、`StateFlow`、`remember`、`derivedStateOf`。
-6. 条件分支：`if (uiState.isLoggedIn)`、`enabled = ...`、`visible = ...`、实验开关。
+1. The Composable's `onClick` / `onValueChange` / `onAction` parameters.
+2. The parent that calls this Composable, and the lambda it passes in.
+3. Inside the lambda: `viewModel::method`, `navigate(...)`, or `onEvent(UiEvent.X)`.
+4. The ViewModel method: updates `MutableStateFlow`, emits events, calls a UseCase/Repository.
+5. UI state: `uiState.collectAsStateWithLifecycle()`, `StateFlow`, `remember`, `derivedStateOf`.
+6. Conditional branches: `if (uiState.isLoggedIn)`, `enabled = ...`, `visible = ...`, experiment flags.
 
-常见结构：
+Typical structure:
 
 ```kotlin
 // Screen
@@ -35,23 +35,23 @@ fun openProfile() {
 }
 ```
 
-注意：
+Notes:
 
-- `viewModel::openProfile` 是方法引用，事件在 ViewModel 里发出，但消费可能在 Route 的 `LaunchedEffect`。
-- 设计系统组件（`AppButton`）可能把 `onClick` 再包一层；追到最终 `Button` 的 `onClick`，不要停在设计系统。
-- `Modifier.clickable` 在 modifier 链里，可能写在独立函数中；看 `Modifier` 的构造顺序。
-- Compose 的 `Text` 可能来自 `AnnotatedString`，文本锚点不一定直接对应源码字面量。
+- `viewModel::openProfile` is a method reference. The event is emitted in the ViewModel but may be consumed by a `LaunchedEffect` in the Route.
+- Design-system components (`AppButton`) may wrap `onClick` again; follow through to the final `Button`'s `onClick` instead of stopping at the design system.
+- `Modifier.clickable` lives in a modifier chain and may be defined in a separate function; inspect the order in which the `Modifier` is built.
+- Compose `Text` may receive an `AnnotatedString`, so the text anchor does not necessarily map to a source literal.
 
-## 3. XML 链路
+## 3. XML chain
 
-1. 布局里的 `android:id`。
-2. inflate 点：Activity `setContentView` / Fragment `onCreateView` / Adapter `onCreateViewHolder` / Dialog。
-3. 绑定方式：`findViewById`、ViewBinding、DataBinding、`android:onClick`。
-4. 监听器：`setOnClickListener`、`setOnCheckedChangeListener`、`setOnItemClickListener`。
-5. 处理函数：直接业务、ViewModel 方法、UseCase、Repository。
-6. 列表项：逻辑通常在 Adapter/ViewHolder/item model，而不是 item 布局。
+1. The layout's `android:id`.
+2. The inflate site: Activity `setContentView` / Fragment `onCreateView` / Adapter `onCreateViewHolder` / Dialog.
+3. The binding mechanism: `findViewById`, ViewBinding, DataBinding, `android:onClick`.
+4. Listeners: `setOnClickListener`, `setOnCheckedChangeListener`, `setOnItemClickListener`.
+5. Handler: direct business logic, ViewModel method, UseCase, Repository.
+6. List items: logic usually lives in the Adapter/ViewHolder/item model, not in the item layout.
 
-常见结构：
+Typical structure:
 
 ```kotlin
 binding.profileEntry.setOnClickListener { viewModel.openProfile() }
@@ -62,48 +62,48 @@ binding.profileEntry.setOnClickListener { viewModel.openProfile() }
         android:onClick="openProfile" />
 ```
 
-注意：
+Notes:
 
-- DataBinding 的 lambda、`@{}` 表达式和普通 ViewBinding 是两条路径。
-- `android:onClick` 方法可能在 Activity/Fragment/Context 扩展中；签名必须是 `public void method(View)`。
-- Compose 里嵌入的 `AndroidView` 仍走 XML View 路径。
-- `ViewStub` 的 inflate 在运行时，静态搜索可能只找到 stub 定义；继续找 `inflate()` 调用。
+- DataBinding lambdas and `@{}` expressions follow a different path from plain ViewBinding.
+- The `android:onClick` method may live in an Activity/Fragment/Context extension; its signature must be `public void method(View)`.
+- An `AndroidView` embedded in Compose still follows the XML View path.
+- `ViewStub` inflates at runtime, so a static search may only find the stub definition; keep looking for the `inflate()` call.
 
-## 4. 状态与数据来源
+## 4. State and data sources
 
-按可疑度排序：
+Ordered by likelihood:
 
-1. ViewModel：`StateFlow`/`LiveData`/`MutableState`。
-2. UseCase / Interactor：业务规则、权限、实验开关。
-3. Repository / DataSource：网络、数据库、缓存。
-4. 全局状态：SessionManager、AppConfig、FeatureFlag、AB 实验。
-5. 服务端字段：接口 DTO、CMS 配置、文案字段。
+1. ViewModel: `StateFlow` / `LiveData` / `MutableState`.
+2. UseCase / Interactor: business rules, permissions, experiment flags.
+3. Repository / DataSource: network, database, cache.
+4. Global state: SessionManager, AppConfig, FeatureFlag, A/B experiments.
+5. Server fields: API DTOs, CMS configuration, copy fields.
 
-只追到与本次问题相关的层级。例如用户问“为什么这个按钮是灰的”，追到 `enabled` 的状态源即可，不必展开整个网络层。
+Follow only as far as the question requires. For example, if the user asks "why is this button grayed out", follow the state source of `enabled` and stop; do not expand the entire network layer.
 
-## 5. 条件、副作用与埋点
+## 5. Conditions, side effects, and analytics
 
-优先检查：
+Check first:
 
-- 登录/权限：`isLoggedIn`、`checkPermission`、`requireLogin`。
-- 功能开关：`FeatureFlag`、`remoteConfig`、`experiment`。
-- 空态/加载态：`Loading`、`Empty`、`Error`。
-- 埋点：`track`、`analytics`、`logEvent`（通常是点击后的副作用）。
-- 导航：`navigate`、`startActivity`、`NavController`。
-- 刷新：`refresh()`、`invalidate()`、缓存失效。
+- Login/permissions: `isLoggedIn`, `checkPermission`, `requireLogin`.
+- Feature flags: `FeatureFlag`, `remoteConfig`, `experiment`.
+- Empty/loading states: `Loading`, `Empty`, `Error`.
+- Analytics: `track`, `analytics`, `logEvent` (usually a post-click side effect).
+- Navigation: `navigate`, `startActivity`, `NavController`.
+- Refresh: `refresh()`, `invalidate()`, cache invalidation.
 
-## 6. 什么时候停
+## 6. When to stop
 
-- 用户只问“在哪”：入口 + 事件处理，1–2 跳。
-- 用户问“相关逻辑”：入口 + 事件 + 状态源 + 关键条件，2–4 跳。
-- 用户问“为什么”：把导致当前表现的条件链走完，并给出证据。
-- 遇到跨模块边界：先确认模块和依赖方向，再决定是否继续深入。
+- The user only asks "where is it": entry + event handler, 1–2 hops.
+- The user asks for "related logic": entry + event + state source + key conditions, 2–4 hops.
+- The user asks "why": follow the condition chain that produces the current behavior and provide evidence.
+- At a module boundary: confirm the module and dependency direction before going deeper.
 
-## 7. 常见误判
+## 7. Common misidentifications
 
-- `onClick` 里只是 `navigate`，业务在目标页面，不在当前页。
-- `onClick` 里只是 `track`，真正的处理在另一个回调。
-- `Text` 的文本来自调用方参数，实际文案在更上层。
-- 同名方法/同名 Composable 在多个模块；按模块依赖和调用点区分。
-- 测试、预览、示例代码里有相同文本或同名函数；默认排除测试，预览代码需人工判断。
-- 生成代码（Hilt/Room/Nav Safe Args/DataBinding）不是业务源头。
+- The `onClick` only calls `navigate`; the business logic is on the destination page, not this one.
+- The `onClick` only calls `track`; the real handling is in another callback.
+- The `Text` value comes from a caller parameter; the actual copy lives higher up.
+- Methods/Composables with the same name exist in multiple modules; distinguish by module dependencies and call sites.
+- Tests, previews, and samples contain the same text or function names. Tests are excluded by default; previews require manual judgment.
+- Generated code (Hilt/Room/Nav Safe Args/DataBinding) is not the business source.

@@ -1,125 +1,127 @@
 ---
 name: verify-ui-change
-description: 当用户要求“验证这个 UI 改动在真机上有没有生效”“改前改后布局对比”“看看这个页面有没有回归/错位/被裁剪/点不到”，或说 "verify this UI change on device"、"compare before and after layout"、"check for layout regressions" 时使用此技能。适用于 Android XML/Compose 页面在构建安装后的设备端验证。
+description: Use when the user asks to verify that a UI change works on a real device, compare layouts before and after a change, or check a screen for regressions such as misalignment, clipping, overlapping, or unclickable controls. Also trigger on Chinese requests such as "验证这个 UI 改动在真机上有没有生效", "改前改后布局对比", "看看这个页面有没有回归/错位/被裁剪/点不到", and "真机验证 UI 改动". Applies to Android XML and Compose screens after the build has been installed.
 ---
 
-# 真机 UI 改动验证
+# Verifying UI Changes on a Device
 
-用设备上的真实布局树验证改动，而不是只看代码或截图。核心是**改动前留基线，改动后抓快照，再做 diff + 规则检查 + 视觉确认**。
+Verify with the real layout tree on the device, not just code or screenshots. The core loop is: **keep a baseline before the change, capture a snapshot after, then run diff + rule checks + visual confirmation.**
 
-## 前置
+## Prerequisites
 
-- 目标 App 已安装且在前台；包名与本次构建一致。
-- MCP `layout-inspector-android` 可用；不可用时回退：
+- The target app is installed and in the foreground; the package matches this build.
+- MCP `layout-inspector-android` is available. If not, fall back to:
   ```bash
   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out before.json
   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" diff before.json after.json
   ```
-- 如果用户已经改完代码并重新安装，没有基线：不要伪造 before。用“期望状态”+ `analyze_ui` + 截图 + 关键节点断言来验证，并在结论里说明没有基线。
+- If the user has already changed the code and reinstalled without a baseline, do not fabricate a "before". Verify against the expected state using `analyze_ui`, screenshots, and assertions on key nodes, and state clearly that no baseline exists.
 
-## Step 1 — 建立基线（改动前）
+## Step 1 — Establish a baseline (before the change)
 
-在代码修改/重新构建之前：
+Before modifying code or rebuilding:
 
 ```text
 dump_ui(source="auto", savePath=".dli/before.json", format="json")
 ```
 
-- 保存路径放在仓库内的 `.dli/`（若不存在则创建）；提醒用户该文件可能包含设备信息，不要提交。
-- 同时记录：`get_state` 的包名、Activity、屏幕尺寸/密度、`uiKind`。
-- 若改动涉及滚动页面，先滚动到目标区域再 dump；否则 before/after 可能不在同一屏。
-- 若页面有动画/异步加载，等稳定后再抓（可先 `screenshot` 确认）。
+- Save under `.dli/` inside the repository (create it if needed) and remind the user that the file may contain device information and must not be committed.
+- Also record from `get_state`: package, Activity, screen size/density, and `uiKind`.
+- If the change affects a scrollable page, scroll to the target area before dumping; otherwise before/after may not show the same screen.
+- If the page animates or loads asynchronously, wait for it to settle first (use `screenshot` to confirm).
 
-## Step 2 — 改动后抓取
+## Step 2 — Capture after the change
 
-重新构建安装、回到同一页面、同一滚动位置：
+Rebuild, reinstall, and return to the same page and scroll position:
 
 ```text
 dump_ui(source="auto", savePath=".dli/after.json", format="json")
 ```
 
-- `uiKind` 必须与基线一致；若从 `xml` 变成 `mixed`/`compose`，说明结构发生了本质变化，diff 可能不可比。
-- 两次 dump 的 `source` 应一致。混合页面自动会带 view + semantics；如不一致，显式指定 `source="both"` 或 `source="view"`。
+- `uiKind` must match the baseline. If it changes from `xml` to `mixed`/`compose`, the structure changed fundamentally and the diff may not be comparable.
+- The `source` of both dumps should match. Mixed screens automatically include view + semantics; if they differ, explicitly pass `source="both"` or `source="view"`.
 
-## Step 3 — 结构化对比
+## Step 3 — Structured comparison
 
 ```text
 diff_ui(beforePath=".dli/before.json", afterPath=".dli/after.json")
 ```
 
-- 关注 `added` / `removed` / `changed`，以及 `text` 摘要。
-- 对每个变化判断：预期内（本次改动）还是回归（误伤其他节点）。
-- 布局位移不一定都是错误：文案变长、字体缩放、安全区变化都可能引起合理位移。
-- 若 `diff_ui` 报 source 不可比，先用 `dump_ui` 重新抓同一 source。
+- Focus on `added` / `removed` / `changed` and the `text` summary.
+- For each change, decide whether it is expected (this change) or a regression (collateral damage to other nodes).
+- Layout shifts are not always bugs: longer copy, font scaling, and safe-area changes can legitimately move things.
+- If `diff_ui` reports incompatible sources, re-capture the same `source` with `dump_ui`.
 
-## Step 4 — 规则检查
+## Step 4 — Rule checks
 
 ```text
 analyze_ui(source="auto")
 ```
 
-重点规则：
+Key rules:
 
-- `small_touch_target`：可点击区域 < 48dp。
-- `overlap`：同级可点击元素重叠。
-- `clipped` / `outside_parent`：被裁剪或越界（滚动内容除外）。
-- `invisible_clickable`：不可见但仍可点击。
-- `unlabeled_clickable`：无文本/描述/id 的点击区。
-- `duplicate_id`：重复 id 导致绑定歧义。
-- `deep_nesting`：层级过深。
+- `small_touch_target`: clickable area below 48dp.
+- `overlap`: sibling clickable elements overlap.
+- `clipped` / `outside_parent`: clipped or outside the parent (excluding scrollable content).
+- `invisible_clickable`: invisible but still clickable.
+- `unlabeled_clickable`: a clickable area with no text/description/id.
+- `duplicate_id`: duplicate ids causing binding ambiguity.
+- `deep_nesting`: hierarchy too deep.
 
-只报告与本次改动相关的问题；不要把历史遗留问题全部算成回归。
+Report only issues related to this change; do not count pre-existing problems as regressions.
 
-## Step 5 — 视觉确认
+## Step 5 — Visual confirmation
 
-需要时：
+When needed:
 
 ```text
 screenshot(savePath=".dli/after.png", annotate=true)
 ```
 
-- 默认 720px 宽；坐标是图片坐标，不是设备坐标。用返回的 `coordinateMapping` 或 `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`。
-- `annotate=true` 会生成 `.annotated.svg`，叠加节点框，适合检查错位。
-- 截图只作辅助；以 `dump_ui`/`diff_ui` 的结构化结果为准。
+- The default width is 720px; these are image coordinates, not device coordinates. Use the returned `coordinateMapping`, or `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`.
+- `annotate=true` writes an `.annotated.svg` with node boxes, which helps spot misalignment.
+- Screenshots are supporting evidence; `dump_ui` / `diff_ui` structured results take precedence.
 
-## Step 6 — 交互验证
+## Step 6 — Interaction verification
 
-若改动涉及点击/跳转：
+If the change affects clicks or navigation:
 
-1. `find_elements(query="<文本/ID>", both=true)` 确认目标可点击、bounds 合理。
-2. `tap(ref="<ref>")` 或 `tap(text="...")`，再 `get_state` 确认页面/Activity 变化。
-3. 滚动/输入同理；用 `swipe`、`input_text`。
-4. 失败时先看 `tap` 返回的节点和坐标，不要连续盲点。
+1. `find_elements(query="<text/id>", both=true)` to confirm the target is clickable and has reasonable bounds.
+2. `tap(ref="<ref>")` or `tap(text="...")`, then `get_state` to confirm the page/Activity changed.
+3. Do the same for scroll/input with `swipe` and `input_text`.
+4. On failure, inspect the node and coordinates returned by `tap`; do not tap blindly in a loop.
 
-## 输出
+## Output
+
+Answer in the user's language, using this structure:
 
 ```markdown
-## 验证结论
-通过 / 有回归 / 无法验证（原因）
+## Verdict
+Pass / Regression found / Could not verify (reason)
 
-## 对比
-- 基线：<包> <Activity> <屏幕> uiKind=<kind> 时间=<t>
-- 改动后：同上
-- 节点数：before=<n> after=<n>
-- 变化：新增 <n>，删除 <n>，移动/尺寸 <n>
+## Comparison
+- Baseline: <package> <Activity> <screen> uiKind=<kind> at <time>
+- After: same as above
+- Node count: before=<n> after=<n>
+- Changes: added <n>, removed <n>, moved/resized <n>
 
-## 预期变化
-- <file/节点>：...（符合预期）
+## Expected changes
+- <file/node>: ... (as intended)
 
-## 回归/风险
-- <节点>：<规则或 diff 证据>（file:line 若可定位）
+## Regressions / risks
+- <node>: <rule or diff evidence> (file:line if locatable)
 
-## 未验证项
-- <需要登录/特定数据/滚动位置才能验证>
+## Unverified
+- <needs login/specific data/scroll position>
 
-## 建议
-- <需要修的节点/布局；或补测步骤>
+## Recommendations
+- <nodes/layouts to fix, or additional verification steps>
 ```
 
-## 质量规则
+## Quality rules
 
-- 没有基线时明确说“无 before 基线”，不要用“应该没变”代替验证。
-- diff 结论必须带节点 ref/路径或文本，不能只说“布局正常”。
-- 区分预期变化与回归；不要把文案/安全区导致的合理位移报成 bug。
-- 不修改代码；发现回归时给出定位线索（ref、bounds、可能的布局/Composable）。
-- 验证完成后提醒 `.dli/` 产物不要提交到版本库。
+- With no baseline, say "no before baseline"; do not substitute "should be unchanged" for verification.
+- Diff conclusions must cite node refs/paths or text; "the layout looks fine" is not evidence.
+- Separate expected changes from regressions; do not report legitimate copy/safe-area shifts as bugs.
+- Do not modify code. When a regression is found, provide locating clues (ref, bounds, likely layout/Composable).
+- Remind the user not to commit `.dli/` artifacts.

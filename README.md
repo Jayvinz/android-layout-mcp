@@ -15,6 +15,123 @@ MCP Server ──────────────┘          ├── adb 
                                     └── Android Studio transport/JVMTI → Compose 树（Composable、文件/行号、bounds、参数、重组计数）
 ```
 
+## English overview
+
+`layout-inspector` is a CLI and MCP server for inspecting a live Android screen over ADB. It reads the ViewDebug hierarchy over JDWP, the accessibility/semantics tree via `uiautomator`, and optionally the Jetpack Compose JVMTI tree through a locally installed Android Studio. Coding agents use it to dump and search UI, hit-test or tap coordinates, take screenshots, check layout issues, diff before/after layouts, and trace a visible element back to Compose/XML source.
+
+### Data sources
+
+| Source | How it works | Requires | Best for |
+|---|---|---|---|
+| `view` | JDWP + ViewDebug v2 | A debuggable app | Full View classes, resource ids, padding/margins, visibility, layout params |
+| `semantics` | `adb shell uiautomator dump` | Nothing | Compose text, content descriptions, clickable bounds on any app |
+| `compose` | Android Studio transport + JVMTI | Debuggable app + Android Studio + Java 17+ | Composable names, `file:line`, bounds, parameters, recomposition counts |
+
+`--source auto` (the default) captures `view` + `semantics` and selects `view` for XML screens, `semantics` for Compose screens, and both for mixed screens. `--source compose` is opt-in because it takes roughly 8–12 seconds and has extra dependencies. `--source both` explicitly captures and searches both view and semantics trees.
+
+### Install
+
+Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `DLI_ADB`/`ADB_PATH`).
+
+```bash
+npm install
+npm run build
+
+node dist/cli.js devices     # run directly
+npm link                     # or install the `layout-inspector` command globally
+layout-inspector devices
+```
+
+For development without building: `npx tsx src/cli.ts dump`.
+
+### CLI quick start
+
+```bash
+layout-inspector devices                 # connected devices
+layout-inspector state                   # screen, foreground app, pid, windows
+layout-inspector dump                    # current UI (auto source)
+layout-inspector dump --source view --depth 8 --props
+layout-inspector dump --source both --json --out ui.json
+
+layout-inspector find "开拍" --both
+layout-inspector find "com.example:id/submit" --by id
+layout-inspector hit 540 2239 --both     # smallest-area hit test
+layout-inspector inspect v4              # full node details
+
+layout-inspector shot --out screenshot.png --annotate
+layout-inspector analyze                 # layout/accessibility rules
+layout-inspector tap --text "关注"
+layout-inspector swipe 540 1800 540 600
+
+layout-inspector dump --json --out before.json
+layout-inspector dump --json --out after.json
+layout-inspector diff before.json after.json
+```
+
+Global options: `-s/--serial`, `--adb <path>`, `--timeout <ms>`, `-v/--verbose`. Compose options: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
+
+### MCP server
+
+Start the built server with `node dist/mcp.js`, or print a client config with `node dist/cli.js mcp --print-config`. Example `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "layout-inspector-android": {
+      "command": "node",
+      "args": ["E:/repo/layout-inspector-android/dist/mcp.js"]
+    }
+  }
+}
+```
+
+Tools: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `diff_ui`, `tap`, `swipe`, `input_text`, `press_key`.
+
+Recommended agent flow: `get_state` → `dump_ui` or `find_elements` → `tap` → `screenshot` → `analyze_ui`; after a code change, `dump_ui(savePath=before.json)` → change → `dump_ui(savePath=after.json)` → `diff_ui`.
+
+### Claude Code plugin
+
+The repository is also a Claude Code marketplace (`jayvinz-tools`) and plugin (`layout-inspector-android`):
+
+```text
+/plugin marketplace add Jayvinz/layout-inspector-android
+/plugin install layout-inspector-android@jayvinz-tools
+```
+
+This adds the MCP server plus the `locate-ui-code` and `verify-ui-change` skills, the `/layout-inspector-android:locate`, `:screen`, and `:verify` commands, and the read-only `ui-code-locator` agent.
+
+### Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `DLI_ADB` / `ADB_PATH` / `--adb` | Path to `adb` |
+| `ANDROID_SERIAL` / `--serial` | Target device when several are connected |
+| `DLI_ANDROID_STUDIO` / `--studio` | Android Studio installation for Compose inspection |
+| `DLI_JAVA` / `--java` | Java used by the Compose helper |
+| `DLI_COMPOSE_VERSION` | App's Compose version (default `1.8.3`) |
+| `DLI_COMPOSE_INSPECTOR_JAR` | Explicit Compose `inspector.jar` |
+| `DLI_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
+| `DLI_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |
+
+### Development
+
+```bash
+npm test          # fixture-based unit tests, no device required
+npm run typecheck
+npm run build     # regenerates dist/ (committed)
+npm run build:helper   # rebuild the Compose JVMTI helper against local Android Studio
+```
+
+### Limitations
+
+- `view` requires `android:debuggable=true`.
+- JDWP usually allows one debugger at a time; detach Android Studio if attach fails.
+- `compose` additionally requires local Android Studio, Java 17+, a foreground app, and a matching Compose inspector version.
+- `input text` reliably supports ASCII only.
+- Each command captures a fresh snapshot; there is no live monitoring.
+
+The Chinese sections below contain the complete command/tool reference, protocol details, analysis rules, and edge cases.
+
 ## 为什么需要三个数据源
 
 | | `view`（JDWP） | `semantics`（uiautomator） | `compose`（JVMTI） |
