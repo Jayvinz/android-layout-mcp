@@ -45,14 +45,14 @@ Clicking it invokes `<handler>` (`<file>:<line>`); state comes from `<ViewModel/
 
 ```markdown
 ## Conclusion
-The "我的" entry is rendered by `ProfileTab`, defined at
+The "Me" entry is rendered by `ProfileTab`, defined at
 `feature/profile/src/main/java/.../ProfileScreen.kt:120`.
 Clicking it calls `ProfileViewModel.openProfile()`; state comes from `ProfileUiState`.
 
 ## UI evidence
 - Package: com.example.app / MainActivity
 - uiKind: compose
-- Hit: c42 Text "我的" bounds=[932,2100][1048,2200] clickable=true
+- Hit: c42 Text "Me" bounds=[932,2100][1048,2200] clickable=true
 - Compose: ProfileTab ProfileScreen.kt:120
 
 ## Code anchors
@@ -75,7 +75,7 @@ Clicking it calls `ProfileViewModel.openProfile()`; state comes from `ProfileUiS
 When the user only asks "where is this button", stop at the entry + event handler:
 
 ```markdown
-The "我的" button → `ProfileScreen.kt:120` (Composable `ProfileTab`);
+The "Me" button → `ProfileScreen.kt:120` (Composable `ProfileTab`);
 the click handler is at `ProfileScreen.kt:126` → `ProfileViewModel.openProfile()`.
 Should I continue into the state/API chain?
 ```

@@ -1,6 +1,6 @@
 ---
 description: Locate a control on the current Android screen and trace it to Compose/XML source code and business logic
-argument-hint: <element text/description/id, e.g. "我的" button>
+argument-hint: <element text/description/id, e.g. "Me" button>
 ---
 
 # Locate UI element in code

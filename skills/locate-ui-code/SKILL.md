@@ -96,7 +96,7 @@ Prefer MCP `locate_code` (read-only, no shell required):
 ```text
 locate_code(
   root="<repo root>",
-  text=["我的"],
+  text=["Me"],
   desc=["Open profile"],
   id=["profile_tab"],
   composeName="ProfileTab",
@@ -112,7 +112,7 @@ If `locate_code` is unavailable, run the equivalent script:
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/locate-code.mjs" \
   --root . \
-  --text "我的" \
+  --text "Me" \
   --desc "Open profile" \
   --id "profile_tab" \
   --compose-name "ProfileTab" \

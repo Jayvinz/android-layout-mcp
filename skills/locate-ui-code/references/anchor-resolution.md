@@ -23,7 +23,7 @@ Resolution order:
 Common misidentifications:
 
 - The same composable name exists in multiple modules (design system, feature).
-- The literal in `Text("我的")` also appears in previews, tests, and samples.
+- The literal in `Text("Me")` also appears in previews, tests, and samples.
 - Text comes from `stringResource(R.string.x)`, so the Chinese literal is absent from source; follow the `R.string` resource.
 - Text is assembled by `String.format`, `buildAnnotatedString`, or server fields; source may only contain the template.
 - A `LazyColumn` item composable is a function, but the business logic lives in the item model / ViewModel.
@@ -84,7 +84,7 @@ Notes:
 | Dialog/BottomSheet | `DialogFragment`, `BottomSheetDialogFragment`, `show()` calls |
 | Custom routing | The project's own Router/Navigator; search by route string or destination id |
 
-Identify the **page entry** before the **control entry**. When the user asks about "the 我的 button on the current page", page ownership and button behavior matter equally.
+Identify the **page entry** before the **control entry**. When the user asks about "the Me button on the current page", page ownership and button behavior matter equally.
 
 ## Multi-module / Multi-flavor / Large Repositories
 

@@ -9,7 +9,7 @@
  * Built-ins only: the plugin must run before `npm install`.
  *
  * Usage:
- *   node locate-code.mjs --root . --text "我的" --id profile_tab --json
+ *   node locate-code.mjs --root . --text "Me" --id profile_tab --json
  *   node locate-code.mjs --root . --compose-file ProfileScreen.kt --compose-line 120 --json
  */
 

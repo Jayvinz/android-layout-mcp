@@ -31,7 +31,7 @@ Tests are fixture-based (`test/fixtures/`) and need no device. The fixtures are 
 - Skill bodies are English. Skill `description` frontmatter is the exception: keep the English trigger description and append the Chinese trigger phrases users actually type, so Chinese requests still activate the skill.
 - Keep CLI flags, command examples, identifiers, and file paths identical across languages; translate only the surrounding prose.
 
-The README follows this rule: an English overview precedes the full Chinese sections.
+User-facing docs come in parallel language versions that link to each other: `README.md` (English) and `README.zh.md` (Chinese), plus `docs/*.md` (English) with `docs/*.zh.md` (Chinese counterparts). Keep both sides in sync when content changes.
 
 ## Critical build/packaging constraints
 
