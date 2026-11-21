@@ -25,11 +25,6 @@ export declare class Adb {
     /** Run a shell command, returning binary stdout. */
     shellRaw(command: string, options?: RunOptions): Promise<Buffer>;
     /**
-     * Run a shell command without allocating a PTY. Used to launch background
-     * processes: with a PTY, adb waits for the background child to exit.
-     */
-    shellDetached(command: string, options?: RunOptions): Promise<string>;
-    /**
      * Launch a long-running background process (the transport daemon) and keep
      * the adb shell alive as its supervisor. Returns the adb child process.
      */

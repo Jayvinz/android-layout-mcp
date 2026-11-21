@@ -2,21 +2,15 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { buildComposeRoots, type HelperRoot } from "../src/core/compose.js";
-import { flattenNodes, assignRefs } from "../src/core/viewdump.js";
+import { flattenNodes } from "../src/core/viewdump.js";
 import { findNodes, hitTest } from "../src/core/query.js";
 import { renderCapture } from "../src/core/render.js";
 import { analyzeCapture } from "../src/core/analyze.js";
 import { serializeDump } from "../src/core/serialize.js";
-import type { CaptureResult, ScreenInfo } from "../src/core/model.js";
+import type { CaptureResult } from "../src/core/model.js";
+import { SCREEN } from "./fixtures.js";
 
-const screen: ScreenInfo = {
-  width: 1080,
-  height: 2400,
-  density: 2.75,
-  densityDpi: 440,
-  orientation: "portrait",
-  rotation: 0,
-};
+const screen = SCREEN;
 
 const helper = JSON.parse(
   readFileSync(new URL("./fixtures/compose-tree.json", import.meta.url), "utf8"),
@@ -24,7 +18,6 @@ const helper = JSON.parse(
 
 function capture(): CaptureResult {
   const roots = buildComposeRoots(helper.roots, "com.example.droidreel.debug");
-  assignRefs(roots, "c");
   return {
     device: {
       serial: "fixture",
@@ -113,7 +106,6 @@ test("maps Compose parameter text and content descriptions", () => {
     ],
     "com.example.demo",
   );
-  assignRefs(roots, "c");
   assert.equal(roots[0].text, "推荐");
   assert.equal(roots[0].contentDescription, "推荐标签");
   assert.equal(roots[0].compose?.recomposeCount, 3);

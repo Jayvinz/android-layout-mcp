@@ -103,14 +103,6 @@ export class Adb {
   }
 
   /**
-   * Run a shell command without allocating a PTY. Used to launch background
-   * processes: with a PTY, adb waits for the background child to exit.
-   */
-  async shellDetached(command: string, options: RunOptions = {}): Promise<string> {
-    return this.out(["exec-out", command], options);
-  }
-
-  /**
    * Launch a long-running background process (the transport daemon) and keep
    * the adb shell alive as its supervisor. Returns the adb child process.
    */
@@ -226,58 +218,36 @@ export class Adb {
     } catch {
       // fall through
     }
-    try {
-      const ps = await this.shell(`ps -A -o PID,NAME | grep ${shellQuote(packageName)}`, {
-        timeoutMs: 10_000,
-        allowFailure: true,
-      });
-      return ps
-        .split("\n")
-        .map((line) => line.trim().split(/\s+/))
-        .filter((parts) => parts[1] === packageName)
-        .map((parts) => Number.parseInt(parts[0], 10))
-        .filter((v) => Number.isFinite(v));
-    } catch {
-      return [];
-    }
+    return [];
   }
 
   async screenInfo(): Promise<ScreenInfo> {
-    let width = 0;
-    let height = 0;
-    let densityDpi = 160;
-    try {
-      const sizeText = await this.shell("wm size", { timeoutMs: 10_000 });
-      const override = sizeText.match(/Override size:\s*(\d+)x(\d+)/);
-      const physical = sizeText.match(/Physical size:\s*(\d+)x(\d+)/);
-      const match = override || physical;
-      if (match) {
-        width = Number.parseInt(match[1], 10);
-        height = Number.parseInt(match[2], 10);
-      }
-    } catch {
-      // best-effort
-    }
-    try {
-      const densityText = await this.shell("wm density", { timeoutMs: 10_000 });
-      const override = densityText.match(/Override density:\s*(\d+)/);
-      const physical = densityText.match(/Physical density:\s*(\d+)/);
-      const match = override || physical;
-      if (match) densityDpi = Number.parseInt(match[1], 10);
-    } catch {
-      // best-effort
-    }
-    let rotation: number | null = null;
-    try {
-      const rotationText = await this.shell("dumpsys window | grep -m1 -o 'mRotation=ROTATION_[0-3]'", {
+    const [sizeText, densityText, rotationText] = await Promise.all([
+      this.shell("wm size", { timeoutMs: 10_000 }).catch(() => ""),
+      this.shell("wm density", { timeoutMs: 10_000 }).catch(() => ""),
+      this.shell("dumpsys window | grep -m1 -o 'mRotation=ROTATION_[0-3]'", {
         timeoutMs: 15_000,
         allowFailure: true,
-      });
-      const match = rotationText.match(/mRotation=ROTATION_(\d)/);
-      if (match) rotation = Number.parseInt(match[1], 10);
-    } catch {
-      // best-effort
+      }).catch(() => ""),
+    ]);
+
+    let width = 0;
+    let height = 0;
+    const sizeMatch = sizeText.match(/Override size:\s*(\d+)x(\d+)/) ?? sizeText.match(/Physical size:\s*(\d+)x(\d+)/);
+    if (sizeMatch) {
+      width = Number.parseInt(sizeMatch[1], 10);
+      height = Number.parseInt(sizeMatch[2], 10);
     }
+
+    let densityDpi = 160;
+    const densityMatch =
+      densityText.match(/Override density:\s*(\d+)/) ?? densityText.match(/Physical density:\s*(\d+)/);
+    if (densityMatch) densityDpi = Number.parseInt(densityMatch[1], 10);
+
+    let rotation: number | null = null;
+    const rotationMatch = rotationText.match(/mRotation=ROTATION_(\d)/);
+    if (rotationMatch) rotation = Number.parseInt(rotationMatch[1], 10);
+
     const orientation =
       rotation === null
         ? width > 0 && height > 0

@@ -1,4 +1,4 @@
-import type { Bounds, ScreenInfo, UiNode } from "./model.js";
+import type { ScreenInfo, UiNode } from "./model.js";
 export interface SemanticsParseResult {
     roots: UiNode[];
     rotation: number;
@@ -11,6 +11,4 @@ export interface SemanticsParseResult {
  * exposes text/accessibility nodes and bounds through accessibility, while the
  * ViewDebug hierarchy stops at AndroidComposeView.
  */
-export declare function parseSemanticsXml(xml: string, screen: ScreenInfo, packageName?: string | null): SemanticsParseResult;
-/** Convenience for tests and tools that need the raw XML screen dimensions. */
-export declare function semanticsRootBounds(roots: UiNode[]): Bounds | null;
+export declare function parseSemanticsXml(xml: string, screenOrPackage?: ScreenInfo | string | null, packageName?: string | null): SemanticsParseResult;

@@ -1,3 +1,7 @@
+/** `auto` means "use result.source"; renderCapture's other values are explicit. */
+export function renderSource(source) {
+    return source === "auto" ? undefined : source;
+}
 export function renderCapture(result, source, options = {}) {
     const lines = [];
     const device = result.device;

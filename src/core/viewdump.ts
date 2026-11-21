@@ -244,7 +244,7 @@ export function parseViewHierarchy(
   buffer: Buffer,
   options: ParseViewOptions,
 ): UiNode[] {
-  const { views, propertyNames } = decodeViewHierarchy(buffer);
+  const { views } = decodeViewHierarchy(buffer);
   if (views.length === 0) return [];
   const roots: UiNode[] = [];
   const refCounter = { value: 0 };

@@ -280,6 +280,7 @@ async function walk(root, opts) {
 async function indexRepo(files, opts) {
   const repo = {
     files: [],
+    fileMap: new Map(),
     strings: [],
     ids: [],
     includes: [],
@@ -317,6 +318,7 @@ async function indexRepo(files, opts) {
     if (!includedBy.has(edge.child)) includedBy.set(edge.child, new Set());
     includedBy.get(edge.child).add(edge.parent);
   }
+  repo.fileMap = new Map(repo.files.map((file) => [file.rel, file]));
   repo.layoutNames = layoutNames;
   repo.includedBy = includedBy;
   return repo;
@@ -351,6 +353,9 @@ function indexXml(record, text, starts, repo, layoutNames, includedBy) {
         qualifier,
       });
     }
+  }
+
+  if (isValues) {
     const itemRe = /<item\b([^>]*\btype\s*=\s*"id"[^>]*)>/g;
     for (const match of text.matchAll(itemRe)) {
       const attrs = match[1] ?? "";
@@ -497,7 +502,7 @@ function buildCandidates(repo, opts) {
     }
     if (!directDefs.length) {
       for (const wantedFile of wanted) {
-        const file = repo.files.find((item) => item.rel === wantedFile || item.rel.endsWith(`/${wantedFile}`));
+        const file = repo.fileMap.get(wantedFile) ?? repo.files.find((item) => item.rel.endsWith(`/${wantedFile}`));
         if (file) {
           add(file.rel, opts.composeLine ?? 1, "compose-location", 90, "File reported by the Compose inspector", file.lines[(opts.composeLine ?? 1) - 1] ?? "");
           const defsHere = composeDefs.filter((def) => def.file === file.rel);
@@ -514,7 +519,7 @@ function buildCandidates(repo, opts) {
   directDefs = dedupeBy(directDefs, (item) => `${item.file}|${item.line}|${item.name}`);
 
   for (const def of directDefs) {
-    add(def.file, def.line, "compose-definition", 100, `@Composable ${def.name} definition`, repo.files.find((f) => f.rel === def.file)?.lines[def.line - 1] ?? "");
+    add(def.file, def.line, "compose-definition", 100, `@Composable ${def.name} definition`, repo.fileMap.get(def.file)?.lines[def.line - 1] ?? "");
     const callRe = new RegExp(`\\b${escapeRe(def.name)}\\s*\\(`, "g");
     for (const file of repo.files) {
       if (file.ext === ".xml") continue;
@@ -534,9 +539,13 @@ function buildCandidates(repo, opts) {
   // ---- Resource id -------------------------------------------------------
   const idDefs = repo.ids.filter((item) => idAnchors.includes(item.id));
   for (const def of idDefs) {
-    const file = repo.files.find((f) => f.rel === def.file);
-    add(def.file, def.line, "layout-id", 78, `Defines id/${def.id} on <${def.tag ?? "view"}>`, file?.lines[def.line - 1] ?? "");
-    if (def.layout) addLayoutChain(repo, def.layout, add);
+    const file = repo.fileMap.get(def.file);
+    if (def.layout) {
+      add(def.file, def.line, "layout-id", 78, `Defines id/${def.id} on <${def.tag ?? "view"}>`, file?.lines[def.line - 1] ?? "");
+      addLayoutChain(repo, def.layout, add);
+    } else {
+      add(def.file, def.line, "id-definition", 60, `Defines id/${def.id} in a values resource`, file?.lines[def.line - 1] ?? "");
+    }
   }
   for (const anchor of idAnchors) {
     for (const ref of repo.codeRefs.filter((item) => item.kind === "id" && item.name === anchor)) {
@@ -555,19 +564,19 @@ function buildCandidates(repo, opts) {
       }
     }
     for (const def of repo.ids.filter((item) => item.id === anchor && item.layout && /navigation|menu/i.test(item.file))) {
-      add(def.file, def.line, "navigation", 58, `Navigation/menu entry id/${anchor}`, repo.files.find((f) => f.rel === def.file)?.lines[def.line - 1] ?? "");
+      add(def.file, def.line, "navigation", 58, `Navigation/menu entry id/${anchor}`, repo.fileMap.get(def.file)?.lines[def.line - 1] ?? "");
     }
   }
 
   // ---- Strings -----------------------------------------------------------
   for (const anchor of stringAnchors) {
-    add(anchor.file, anchor.line, "string-definition", 54, `string/${anchor.name} "${anchor.value}" (values-${anchor.qualifier})`, repo.files.find((f) => f.rel === anchor.file)?.lines[anchor.line - 1] ?? "");
+    add(anchor.file, anchor.line, "string-definition", 54, `string/${anchor.name} "${anchor.value}" (values-${anchor.qualifier})`, repo.fileMap.get(anchor.file)?.lines[anchor.line - 1] ?? "");
     for (const ref of repo.codeRefs.filter((item) => item.kind === "string" && item.name === anchor.name)) {
       const composeStyle = /stringResource|stringResourceById/.test(ref.lineText);
       add(ref.file, ref.line, composeStyle ? "string-usage-compose" : "string-usage", composeStyle ? 82 : 70, `References R.string.${anchor.name}`, ref.lineText);
     }
     for (const ref of repo.stringRefs.filter((item) => item.name === anchor.name)) {
-      add(ref.file, ref.line, "string-usage-xml", 64, `XML layout uses @string/${anchor.name}`, repo.files.find((f) => f.rel === ref.file)?.lines[ref.line - 1] ?? "");
+      add(ref.file, ref.line, "string-usage-xml", 64, `XML layout uses @string/${anchor.name}`, repo.fileMap.get(ref.file)?.lines[ref.line - 1] ?? "");
       if (ref.layout) addLayoutChain(repo, ref.layout, add, 50);
     }
   }
@@ -578,7 +587,7 @@ function buildCandidates(repo, opts) {
     if (!norm) continue;
     for (const ref of repo.layoutTextRefs) {
       if (ref.normalized === norm || (norm.length >= 2 && ref.normalized.includes(norm))) {
-        add(ref.file, ref.line, "layout-text", 62, `XML literal text "${value}"`, repo.files.find((f) => f.rel === ref.file)?.lines[ref.line - 1] ?? "");
+        add(ref.file, ref.line, "layout-text", 62, `XML literal text "${value}"`, repo.fileMap.get(ref.file)?.lines[ref.line - 1] ?? "");
         if (ref.layout) addLayoutChain(repo, ref.layout, add, 48);
       }
     }
@@ -603,14 +612,14 @@ function buildCandidates(repo, opts) {
     if (!simple) continue;
     const matches = repo.classes.filter((item) => item.name === simple);
     for (const match of matches) {
-      add(match.file, match.line, "class-definition", 66, `Defines ${simple}`, repo.files.find((f) => f.rel === match.file)?.lines[match.line - 1] ?? "");
+      add(match.file, match.line, "class-definition", 66, `Defines ${simple}`, repo.fileMap.get(match.file)?.lines[match.line - 1] ?? "");
     }
   }
 
   // ---- android:onClick / listeners in matching layouts --------------------
   for (const idDef of idDefs) {
     if (!idDef.layout) continue;
-    const file = repo.files.find((item) => item.rel === idDef.file);
+    const file = repo.fileMap.get(idDef.file);
     if (!file) continue;
     const onClick = /android:onClick\s*=\s*"([^"]+)"/.exec(file.lines[idDef.line - 1] ?? "");
     if (onClick) {

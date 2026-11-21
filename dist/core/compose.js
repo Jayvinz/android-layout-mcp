@@ -1,15 +1,16 @@
 import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir, homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { unzipSync } from "fflate";
 import { DliError, errorMessage } from "./errors.js";
-import { assignRefs } from "./viewdump.js";
+import { assignRefs, flattenNodes } from "./viewdump.js";
 const execFileAsync = promisify(execFile);
 const DEFAULT_COMPOSE_VERSION = "1.8.3";
+const composeJarCache = new Map();
 export async function captureComposeTree(options) {
     const started = Date.now();
     const progress = options.onProgress ?? (() => undefined);
@@ -138,8 +139,7 @@ export async function captureComposeTree(options) {
         if (output.warnings)
             warnings.push(...output.warnings);
         const roots = buildComposeRoots(output.roots ?? [], options.packageName);
-        assignRefs(roots, "c");
-        progress(`captured ${countNodes(roots)} Compose nodes`);
+        progress(`captured ${flattenNodes(roots).length} Compose nodes`);
         return {
             rootViewId: output.rootViewId ?? 0,
             roots,
@@ -458,12 +458,19 @@ async function resolveComposeInspectorJar(options) {
         await ensureFile(options.explicitPath, "The configured Compose inspector jar does not exist");
         return options.explicitPath;
     }
+    const cached = composeJarCache.get(options.version);
+    if (cached) {
+        await ensureFile(cached, "The cached Compose inspector jar is missing");
+        return cached;
+    }
     const cacheDir = join(homedir(), ".cache", "layout-inspector-android");
     const cachePath = join(cacheDir, `compose-inspector-${options.version}.jar`);
     try {
-        const stat = await readFile(cachePath);
-        if (stat.length > 1000)
+        const info = await stat(cachePath);
+        if (info.size > 1000) {
+            composeJarCache.set(options.version, cachePath);
             return cachePath;
+        }
     }
     catch {
         // download below
@@ -487,6 +494,7 @@ async function resolveComposeInspectorJar(options) {
             if (!key)
                 throw new Error("inspector.jar was not found in the AAR");
             await writeFile(cachePath, files[key]);
+            composeJarCache.set(options.version, cachePath);
             options.progress(`cached ${cachePath}`);
             return cachePath;
         }
@@ -532,24 +540,21 @@ async function waitForAbstractSocket(adb, socketName, timeoutMs) {
         .catch(() => "");
     throw new DliError("COMPOSE_FAILED", `Transport daemon did not start (${socketName}).`, log.trim() || "Check the device log.");
 }
-function buildDaemonConfig(socketName) {
-    const common = Buffer.concat([
+function commonConfig(socketName) {
+    return Buffer.concat([
         encodeVarintField(1, 1), // CommonConfig.SocketType.ABSTRACT_SOCKET
         encodeStringField(2, "127.0.0.1:12389"),
         encodeStringField(3, socketName),
     ]);
+}
+function buildDaemonConfig(socketName) {
     const layoutInspector = Buffer.concat([
         encodeVarintField(1, 1), // autoconnect_enabled
     ]);
-    return Buffer.concat([encodeMessageField(1, common), encodeMessageField(3, layoutInspector)]);
+    return Buffer.concat([encodeMessageField(1, commonConfig(socketName)), encodeMessageField(3, layoutInspector)]);
 }
 function buildAgentConfig(socketName) {
-    const common = Buffer.concat([
-        encodeVarintField(1, 1),
-        encodeStringField(2, "127.0.0.1:12389"),
-        encodeStringField(3, socketName),
-    ]);
-    return encodeMessageField(1, common);
+    return encodeMessageField(1, commonConfig(socketName));
 }
 function encodeVarint(value) {
     let remaining = BigInt(value);
@@ -574,67 +579,65 @@ function encodeMessageField(field, value) {
     return Buffer.concat([encodeVarint((field << 3) | 2), encodeVarint(value.length), value]);
 }
 export function buildComposeRoots(roots, packageName) {
-    return roots.map((root) => buildComposeRoot(root, packageName));
+    const result = roots.map((root) => {
+        const rootNode = root.nodes[0];
+        return rootNode ? buildComposeNode(rootNode, packageName) : emptyRoot(root.viewId, packageName);
+    });
+    assignRefs(result, "c");
+    return result;
 }
-function buildComposeRoot(root, packageName) {
-    let counter = 0;
-    const build = (node, parent, index, depth, path) => {
-        const width = Math.max(0, node.bounds?.width ?? 0);
-        const height = Math.max(0, node.bounds?.height ?? 0);
-        const left = node.bounds?.left ?? 0;
-        const top = node.bounds?.top ?? 0;
-        const bounds = { left, top, right: left + width, bottom: top + height, width, height };
-        const visible = width > 0 && height > 0;
-        const compose = {
-            composeId: node.id,
-            name: node.name,
-            fileName: node.fileName,
-            lineNumber: node.lineNumber,
-            offset: node.offset,
-            anchorHash: node.anchorHash,
-            recomposeCount: node.recomposeCount,
-            recomposeSkips: node.recomposeSkips,
-            flags: node.flags ?? [],
-            ...(node.renderQuad ? { renderQuad: node.renderQuad } : {}),
-        };
-        const result = {
-            id: path,
-            ref: `c${counter++}`,
-            source: "compose",
-            index,
-            depth,
-            className: node.name || "Compose",
-            shortClassName: node.name || "Compose",
-            packageName,
-            resourceId: null,
-            text: node.text ?? null,
-            contentDescription: node.contentDescription ?? null,
-            bounds,
-            visibleBounds: visible ? bounds : null,
-            center: { x: left + width / 2, y: top + height / 2 },
-            visible,
-            enabled: true,
-            clickable: false,
-            longClickable: false,
-            focusable: false,
-            focused: false,
-            scrollable: false,
-            checkable: false,
-            checked: false,
-            selected: false,
-            password: false,
-            children: [],
-            compose,
-            parent,
-        };
-        result.children = (node.children ?? []).map((child, childIndex) => build(child, result, childIndex, depth + 1, `${path}.${childIndex}`));
-        return result;
+function buildComposeNode(node, packageName) {
+    const width = Math.max(0, node.bounds?.width ?? 0);
+    const height = Math.max(0, node.bounds?.height ?? 0);
+    const left = node.bounds?.left ?? 0;
+    const top = node.bounds?.top ?? 0;
+    const bounds = { left, top, right: left + width, bottom: top + height, width, height };
+    const visible = width > 0 && height > 0;
+    const compose = {
+        composeId: node.id,
+        name: node.name,
+        fileName: node.fileName,
+        lineNumber: node.lineNumber,
+        offset: node.offset,
+        anchorHash: node.anchorHash,
+        recomposeCount: node.recomposeCount,
+        recomposeSkips: node.recomposeSkips,
+        flags: node.flags ?? [],
+        ...(node.renderQuad ? { renderQuad: node.renderQuad } : {}),
     };
-    const rootNode = root.nodes[0];
-    if (!rootNode) {
-        return emptyRoot(root.viewId, packageName);
-    }
-    return build(rootNode, null, 0, 0, "0");
+    const result = {
+        // Derived fields are assigned once by assignRefs after the tree is built.
+        id: "",
+        ref: "",
+        source: "compose",
+        index: 0,
+        depth: 0,
+        className: node.name || "Compose",
+        shortClassName: node.name || "Compose",
+        packageName,
+        resourceId: null,
+        text: node.text ?? null,
+        contentDescription: node.contentDescription ?? null,
+        bounds,
+        visibleBounds: visible ? bounds : null,
+        center: { x: left + width / 2, y: top + height / 2 },
+        visible,
+        enabled: true,
+        clickable: false,
+        longClickable: false,
+        focusable: false,
+        focused: false,
+        scrollable: false,
+        checkable: false,
+        checked: false,
+        selected: false,
+        password: false,
+        children: [],
+        compose,
+        parent: null,
+    };
+    result.children = (node.children ?? []).map((child) => buildComposeNode(child, packageName));
+    return result;
 }
 function emptyRoot(viewId, packageName) {
     return {
@@ -676,15 +679,6 @@ function emptyRoot(viewId, packageName) {
             flags: [],
         },
     };
-}
-function countNodes(roots) {
-    let count = 0;
-    const walk = (node) => {
-        count++;
-        node.children.forEach(walk);
-    };
-    roots.forEach(walk);
-    return count;
 }
 function extractJson(output) {
     const start = output.indexOf("{");

@@ -17,8 +17,3 @@ export function errorMessage(error) {
     }
     return String(error);
 }
-export function toDliError(error) {
-    if (error instanceof DliError)
-        return error;
-    return new DliError("VIEW_DUMP_FAILED", errorMessage(error));
-}

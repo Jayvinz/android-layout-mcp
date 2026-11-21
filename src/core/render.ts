@@ -1,10 +1,15 @@
-import type { AnalyzeResult, CaptureResult, Issue, NodeSource, UiNode } from "./model.js";
+import type { AnalyzeResult, CaptureResult, Issue, NodeSource, SourceMode, UiNode } from "./model.js";
 
 export interface RenderTreeOptions {
   depth?: number;
   maxNodes?: number;
   showCenter?: boolean;
   visibleOnly?: boolean;
+}
+
+/** `auto` means "use result.source"; renderCapture's other values are explicit. */
+export function renderSource(source?: SourceMode): NodeSource | "both" | undefined {
+  return source === "auto" ? undefined : source;
 }
 
 export function renderCapture(result: CaptureResult, source?: NodeSource | "both", options: RenderTreeOptions = {}): string {

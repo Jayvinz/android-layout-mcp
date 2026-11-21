@@ -9,13 +9,13 @@ import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson, type RuleName } from "./core/analyze.js";
-import { capture, type CaptureOptions } from "./core/capture.js";
+import { capture, treesFor, type CaptureOptions } from "./core/capture.js";
 import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { DliError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import type { CaptureResult, NodeSource, SourceMode, UiNode } from "./core/model.js";
-import { findNodes, nodePath, nodeSummary, type FindBy, type MatchMode } from "./core/query.js";
-import { renderCapture } from "./core/render.js";
+import { findNodes, hitTest, nodePath, nodeSummary, type FindBy, type MatchMode } from "./core/query.js";
+import { renderCapture, renderSource } from "./core/render.js";
 import {
   imageToDevicePoint,
   renderAnnotatedSvg,
@@ -23,12 +23,13 @@ import {
   screenshotMetadata,
   takeScreenshot,
 } from "./core/screenshot.js";
-import { flattenNodes, serializeNode } from "./core/viewdump.js";
+import { serializeNode } from "./core/viewdump.js";
 import { loadDump, saveDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
+import { PACKAGE_VERSION } from "./core/version.js";
 
 const TOOL_SERVER_INFO = {
   name: "layout-inspector-android",
-  version: "0.1.0",
+  version: PACKAGE_VERSION,
 };
 
 const execFileAsync = promisify(execFile);
@@ -212,7 +213,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
         });
         if (args.savePath) await saveDump(result, args.savePath);
         if (args.format === "tree") {
-          const text = renderCapture(result, sourceForRendering(result, args.source), {
+          const text = renderCapture(result, renderSource(args.source), {
             depth: args.depth,
             maxNodes: args.maxNodes ?? 1500,
             visibleOnly: args.visibleOnly,
@@ -441,7 +442,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
         const result = await captureFor({ serial: args.serial, package: args.package, source: captureSource });
         const index = args.index ?? 0;
         const reports = treesFor(result, captureSource, captureSource === "both").map(([treeSource, roots]) => {
-          const candidates = hitCandidates(roots, args.x, args.y);
+          const candidates = hitTest(roots, args.x, args.y).candidates;
           return {
             tree: treeSource,
             selected: candidates[index]
@@ -776,65 +777,6 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
   console.error(`[layout-inspector-android] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
 }
 
-function treesFor(
-  result: CaptureResult,
-  source: SourceMode | undefined,
-  both: boolean | undefined,
-): Array<[NodeSource, UiNode[]]> {
-  const trees: Array<[NodeSource, UiNode[]]> = [];
-  const mode = both ? "both" : source ?? "auto";
-  if (mode === "both") {
-    if (result.view) trees.push(["view", result.view.roots]);
-    if (result.semantics) trees.push(["semantics", result.semantics.roots]);
-  } else if (mode === "compose") {
-    if (result.compose) trees.push(["compose", result.compose.roots]);
-  } else if (mode === "view") {
-    if (result.view) trees.push(["view", result.view.roots]);
-  } else if (mode === "semantics") {
-    if (result.semantics) trees.push(["semantics", result.semantics.roots]);
-  } else {
-    if (result.uiKind === "mixed" && result.view && result.semantics) {
-      trees.push(["view", result.view.roots]);
-      trees.push(["semantics", result.semantics.roots]);
-    } else if (result.source === "semantics" && result.semantics) trees.push(["semantics", result.semantics.roots]);
-    else if (result.view) trees.push(["view", result.view.roots]);
-    else if (result.semantics) trees.push(["semantics", result.semantics.roots]);
-  }
-  if (trees.length === 0) {
-    throw new DliError(
-      "VIEW_DUMP_FAILED",
-      `No ${mode} tree available.${result.warnings.length ? ` ${result.warnings.join(" | ")}` : ""}`,
-      "Try source=semantics (works on non-debuggable apps) or source=auto.",
-    );
-  }
-  return trees;
-}
-
-function sourceForRendering(result: CaptureResult, source?: SourceMode): NodeSource | "both" | undefined {
-  if (source === "both") return "both";
-  if (source === "view") return "view";
-  if (source === "semantics") return "semantics";
-  if (source === "compose") return "compose";
-  return undefined;
-}
-
-function hitCandidates(roots: UiNode[], x: number, y: number): UiNode[] {
-  const candidates: UiNode[] = [];
-  for (const node of flattenNodes(roots)) {
-    if (!node.visible) continue;
-    const bounds = node.visibleBounds ?? node.bounds;
-    if (x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom) candidates.push(node);
-  }
-  candidates.sort((a, b) => {
-    const areaA = (a.visibleBounds ?? a.bounds).width * (a.visibleBounds ?? a.bounds).height;
-    const areaB = (b.visibleBounds ?? b.bounds).width * (b.visibleBounds ?? b.bounds).height;
-    if (areaA !== areaB) return areaA - areaB;
-    if (a.depth !== b.depth) return b.depth - a.depth;
-    return b.index - a.index;
-  });
-  return candidates;
-}
-
 function emptyHint(result: CaptureResult): string {
   if (result.source === "view" && result.semantics) {
     return "The view tree has no match. If this is a Compose app, retry with source=semantics or both=true.";
@@ -856,8 +798,8 @@ function errorResult(error: unknown): CallToolResult {
 }
 
 /**
- * Allows `node dist/mcp.js` to be used directly as an MCP stdio server, which
- * keeps client configuration minimal. Arguments: --serial, --adb, --timeout.
+ * Allows `node dist/mcp.js` to be used directly as an MCP stdio server.
+ * Arguments mirror the CLI's Compose-related globals.
  */
 function parseServerArgs(argv: string[]): McpServerOptions {
   const options: McpServerOptions = {};
@@ -866,12 +808,19 @@ function parseServerArgs(argv: string[]): McpServerOptions {
     if (arg === "--serial" || arg === "-s") options.serial = argv[++i];
     else if (arg === "--adb") options.adb = argv[++i];
     else if (arg === "--timeout") options.timeout = Number.parseInt(argv[++i], 10);
+    else if (arg === "--studio") options.studioPath = argv[++i];
+    else if (arg === "--java") options.javaPath = argv[++i];
+    else if (arg === "--compose-version") options.composeVersion = argv[++i];
     else if (arg === "--help" || arg === "-h") {
       console.error(
         "Usage: node mcp.js [--serial <serial>] [--adb <path>] [--timeout <ms>]\n" +
+          "       [--studio <path>] [--java <path>] [--compose-version <version>]\n" +
           "Starts the layout-inspector-android MCP server over stdio.",
       );
       process.exit(0);
+    } else {
+      console.error(`Unknown argument "${arg}". Use --help.`);
+      process.exit(2);
     }
   }
   return options;

@@ -1,4 +1,4 @@
-import type { Bounds, NodeSource, UiNode } from "./model.js";
+import type { Bounds, NodeSource } from "./model.js";
 
 /** Minimal node shape from a serialised dump file. */
 export interface SnapshotNode {

@@ -22,4 +22,9 @@ export interface CaptureOptions {
  */
 export declare function classifyUi(viewRoots: UiNode[]): UiKind;
 export declare function capture(options: CaptureOptions): Promise<CaptureResult>;
-export declare function primaryRoots(result: CaptureResult, source?: NodeSource | SourceMode): UiNode[];
+/**
+ * The single source-to-trees policy shared by the CLI and MCP server.
+ * `auto` follows the captured primary source, but mixed screens expose both
+ * trees so callers can search/locate XML and Compose content.
+ */
+export declare function treesFor(result: CaptureResult, source?: SourceMode, both?: boolean): Array<[NodeSource, UiNode[]]>;

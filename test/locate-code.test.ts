@@ -44,6 +44,14 @@ async function fixtureRepo(): Promise<string> {
     "utf8",
   );
   await writeFile(
+    join(res, "values/ids.xml"),
+    `<resources>
+  <item type="id" name="profile_entry_code_only" />
+</resources>
+`,
+    "utf8",
+  );
+  await writeFile(
     join(res, "values-zh/strings.xml"),
     `<resources>
   <string name="profile_title">我的</string>
@@ -137,6 +145,25 @@ test("locate-code ranks Compose, XML and string anchors", async () => {
     const compose = result.candidates.find((item) => item.kind === "compose-definition");
     assert.equal(compose?.score, 100);
     assert.ok(compose?.file.endsWith("ProfileScreen.kt"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("locate-code indexes ids declared in values/ids.xml", async () => {
+  const root = await fixtureRepo();
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [
+      script,
+      "--root",
+      root,
+      "--id",
+      "profile_entry_code_only",
+      "--json",
+    ]);
+    const result = JSON.parse(stdout) as LocatorResult;
+    assert.equal(result.anchors.ids[0], "profile_entry_code_only");
+    assert.ok(result.candidates.some((item) => item.kind === "id-definition"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

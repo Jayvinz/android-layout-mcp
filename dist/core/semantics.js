@@ -7,7 +7,10 @@ import { assignRefs, simpleClassName } from "./viewdump.js";
  * exposes text/accessibility nodes and bounds through accessibility, while the
  * ViewDebug hierarchy stops at AndroidComposeView.
  */
-export function parseSemanticsXml(xml, screen, packageName) {
+export function parseSemanticsXml(xml, screenOrPackage, packageName) {
+    // Keep the historical (xml, screen, packageName) signature while allowing
+    // callers that do not need screen geometry to pass the package directly.
+    const effectivePackage = typeof screenOrPackage === "string" ? screenOrPackage : packageName;
     const cleaned = extractXml(xml);
     const parser = new XMLParser({
         ignoreAttributes: false,
@@ -29,10 +32,7 @@ export function parseSemanticsXml(xml, screen, packageName) {
         const raw = hierarchy.node;
         roots.push(...(Array.isArray(raw) ? raw : [raw]));
     }
-    const parsedRoots = roots.map((raw, index) => {
-        const counter = { value: 0 };
-        return parseNode(raw, null, String(index), 0, index, counter, packageName);
-    });
+    const parsedRoots = roots.map((raw) => parseNode(raw, effectivePackage));
     assignRefs(parsedRoots, "s");
     return {
         roots: parsedRoots,
@@ -49,7 +49,7 @@ function extractXml(input) {
         return input.slice(hierarchy);
     return input;
 }
-function parseNode(raw, parent, path, depth, index, counter, packageName) {
+function parseNode(raw, packageName) {
     const className = stringAttr(raw, "class") || "android.view.View";
     const bounds = parseBounds(stringAttr(raw, "bounds")) ?? {
         left: 0,
@@ -70,11 +70,12 @@ function parseNode(raw, parent, path, depth, index, counter, packageName) {
     const contentDescription = nonEmpty(stringAttr(raw, "content-desc"));
     const resourceId = nonEmpty(stringAttr(raw, "resource-id"));
     const node = {
-        id: path,
-        ref: `s${counter.value++}`,
+        // Derived fields are assigned once by assignRefs after the tree is built.
+        id: "",
+        ref: "",
         source: "semantics",
-        index,
-        depth,
+        index: 0,
+        depth: 0,
         className,
         shortClassName: simpleClassName(className),
         packageName: nonEmpty(stringAttr(raw, "package")) ?? packageName ?? null,
@@ -97,11 +98,11 @@ function parseNode(raw, parent, path, depth, index, counter, packageName) {
         password: boolAttr(raw, "password"),
         children: [],
         attributes,
-        parent,
+        parent: null,
     };
     const rawChildren = raw.node;
     const children = rawChildren ? (Array.isArray(rawChildren) ? rawChildren : [rawChildren]) : [];
-    node.children = children.map((child, childIndex) => parseNode(child, node, `${path}.${childIndex}`, depth + 1, childIndex, counter, packageName));
+    node.children = children.map((child) => parseNode(child, packageName));
     return node;
 }
 function parseBounds(value) {
@@ -161,8 +162,4 @@ function collectAttributes(hierarchy) {
             result[key] = value;
     }
     return result;
-}
-/** Convenience for tests and tools that need the raw XML screen dimensions. */
-export function semanticsRootBounds(roots) {
-    return roots.length > 0 ? roots[0].bounds : null;
 }

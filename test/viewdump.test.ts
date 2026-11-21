@@ -2,16 +2,9 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { flattenNodes, parseViewHierarchy } from "../src/core/viewdump.js";
-import type { ScreenInfo } from "../src/core/model.js";
+import { SCREEN } from "./fixtures.js";
 
-const screen: ScreenInfo = {
-  width: 1080,
-  height: 2400,
-  density: 2.75,
-  densityDpi: 440,
-  orientation: "portrait",
-  rotation: 0,
-};
+const screen = SCREEN;
 
 const buffer = readFileSync(new URL("./fixtures/hierarchy-v2.bin", import.meta.url));
 

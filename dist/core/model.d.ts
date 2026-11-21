@@ -168,12 +168,6 @@ export interface CaptureResult {
     };
     warnings: string[];
 }
-export interface HitCandidate {
-    node: UiNode;
-    area: number;
-    contains: boolean;
-    depth: number;
-}
 export interface Issue {
     rule: string;
     severity: "error" | "warning" | "info";

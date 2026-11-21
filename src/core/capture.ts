@@ -138,7 +138,7 @@ export async function capture(options: CaptureOptions): Promise<CaptureResult> {
 
   if (wantSemantics) {
     try {
-      semanticsResult = await captureSemantics(adb, screen, packageName, options);
+      semanticsResult = await captureSemantics(adb, packageName, options);
       progress(`captured semantics tree (${flattenNodes(semanticsResult.roots).length} nodes)`);
     } catch (error) {
       const message = errorMessage(error);
@@ -195,25 +195,17 @@ export async function capture(options: CaptureOptions): Promise<CaptureResult> {
         : "unknown";
 
   let source: NodeSource;
-  if (sourceMode === "view") {
-    source = "view";
-  } else if (sourceMode === "semantics") {
-    source = "semantics";
-  } else if (sourceMode === "compose") {
-    source = "compose";
+  if (sourceMode === "auto") {
+    source = chooseAutoSource(viewResult, semanticsResult, uiKind);
   } else if (sourceMode === "both") {
     source = viewResult ? "view" : "semantics";
   } else {
-    source = chooseAutoSource(viewResult, semanticsResult, uiKind);
+    source = sourceMode;
   }
   const sources: NodeSource[] = [];
   if (viewResult) sources.push("view");
   if (semanticsResult) sources.push("semantics");
   if (composeResult) sources.push("compose");
-
-  if (!viewResult && !semanticsResult && !composeResult) {
-    throw new DliError("VIEW_DUMP_FAILED", "No UI data could be captured.");
-  }
 
   return {
     device,
@@ -313,7 +305,6 @@ function chooseWindows(
 
 async function captureSemantics(
   adb: Adb,
-  screen: ScreenInfo,
   packageName: string,
   options: CaptureOptions,
 ): Promise<NonNullable<CaptureResult["semantics"]>> {
@@ -332,7 +323,7 @@ async function captureSemantics(
     if (!text.includes("<hierarchy")) {
       throw new DliError("SEMANTICS_FAILED", "uiautomator did not return a hierarchy.");
     }
-    const parsed = parseSemanticsXml(text, screen, packageName);
+    const parsed = parseSemanticsXml(text, packageName);
     return { rotation: parsed.rotation, roots: parsed.roots, captureMs: Date.now() - started };
   } finally {
     try {
@@ -356,18 +347,43 @@ function chooseAutoSource(
   return uiKind === "compose" ? "semantics" : "view";
 }
 
-export function primaryRoots(result: CaptureResult, source?: NodeSource | SourceMode): UiNode[] {
-  const rootsFor = (kind: NodeSource): UiNode[] =>
-    kind === "view"
-      ? result.view?.roots ?? []
-      : kind === "semantics"
-        ? result.semantics?.roots ?? []
-        : result.compose?.roots ?? [];
-  if (source === "view" || source === "semantics" || source === "compose") {
-    return rootsFor(source);
+/**
+ * The single source-to-trees policy shared by the CLI and MCP server.
+ * `auto` follows the captured primary source, but mixed screens expose both
+ * trees so callers can search/locate XML and Compose content.
+ */
+export function treesFor(
+  result: CaptureResult,
+  source?: SourceMode,
+  both?: boolean,
+): Array<[NodeSource, UiNode[]]> {
+  const trees: Array<[NodeSource, UiNode[]]> = [];
+  const mode = both ? "both" : source ?? "auto";
+  if (mode === "both") {
+    if (result.view) trees.push(["view", result.view.roots]);
+    if (result.semantics) trees.push(["semantics", result.semantics.roots]);
+  } else if (mode === "compose") {
+    if (result.compose) trees.push(["compose", result.compose.roots]);
+  } else if (mode === "view") {
+    if (result.view) trees.push(["view", result.view.roots]);
+  } else if (mode === "semantics") {
+    if (result.semantics) trees.push(["semantics", result.semantics.roots]);
+  } else if (result.uiKind === "mixed" && result.view && result.semantics) {
+    trees.push(["view", result.view.roots]);
+    trees.push(["semantics", result.semantics.roots]);
+  } else if (result.source === "semantics" && result.semantics) {
+    trees.push(["semantics", result.semantics.roots]);
+  } else if (result.view) {
+    trees.push(["view", result.view.roots]);
+  } else if (result.semantics) {
+    trees.push(["semantics", result.semantics.roots]);
   }
-  if (source === "both") {
-    return rootsFor("view").length > 0 ? rootsFor("view") : rootsFor("semantics");
+  if (trees.length === 0) {
+    throw new DliError(
+      "VIEW_DUMP_FAILED",
+      `No ${mode} tree available.${result.warnings.length ? ` ${result.warnings.join(" | ")}` : ""}`,
+      "Try source=semantics (works on non-debuggable apps) or source=auto.",
+    );
   }
-  return rootsFor(result.source);
+  return trees;
 }

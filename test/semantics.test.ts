@@ -3,21 +3,11 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { parseSemanticsXml } from "../src/core/semantics.js";
 import { flattenNodes } from "../src/core/viewdump.js";
-import type { ScreenInfo } from "../src/core/model.js";
-
-const screen: ScreenInfo = {
-  width: 1080,
-  height: 2400,
-  density: 2.75,
-  densityDpi: 440,
-  orientation: "portrait",
-  rotation: 0,
-};
 
 const xml = readFileSync(new URL("./fixtures/semantics.xml", import.meta.url), "utf8");
 
 function parse() {
-  return parseSemanticsXml(xml, screen, "com.example.droidreel.debug");
+  return parseSemanticsXml(xml, "com.example.droidreel.debug");
 }
 
 test("parses the uiautomator hierarchy", () => {

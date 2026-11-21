@@ -1,7 +1,6 @@
 ---
 name: verify-ui-change
 description: 当用户要求“验证这个 UI 改动在真机上有没有生效”“改前改后布局对比”“看看这个页面有没有回归/错位/被裁剪/点不到”，或说 "verify this UI change on device"、"compare before and after layout"、"check for layout regressions" 时使用此技能。适用于 Android XML/Compose 页面在构建安装后的设备端验证。
-version: 0.1.0
 ---
 
 # 真机 UI 改动验证

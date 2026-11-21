@@ -1,10 +1,8 @@
-import type { CaptureResult, DumpFile, NodeSource, ScreenInfo } from "./model.js";
+import type { CaptureResult, DumpFile, NodeSource } from "./model.js";
 import type { SnapshotNode } from "./diff.js";
 export declare function serializeDump(result: CaptureResult, includeProperties?: boolean): DumpFile;
 export declare function saveDump(result: CaptureResult, path: string): Promise<void>;
 export declare function loadDump(path: string): Promise<DumpFile>;
-export declare function dumpSource(dump: DumpFile): NodeSource;
-export declare function dumpScreen(dump: DumpFile): ScreenInfo;
 /** Returns the roots of the requested (or primary) source as diffable nodes. */
 export declare function snapshotRoots(dump: DumpFile, source?: NodeSource): SnapshotNode[];
 /**

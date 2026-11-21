@@ -5,14 +5,14 @@ import { writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson, type RuleName } from "./core/analyze.js";
-import { capture, type CaptureOptions } from "./core/capture.js";
+import { capture, treesFor, type CaptureOptions } from "./core/capture.js";
 import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js";
 import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { DliError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import type { CaptureResult, NodeSource, SourceMode, UiNode } from "./core/model.js";
-import { findNodes, nodePath, nodeSummary, type FindBy, type MatchMode } from "./core/query.js";
-import { renderCapture, renderIssues } from "./core/render.js";
+import { findNodes, hitTest, nodePath, nodeSummary, type FindBy, type MatchMode } from "./core/query.js";
+import { renderCapture, renderIssues, renderSource } from "./core/render.js";
 import {
   imageToDevicePoint,
   renderAnnotatedSvg,
@@ -22,8 +22,7 @@ import {
 } from "./core/screenshot.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
 import { loadDump, saveDump, serializeDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
-
-const VERSION = "0.1.0";
+import { PACKAGE_VERSION } from "./core/version.js";
 
 interface GlobalOptions {
   serial?: string;
@@ -54,7 +53,7 @@ program
       "accessibility/semantics tree via uiautomator, then offers hit-testing, search,\n" +
       "screenshot and layout analysis.",
   )
-  .version(VERSION)
+  .version(PACKAGE_VERSION)
   .option("-s, --serial <serial>", "device serial (defaults to ANDROID_SERIAL or the only device)")
   .option("--adb <path>", "path to adb (defaults to DLI_ADB, ADB_PATH, or adb on PATH)")
   .option("--timeout <ms>", "adb/JDWP timeout in milliseconds", parsePositiveInt, 30_000)
@@ -215,7 +214,7 @@ program
       return;
     }
     console.log(
-      renderCapture(result, source === "both" ? "both" : source === "view" ? "view" : source === "semantics" ? "semantics" : source === "compose" ? "compose" : undefined, {
+      renderCapture(result, renderSource(source), {
         depth: options.depth,
         maxNodes: options.maxNodes,
         visibleOnly: options.visibleOnly,
@@ -281,7 +280,7 @@ program
     });
     const trees = treesFor(result, parseSource(options.source), options.both);
     const reports = trees.map(([treeSource, roots]) => {
-      const hit = hitTestRoots(roots, x, y);
+      const hit = hitTest(roots, x, y);
       return {
         tree: treeSource,
         point: hit.point,
@@ -721,59 +720,6 @@ function parseSource(value?: string): SourceMode | undefined {
   if (value === undefined || value === "auto") return "auto";
   if (value === "view" || value === "semantics" || value === "compose" || value === "both") return value;
   throw new DliError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, compose, or both).`);
-}
-
-function treesFor(result: CaptureResult, source: SourceMode | undefined, both?: boolean): Array<[NodeSource, UiNode[]]> {
-  const trees: Array<[NodeSource, UiNode[]]> = [];
-  const mode = both ? "both" : source ?? "auto";
-  if (mode === "compose") {
-    if (result.compose) trees.push(["compose", result.compose.roots]);
-  } else if (mode === "both" || mode === "auto") {
-    if (mode === "both") {
-      if (result.view) trees.push(["view", result.view.roots]);
-      if (result.semantics) trees.push(["semantics", result.semantics.roots]);
-    } else if (result.uiKind === "mixed" && result.view && result.semantics) {
-      trees.push(["view", result.view.roots]);
-      trees.push(["semantics", result.semantics.roots]);
-    } else if (result.source === "semantics" && result.semantics) {
-      trees.push(["semantics", result.semantics.roots]);
-    } else if (result.view) {
-      trees.push(["view", result.view.roots]);
-    } else if (result.semantics) {
-      trees.push(["semantics", result.semantics.roots]);
-    }
-  } else if (mode === "view") {
-    if (result.view) trees.push(["view", result.view.roots]);
-  } else if (mode === "semantics") {
-    if (result.semantics) trees.push(["semantics", result.semantics.roots]);
-  }
-  if (trees.length === 0) {
-    throw new DliError(
-      "VIEW_DUMP_FAILED",
-      `The ${mode} tree is not available.` +
-        (result.warnings.length ? ` ${result.warnings.join(" | ")}` : ""),
-    );
-  }
-  return trees;
-}
-
-function hitTestRoots(roots: UiNode[], x: number, y: number) {
-  const candidates: UiNode[] = [];
-  for (const node of flattenNodes(roots)) {
-    if (!node.visible) continue;
-    const bounds = node.visibleBounds ?? node.bounds;
-    if (x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom) {
-      candidates.push(node);
-    }
-  }
-  candidates.sort((a, b) => {
-    const areaA = (a.visibleBounds ?? a.bounds).width * (a.visibleBounds ?? a.bounds).height;
-    const areaB = (b.visibleBounds ?? b.bounds).width * (b.visibleBounds ?? b.bounds).height;
-    if (areaA !== areaB) return areaA - areaB;
-    if (a.depth !== b.depth) return b.depth - a.depth;
-    return b.index - a.index;
-  });
-  return { point: { x, y }, candidates };
 }
 
 async function resolvePackage(adb: Adb, packageOption?: string, pidOption?: string) {

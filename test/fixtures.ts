@@ -19,7 +19,7 @@ export function loadFixtureCapture(): CaptureResult {
     screen: SCREEN,
     packageName: "com.example.droidreel.debug",
   });
-  const semantics = parseSemanticsXml(xml, SCREEN, "com.example.droidreel.debug");
+  const semantics = parseSemanticsXml(xml, "com.example.droidreel.debug");
   return {
     device: {
       serial: "fixture",

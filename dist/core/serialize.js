@@ -59,12 +59,6 @@ export async function loadDump(path) {
     }
     return parsed;
 }
-export function dumpSource(dump) {
-    return dump.source;
-}
-export function dumpScreen(dump) {
-    return dump.screen;
-}
 /** Returns the roots of the requested (or primary) source as diffable nodes. */
 export function snapshotRoots(dump, source) {
     const chosen = source ?? dump.source;

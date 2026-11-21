@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { CaptureResult, DumpFile, NodeSource, ScreenInfo, UiNode } from "./model.js";
+import type { CaptureResult, DumpFile, NodeSource, UiNode } from "./model.js";
 import type { SnapshotNode } from "./diff.js";
 import { serializeNode } from "./viewdump.js";
 
@@ -70,14 +70,6 @@ export async function loadDump(path: string): Promise<DumpFile> {
     throw new Error(`${path} is not a layout-inspector-android dump (version 1).`);
   }
   return parsed;
-}
-
-export function dumpSource(dump: DumpFile): NodeSource {
-  return dump.source;
-}
-
-export function dumpScreen(dump: DumpFile): ScreenInfo {
-  return dump.screen;
 }
 
 /** Returns the roots of the requested (or primary) source as diffable nodes. */

@@ -5,4 +5,3 @@ export declare class DliError extends Error {
     constructor(code: ErrorCode, message: string, hint?: string);
 }
 export declare function errorMessage(error: unknown): string;
-export declare function toDliError(error: unknown): DliError;

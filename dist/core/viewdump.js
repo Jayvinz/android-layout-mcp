@@ -211,7 +211,7 @@ function visibilityProp(props) {
     return "gone";
 }
 export function parseViewHierarchy(buffer, options) {
-    const { views, propertyNames } = decodeViewHierarchy(buffer);
+    const { views } = decodeViewHierarchy(buffer);
     if (views.length === 0)
         return [];
     const roots = [];

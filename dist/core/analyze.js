@@ -244,10 +244,3 @@ export function issuesToJson(result) {
         })),
     };
 }
-export function summarizeIssue(issue) {
-    return `${issue.severity} ${issue.rule}: ${formatNodeLabelLabel(issue)}`;
-}
-function formatNodeLabelLabel(issue) {
-    const label = issue.label ? ` "${issue.label.slice(0, 40)}"` : "";
-    return `${issue.nodeRef} ${issue.className}${label}`;
-}

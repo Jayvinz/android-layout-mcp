@@ -2,9 +2,9 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { classifyUi } from "../src/core/capture.js";
-import { parseViewHierarchy } from "../src/core/viewdump.js";
-import type { Bounds, ScreenInfo, UiNode } from "../src/core/model.js";
-import { loadFixtureCapture } from "./fixtures.js";
+import { parseViewHierarchy, simpleClassName } from "../src/core/viewdump.js";
+import type { Bounds, UiNode } from "../src/core/model.js";
+import { loadFixtureCapture, SCREEN } from "./fixtures.js";
 
 const bounds: Bounds = { left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 };
 
@@ -16,7 +16,7 @@ function node(className: string, children: UiNode[] = [], extra: Partial<UiNode>
     index: 0,
     depth: 0,
     className,
-    shortClassName: className.split(".").pop() ?? className,
+    shortClassName: simpleClassName(className),
     packageName: "com.example",
     resourceId: null,
     text: null,
@@ -96,14 +96,7 @@ test("classifies AndroidView interop children as mixed", () => {
 
 test("classifies the recorded Compose and XML fixtures", () => {
   assert.equal(classifyUi(loadFixtureCapture().view!.roots), "compose");
-  const screen: ScreenInfo = {
-    width: 1080,
-    height: 2400,
-    density: 2.75,
-    densityDpi: 440,
-    orientation: "portrait",
-    rotation: 0,
-  };
+  const screen = SCREEN;
   const xml = parseViewHierarchy(
     readFileSync(new URL("./fixtures/hierarchy-xml-v2.bin", import.meta.url)),
     { screen },

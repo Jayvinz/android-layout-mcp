@@ -1,6 +1,6 @@
 import type { AnalyzeResult, Bounds, CaptureResult, Issue, NodeSource, UiNode } from "./model.js";
 import { flattenNodes, intersect } from "./viewdump.js";
-import { formatNodeLabel, nodePath } from "./query.js";
+import { nodePath } from "./query.js";
 
 export type RuleName =
   | "zero_size"
@@ -305,13 +305,4 @@ export function issuesToJson(result: AnalyzeResult): Record<string, unknown> {
       bounds: issue.bounds,
     })),
   };
-}
-
-export function summarizeIssue(issue: Issue): string {
-  return `${issue.severity} ${issue.rule}: ${formatNodeLabelLabel(issue)}`;
-}
-
-function formatNodeLabelLabel(issue: Issue): string {
-  const label = issue.label ? ` "${issue.label.slice(0, 40)}"` : "";
-  return `${issue.nodeRef} ${issue.className}${label}`;
 }
