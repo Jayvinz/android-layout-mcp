@@ -1,0 +1,16 @@
+node_modules/
+# dist/ is committed: marketplace installs start the MCP server from it.
+*.log
+*.tmp
+.tmp-*
+/screenshot*.png
+/layout-inspector-android-*.tgz
+*.annotated.svg
+.idea/
+.vscode/
+DS_Store
+
+helper/build/
+/dli-fallback-*.png
+.dli/
+.tmp-locate/

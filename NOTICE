@@ -1,0 +1,28 @@
+layout-inspector-android
+======================
+
+This project implements the Android view-debug capture protocol and hit-testing
+behavior that are also used by LayoutInspectorV2-Pro:
+
+    https://github.com/CoXier/LayoutInspectorV2-Pro
+    Copyright (C) 2017-2023 The Android Open Source Project / CoXier
+    Licensed under the Apache License, Version 2.0
+
+Protocol references:
+  * android.view.ViewDebug / android.view.ViewHierarchyEncoder (AOSP, Apache-2.0)
+  * android.ddm.DdmHandleViewDebug (AOSP, Apache-2.0)
+  * com.android.ddmlib HandleViewDebug / DdmJdwpExtension (AOSP, Apache-2.0)
+
+The implementation in this repository is independently written in TypeScript.
+The Apache-2.0 license of the referenced projects applies to their respective
+code, not to this repository. This repository is distributed under the MIT
+License (see LICENSE).
+
+Jetpack Compose inspection
+--------------------------
+The optional Compose tree source reuses the transport daemon, JVMTI agent, inspector jars,
+and protobuf definitions shipped with a locally installed Android Studio, and the
+androidx.compose.ui:ui-inspection inspector artifact from Google Maven. Those components
+are part of the Android Open Source Project / AndroidX and are licensed under the
+Apache License, Version 2.0. They are read from the user's installation at runtime and
+are not redistributed by this project.

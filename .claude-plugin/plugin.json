@@ -1,0 +1,29 @@
+{
+  "name": "layout-inspector-android",
+  "displayName": "Layout Inspector for Android",
+  "version": "0.1.0",
+  "description": "Inspect a live Android screen (XML View, Compose JVMTI, or accessibility semantics) and trace UI elements back to their Compose/XML source code and business logic through the bundled dli MCP server.",
+  "author": {
+    "name": "Jayvinz",
+    "url": "https://github.com/Jayvinz"
+  },
+  "homepage": "https://github.com/Jayvinz/layout-inspector-android",
+  "repository": "https://github.com/Jayvinz/layout-inspector-android",
+  "license": "MIT",
+  "keywords": [
+    "android",
+    "compose",
+    "xml",
+    "layout-inspector",
+    "ui",
+    "adb",
+    "mcp",
+    "code-navigation"
+  ],
+  "mcpServers": {
+    "layout-inspector-android": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp.js"]
+    }
+  }
+}

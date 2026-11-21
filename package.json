@@ -1,0 +1,63 @@
+{
+  "name": "layout-inspector-android",
+  "version": "0.1.0",
+  "description": "CLI + MCP server for inspecting Android layouts and semantics trees over ADB",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/Jayvinz/layout-inspector-android#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jayvinz/layout-inspector-android.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "layout-inspector": "dist/cli.js"
+  },
+  "main": "dist/core/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "helper",
+    ".claude-plugin",
+    "skills",
+    "commands",
+    "agents",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:helper": "node scripts/build-helper.mjs",
+    "locate-code": "node scripts/locate-code.mjs",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "keywords": [
+    "android",
+    "layout-inspector",
+    "uiautomator",
+    "adb",
+    "mcp",
+    "coding-agent",
+    "compose"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "commander": "^15.1.0",
+    "fast-xml-parser": "^5.12.1",
+    "fflate": "^0.8.3",
+    "pngjs": "^7.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/pngjs": "^6.0.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
