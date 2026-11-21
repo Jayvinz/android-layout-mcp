@@ -475,6 +475,31 @@ claude plugin validate --strict .
 - 发布前运行 `claude plugin validate --strict .`；CI 工作流
   `.github/workflows/validate.yml` 会跑 typecheck、测试、build，并验证
   `dist/` 与源码一致，最后执行同一校验。
+
+### 版本号
+
+`package.json` 是版本号的唯一来源。Claude Code 需要 `.claude-plugin/plugin.json`
+里的字面 `version`，所以用 `scripts/sync-version.mjs` 同步：
+
+```bash
+npm version patch    # 更新 package.json / package-lock；lifecycle 自动写入 plugin.json 并 git add
+npm version minor
+npm version major
+```
+
+如果不使用 `npm version`，手动同步：
+
+```bash
+node scripts/sync-version.mjs
+```
+
+`prepublishOnly` 和 CI 都会运行：
+
+```bash
+node scripts/sync-version.mjs --check
+```
+
+版本不一致时发布会或 CI 直接失败，不需要再手动改两份文件。
 - 想进一步进入 Anthropic 官方目录：在 `claude.ai/directory/manage` 提交 Plugin bundle，
   需要付费 claude.ai 计划、GitHub 仓库、自动校验和安全扫描，新 listing 还会经过人工审核；
   `claude-plugins-official` 本身不接受公开投稿。
