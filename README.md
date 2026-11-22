@@ -1,16 +1,39 @@
 # layout-inspector-android
 
-[English](README.md) | [简体中文](README.zh.md)
+|                      |                      |
+| -------------------- | -------------------- |
+| [English](README.md) | [简体中文](README.zh.md) |
 
-Android layout inspection for coding agents: read the live UI of a real device or emulator over ADB (XML View tree / Compose semantics tree / Compose JVMTI tree), search and hit-test elements, take screenshots, run layout/accessibility checks, diff before/after layouts, and trace visible controls back to their Compose/XML source and business logic.
+![npm version](https://img.shields.io/npm/v/layout-inspector-android.svg)
+
+![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
+
+
+
+![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)
+
+![CI](https://github.com/Jayvinz/layout-inspector-android/actions/workflows/validate.yml/badge.svg)
+
+**Android UI inspection for coding agents.** Read the live screen of a real device or emulator over ADB, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, diff before/after layouts, and trace any control back to its Compose/XML source and business logic.
 
 Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro).
+
+## Highlights
+
+- **Adaptive data sources** — `auto` picks the right tree per screen: ViewDebug v2 for XML, accessibility semantics for Compose, and both for mixed screens. Opt into the Compose JVMTI tree for Composable names and `file:line`.
+- **Find, hit-test, interact** — search by text / content-description / resource-id / class / ref, resolve every element under a coordinate (smallest area first), then tap, swipe, or input.
+- **Visual verification** — screenshots with SVG node overlays and automatic image→device coordinate mapping; a fallback screenshot is saved automatically when structured capture fails.
+- **Checks and diffs** — 10 layout/accessibility rules and identity-keyed before/after diffs around a code change.
+- **UI → source locator** — turn UI anchors into ranked `file:line` candidates, string/layout/Compose definitions, and click handlers. Read-only: it never edits the repo.
+- **One core, two front ends** — the CLI and the MCP server share the same `capture()` / `treesFor()` pipeline, so behavior does not diverge.
+
+## Architecture
 
 ```
 CLI (layout-inspector) ──┐
                          ├── core ──┬── JDWP + DDM → ViewDebug v2 view tree
 MCP Server ──────────────┘          ├── adb uiautomator → semantics tree
-                                    └── Android Studio transport/JVMTI → Compose tree
+                                    └── Android Studio transport + JVMTI → Compose tree
 ```
 
 ## Quick start
@@ -32,12 +55,12 @@ MCP Server ──────────────┘          ├── adb 
 
 After installation you get:
 
-| Component | Content |
-|---|---|
-| MCP server `layout-inspector-android` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `diff_ui`, `tap`, and more |
-| Slash commands | `/layout-inspector-android:locate` (UI→source location), `:screen` (current screen summary), `:verify` (verify UI changes on device) |
-| Skills | `locate-ui-code`, `verify-ui-change` |
-| Read-only subagent | `ui-code-locator` |
+| Component                             | Content                                                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| MCP server `layout-inspector-android` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `diff_ui`, `tap`, and more    |
+| Slash commands                        | `/layout-inspector-android:locate` (UI→source), `:screen` (current screen), `:verify` (verify changes on device) |
+| Skills                                | `locate-ui-code`, `verify-ui-change`                                                                             |
+| Read-only subagent                    | `ui-code-locator`                                                                                                |
 
 Use `/mcp` to confirm the server is loaded; `/help` lists the commands above.
 
@@ -85,7 +108,7 @@ layout-inspector find "开拍"   # search by text
 
 See [docs/cli.md](docs/cli.md) for the full command table, analysis rules, screenshots, and coordinate mapping.
 
-### 4. Run your first task
+### Your first task
 
 Put the target app on the page you care about, then just say in Claude Code:
 
@@ -97,29 +120,39 @@ Or run the command:
 /layout-inspector-android:locate Me
 ```
 
-The tools will: confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. After a UI change, use `/layout-inspector-android:verify` to compare before/after.
+The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. After a UI change, use `/layout-inspector-android:verify` to compare before/after.
 
-### What you can do
+## What you can do
 
-| Task | Entry point |
-|---|---|
-| Locate the Compose/XML source and business chain of a control | `/layout-inspector-android:locate` / `locate_code` |
-| Understand the current screen (foreground app, Activity, visible entries) | `/layout-inspector-android:screen` / `get_state` + `dump_ui` |
-| Verify a UI change on a real device (diff + rules + screenshot) | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
-| Find elements / hit-test / tap, swipe, input | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text` |
-| Screenshots (SVG node overlay, image→device coordinates) | `screenshot` / `layout-inspector shot` |
-| Layout and accessibility checks | `analyze_ui` / `layout-inspector analyze` |
-| Before/after layout diff around a code change | `diff_ui` / `layout-inspector diff` |
+| Task                                                                      | Entry point                                                   |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Locate the Compose/XML source and business chain of a control             | `/layout-inspector-android:locate` / `locate_code`            |
+| Understand the current screen (foreground app, Activity, visible entries) | `/layout-inspector-android:screen` / `get_state` + `dump_ui`  |
+| Verify a UI change on a real device (diff + rules + screenshot)           | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
+| Find elements / hit-test / tap, swipe, input                              | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text`   |
+| Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `layout-inspector shot`                        |
+| Layout and accessibility checks                                           | `analyze_ui` / `layout-inspector analyze`                     |
+| Before/after layout diff around a code change                             | `diff_ui` / `layout-inspector diff`                           |
+
+## Data sources at a glance
+
+| Source      | Requires                                   | Best for                                                                |
+| ----------- | ------------------------------------------ | ----------------------------------------------------------------------- |
+| `view`      | Debuggable app                             | Full View classes, resource ids, layout params, visibility              |
+| `semantics` | Nothing                                    | Compose text, content descriptions, clickable bounds on any app         |
+| `compose`   | Debuggable app + Android Studio + Java 17+ | Composable names, `file:line`, bounds, parameters, recomposition counts |
+
+`auto` (the default) captures `view` + `semantics` and picks per screen: `view` for XML, `semantics` for Compose, both for mixed screens. Use `--source compose` explicitly when you need Composable-level detail (~8–12s). See [docs/data-sources.md](docs/data-sources.md).
 
 ## Documentation
 
-| Document | Content |
-|---|---|
-| [docs/data-sources.md](docs/data-sources.md) | The three data sources (view / semantics / compose), auto selection policy, Compose JVMTI details |
-| [docs/cli.md](docs/cli.md) | CLI installation, command table, analysis rules, screenshots & coordinate mapping, environment variables |
-| [docs/mcp.md](docs/mcp.md) | MCP server configuration, tool table, recommended call order |
-| [docs/plugin.md](docs/plugin.md) | Claude Code plugin components, installation, typical workflow, release & versioning |
-| [docs/development.md](docs/development.md) | Development, testing, and implementation notes |
+| Document                                     | Content                                                                                                  |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [docs/data-sources.md](docs/data-sources.md) | The three data sources, `auto` selection policy, Compose JVMTI details                                   |
+| [docs/cli.md](docs/cli.md)                   | CLI installation, command table, analysis rules, screenshots & coordinate mapping, environment variables |
+| [docs/mcp.md](docs/mcp.md)                   | MCP server configuration, tool table, recommended call order                                             |
+| [docs/plugin.md](docs/plugin.md)             | Claude Code plugin components, installation, workflow, release & versioning                              |
+| [docs/development.md](docs/development.md)   | Development, testing, and implementation notes                                                           |
 
 ## Limitations
 

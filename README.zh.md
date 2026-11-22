@@ -2,17 +2,31 @@
 
 [English](README.md) | [简体中文](README.zh.md)
 
-面向 coding agent 的 Android 布局检查工具：通过 ADB 读取真实设备/模拟器上的 UI
-（XML View 树 / Compose 语义树 / Compose JVMTI 树），支持搜索、命中测试、截图、
-布局/无障碍检查、改码前后布局对比，并能把界面上的控件追溯到 Compose/XML 源码与业务逻辑。
+[![npm version](https://img.shields.io/npm/v/layout-inspector-android.svg)](https://www.npmjs.com/package/layout-inspector-android)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org/)
+[![CI](https://github.com/Jayvinz/layout-inspector-android/actions/workflows/validate.yml/badge.svg)](https://github.com/Jayvinz/layout-inspector-android/actions/workflows/validate.yml)
+
+**面向 coding agent 的 Android 布局检查工具。** 通过 ADB 读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍检查、改码前后布局对比，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
 
 参考 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
+
+## 核心特性
+
+- **数据源自适应** —— `auto` 按页面选择正确的数据树：XML 用 ViewDebug v2，Compose 用无障碍语义树，混合页面两者并用；需要 Composable 名称与 `file:line` 时可显式启用 Compose JVMTI 树。
+- **查找、命中测试、交互** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的所有元素（按面积从小到大排序），然后点击、滑动或输入。
+- **可视化验证** —— 截图支持 SVG 节点标注与图片坐标→设备坐标的自动映射；结构化抓取失败时会自动保存一张兜底截图。
+- **检查与对比** —— 10 条布局/无障碍规则，以及围绕代码改动的 identity-keyed 改前/改后 diff。
+- **UI → 源码定位** —— 以 UI 锚点扫描仓库，返回排序后的 `file:line` 候选、string/layout/Compose 定义与点击处理逻辑。全程只读，不修改仓库。
+- **一个内核，两个前端** —— CLI 与 MCP server 共享同一套 `capture()` / `treesFor()` 流程，行为不会分叉。
+
+## 架构
 
 ```
 CLI (layout-inspector) ──┐
                          ├── core ──┬── JDWP + DDM → ViewDebug v2 视图树
 MCP Server ──────────────┘          ├── adb uiautomator → Semantics 树
-                                    └── Android Studio transport/JVMTI → Compose 树
+                                    └── Android Studio transport + JVMTI → Compose 树
 ```
 
 ## 快速上手
@@ -37,11 +51,11 @@ MCP Server ──────────────┘          ├── adb 
 | 组件 | 内容 |
 |---|---|
 | MCP server `layout-inspector-android` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`diff_ui`、`tap` 等工具 |
-| Slash 命令 | `/layout-inspector-android:locate`（UI→源码定位）、`:screen`（当前页面速览）、`:verify`（真机验证改动） |
+| Slash 命令 | `/layout-inspector-android:locate`（UI→源码）、`:screen`（当前页面速览）、`:verify`（真机验证改动） |
 | Skills | `locate-ui-code`、`verify-ui-change` |
 | 只读子代理 | `ui-code-locator` |
 
-安装后可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
+可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
 
 **本地开发/调试**：先在仓库根目录执行 `npm install && npm run build`，再把 marketplace 指向本地路径：
 
@@ -87,7 +101,7 @@ layout-inspector find "开拍"   # 按文本查找
 
 完整命令表、分析规则、截图与坐标映射见 [docs/cli.zh.md](docs/cli.zh.md)。
 
-### 4. 跑通第一个任务
+### 跑通第一个任务
 
 把目标 App 摆到想要的页面，在 Claude Code 里直接说：
 
@@ -101,7 +115,7 @@ layout-inspector find "开拍"   # 按文本查找
 
 工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。UI 改动完成后用 `/layout-inspector-android:verify` 做改前/改后对比验证。
 
-### 能做什么
+## 能做什么
 
 | 想做的事 | 入口 |
 |---|---|
@@ -113,11 +127,21 @@ layout-inspector find "开拍"   # 按文本查找
 | 布局与无障碍问题检查 | `analyze_ui` / `layout-inspector analyze` |
 | 改码前后布局对比 | `diff_ui` / `layout-inspector diff` |
 
+## 数据来源速览
+
+| 数据源 | 要求 | 适用场景 |
+|---|---|---|
+| `view` | 可调试 App | 完整 View 类名、resource id、layout params、可见性 |
+| `semantics` | 无 | 任意 App 上的 Compose 文本、content description、可点击边界 |
+| `compose` | 可调试 App + 本地 Android Studio + Java 17+ | Composable 名称、`file:line`、边界、参数、重组次数 |
+
+`auto`（默认）会抓取 `view` + `semantics` 并按页面选择：XML 用 `view`，Compose 用 `semantics`，混合页面两者并用。需要 Composable 级别的细节时再显式使用 `--source compose`（约 8–12s）。详见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
+
 ## 文档
 
 | 文档 | 内容 |
 |---|---|
-| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 三个数据源（view / semantics / compose）原理与对照、auto 选择策略、Compose JVMTI 细节 |
+| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 三个数据源原理与对照、`auto` 选择策略、Compose JVMTI 细节 |
 | [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、分析规则、截图与坐标映射、环境变量 |
 | [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、推荐调用顺序 |
 | [docs/plugin.zh.md](docs/plugin.zh.md) | Claude Code 插件组件、安装、典型流程、发布与版本号 |
