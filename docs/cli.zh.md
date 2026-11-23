@@ -50,6 +50,10 @@ layout-inspector shot --out small.png --scale 0.5
 # 布局 / 无障碍问题检查
 layout-inspector analyze
 
+# 交互式 HTML 查看器（显式可视化请求，会打开浏览器）
+layout-inspector view
+layout-inspector view --no-open --out .dli/viewer.html
+
 # 点击元素中心（自动先定位再 tap）
 layout-inspector tap --text "关注"
 layout-inspector tap 540 2239
@@ -92,6 +96,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `layout-inspector inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性） |
 | `layout-inspector analyze` | 布局/无障碍检查，见下表 |
 | `layout-inspector shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg` |
+| `layout-inspector view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
 | `layout-inspector diff <a> <b>` | 对比两个 dump JSON |
 | `layout-inspector tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或 `--text/--id/--ref` 选择元素后点击其中心 |
 | `layout-inspector swipe` / `input` / `key` | 滑动、输入 ASCII 文本、发送 keyevent |
@@ -120,6 +125,34 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 | `deep_nesting` | 嵌套深度超过阈值（默认 14） |
 
 规则可按需开启：`layout-inspector analyze --rules small_touch_target,overlap`。
+
+## 交互式查看器
+
+`layout-inspector view`（别名 `open`）会抓取一次当前界面，写入一个自包含的 HTML 文件，并在默认浏览器中打开。仅在用户显式要求可视化界面时使用；`dump`、`find`、`analyze`、`shot` 与验证流程都不会顺带打开浏览器。
+
+```bash
+layout-inspector view                                    # 生成 .dli/viewer.html 并打开浏览器
+layout-inspector view --no-open                          # 只写文件
+layout-inspector view --out .tmp-view/v.html             # 自定义路径
+layout-inspector view --source semantics --max-width 720
+layout-inspector view --rules small_touch_target,overlap --no-issues
+layout-inspector view --json                             # path、opened、bytes、截图元数据
+```
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `--source` | `auto` | `auto`、`view`、`semantics`、`compose` 或 `both` |
+| `--out` | `.dli/viewer.html` | HTML 输出路径，自动创建父目录 |
+| `--no-open` | 关闭 | 只写文件，不启动浏览器 |
+| `--max-width` | `1080` | 内嵌截图最大宽度（超过则降分辨率） |
+| `--max-nodes` | `4000` | 每棵树最多序列化的节点数 |
+| `--props` | 关闭 | 在节点详情中嵌入全部 ViewDebug 属性 |
+| `--rules` | 全部 | 逗号分隔的分析规则 |
+| `--no-issues` | 关闭 | 跳过布局/无障碍分析 |
+| `--package`、`--pid`、`--window` | 前台 App | 目标选择与 `dump` 相同 |
+| `--json` | 关闭 | 输出 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
+
+页面内嵌树、base64 截图、节点详情和问题列表；不发起任何网络请求，可直接从 `file://` 打开。它是静态快照，ref 只在本次抓取内有效。HTML 中包含设备序列号、包名与屏幕文本，请放在已 gitignore 的 `.dli/` 下，不要提交。设置 `DLI_NO_OPEN=1` 可全局禁止打开浏览器。
 
 ## 截图与兜底
 
@@ -196,4 +229,5 @@ MCP：
 | `DLI_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
 | `DLI_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |
 | `DLI_COMPOSE_HELPER_JAR` | 预编译的 JVMTI helper JAR |
+| `DLI_NO_OPEN=1` | `view` / `open_viewer` 不启动浏览器（仍会写入 HTML） |
 | `DLI_NO_FALLBACK_SCREENSHOT=1` | 关闭抓取失败时的兜底截图 |

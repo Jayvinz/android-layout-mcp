@@ -1,11 +1,24 @@
 ---
 name: verify-ui-change
-description: Use when the user asks to verify that a UI change works on a real device, compare layouts before and after a change, or check a screen for regressions such as misalignment, clipping, overlapping, or unclickable controls. Also trigger on Chinese requests such as "验证这个 UI 改动在真机上有没有生效", "改前改后布局对比", "看看这个页面有没有回归/错位/被裁剪/点不到", and "真机验证 UI 改动". Applies to Android XML and Compose screens after the build has been installed.
+description: >-
+  Android-only. Use when the user asks to verify that a UI change works on a real device, compare layouts before and after a change, or check a screen for regressions such as misalignment, clipping, overlapping, or unclickable controls. Chinese trigger phrases include "验证这个 UI 改动在真机上有没有生效", "改完了看看生效没", "改好了吗，真机上看一下", "改前改后布局对比", "这次改动有没有回归", "有没有错位/被裁剪/点不到", "真机验证 UI 改动". Applies to Android XML and Compose screens after the build has been installed. Only in Android projects; in a non-Android repository use only when the user explicitly asks to verify the device screen or explicitly mentions Android. Do not use for a first-time screen summary or a control inspection without a before/after intent (use inspect-current-screen), or for whole-screen code/business analysis (use analyze-screen-logic).
 ---
 
 # Verifying UI Changes on a Device
 
 Verify with the real layout tree on the device, not just code or screenshots. The core loop is: **keep a baseline before the change, capture a snapshot after, then run diff + rule checks + visual confirmation.**
+
+## Step 0 — Android project gate
+
+Confirm the working directory (or the repo root the user named) is an Android project. Check the cwd and walk up parent directories:
+`settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. Skip `node_modules/`, `build/`, and `.gradle/`.
+
+**HARD STOP:** if no marker exists and the user did not explicitly ask to inspect a connected device screen/page and did not explicitly mention Android, do NOT call `get_state`, `dump_ui`, `find_elements`, `locate_code`, `open_viewer`, or any other tool. Reply in one sentence: this workspace is not an Android project, so source tracing is unavailable; offer to inspect a connected device screen if they want, or ask for the Android module path.
+
+A reference like "这个按钮/这个页面/这个弹窗" alone is not an explicit device request. A connected device does not make the repository Android.
+
+If the user explicitly asks about a connected device screen/page but no Android marker exists: observation is allowed (`get_state`/`dump_ui`/`find_elements`), but source analysis is unavailable — do not call `locate_code` until the user points at an Android module. If the user only mentions Android without an Android module present, say the module path is still needed and do not scan.
+
 
 ## Prerequisites
 

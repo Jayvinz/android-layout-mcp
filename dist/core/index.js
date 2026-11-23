@@ -12,3 +12,4 @@ export * from "./screenshot.js";
 export * from "./semantics.js";
 export * from "./serialize.js";
 export * from "./viewdump.js";
+export * from "./viewer.js";

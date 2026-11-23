@@ -15,6 +15,19 @@ npx tsx src/cli.ts dump             # run the CLI from source without building
 
 Test fixtures live in `test/fixtures/`: API 33 `ViewDebug.dumpv2` binaries (one Compose app, one traditional XML View app), uiautomator XML, a screenshot, and the Compose JVMTI helper's tree output JSON.
 
+## Activation, viewer, and gate tests
+
+- `test/skills.test.ts` guards the four skill descriptions (1024-character limit, Chinese triggers, Android gate, routing boundaries) and the command/agent copy.
+- `test/viewer.test.ts` covers the self-contained HTML viewer, payload caps, escaping, missing screenshots, and browser-launch opt-out.
+- `test/android-gate.test.ts` covers the `PreToolUse` Android-project hook.
+
+`evals/` contains mocked routing cases (no device): `trigger-*` for skill/tool selection, `scaffold-android-workspace-analyze` for a real Android workspace (`--scaffold`), and `manual-gate-*` for non-Android refusal. See [evals/README.md](../evals/README.md) for commands and costs. The eval harness does not load plugin hooks; restart Claude Code after changing `hooks/`.
+
+```bash
+claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 6
+claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 2
+```
+
 ## Build and packaging constraints
 
 - **`dist/` is intentionally committed**: GitHub marketplace installs copy the repository and start the MCP server from `dist/mcp.js` without a build step; `node_modules/` is not committed. After changing `src/`, run `npm run build` and commit the regenerated `dist/` (including `dist/*.d.ts`) together with the source; never hand-edit `dist/`.

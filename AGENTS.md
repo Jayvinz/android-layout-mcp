@@ -20,9 +20,12 @@ node scripts/sync-version.mjs          # sync package.json version -> .claude-pl
 node scripts/sync-version.mjs --check  # CI/release check
 npm version patch      # bumps package.json and syncs plugin.json via the "version" lifecycle script
 claude plugin validate --strict .      # validate plugin + marketplace manifests
+claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 4  # mocked activation regression, no device
 ```
 
 Tests are fixture-based (`test/fixtures/`) and need no device. The fixtures are real API 33 captures: a Compose app's `ViewDebug.dumpv2` binary, an XML app's binary, uiautomator XML, a screenshot, and Compose helper JSON.
+
+`evals/` holds mocked activation regression cases (`prompt.md` + `graders/*.md`). They assert skill/tool selection, not code output; `evals/mocks/` replaces the MCP server, so no device is needed. `evals/mocks/layout-inspector-android/_tools.json` is a saved `tools/list` snapshot; regenerate it after changing tool descriptions in `src/mcp.ts` and rebuilding `dist/`. They are not part of CI because they run real Claude Code sessions and cost tokens.
 
 ## Language conventions
 
@@ -58,6 +61,9 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
 ```
 
 - `src/cli.ts` and `src/mcp.ts` are thin wrappers. Keep them in parity: a new inspection capability normally means a core function, a CLI subcommand, and an MCP tool. Both call the same `capture()` and `treesFor()` so behavior does not diverge.
+- Activation boundaries live in the skill frontmatter descriptions: `inspect-current-screen` owns screen/control observation and must not call `locate_code`; `locate-ui-code` owns one-control source/state/business tracing and page entry; `analyze-screen-logic` owns whole-screen/dialog code, state, data-flow, and business-chain analysis (read-only); `verify-ui-change` owns before/after verification. The explicit browser viewer (`open_viewer` / `view`) belongs to `inspect-current-screen` and activates only on an explicit visual request. Keep each description under 1024 characters and preserve the Chinese trigger phrases users actually type; `test/skills.test.ts` guards them.
+- All four skills, the commands, the `ui-code-locator` agent, and the `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer` MCP descriptions carry the Android-project gate: activation targets Android projects (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository, activate only on an explicit device/screen request or an explicit Android mention; a connected device does not make the repository Android.
+- The gate is enforced twice: hard-stop prose in every skill/command body and a `PreToolUse` hook (`hooks/hooks.json` + `hooks/dli-android-gate.mjs`) that denies `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer` in a non-Android workspace unless the latest user prompt explicitly asks about a device screen/page or Android; `locate_code` additionally requires an Android project or an explicit Android mention. `claude plugin eval` does not load plugin hooks, so the hook is unit-tested in `test/android-gate.test.ts` and the non-Android refusal prompts live under `evals/manual-gate-*` (outside the `trigger-*` glob). Hooks load at session start; restart after install/update.
 - `src/core/capture.ts` orchestrates everything: resolves device/foreground app/pid, captures the requested trees, classifies the screen (`classifyUi`: `xml` / `compose` / `mixed` / `unknown`), picks the primary source for `auto`, and returns one `CaptureResult`. `treesFor(result, source, both)` is the single source-to-trees policy shared by CLI and MCP.
   - `auto` captures view + semantics, then chooses view for XML, semantics for Compose (ViewDebug stops at `AndroidComposeView`), and renders/searches both for mixed screens.
   - `compose` is opt-in (`--source compose`) because it requires a debuggable app, Android Studio, Java, and takes ~8–12s.
@@ -74,6 +80,7 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
   - `analyze.ts` — layout/accessibility rules (`small_touch_target`, `overlap`, `clipped`, `outside_parent`, `offscreen`, `invisible_clickable`, `zero_size`, `unlabeled_clickable`, `duplicate_id`, `deep_nesting`).
   - `render.ts` — human-readable tree and issue output.
   - `screenshot.ts` — PNG capture, pure-JS box-filter downscale, coordinate mapping (`imageToDevice`), and SVG annotation overlay.
+- `viewer.ts` — self-contained interactive HTML viewer: serialized per-source trees with max-node counters, downscaled screenshot data URI, details, analysis issues, 8 MB embedded-JSON budget, and an offline document (inline CSS/JS, CSP, no network). Browser launch is explicit-only (`layout-inspector view` / MCP `open_viewer` / `DLI_NO_OPEN=1`); dump/find/analyze/screenshot/verify must never call it.
   - `serialize.ts` / `diff.ts` — dump format v1 (`version: 1`) and identity-keyed added/removed/changed diff. `chooseDiffSource` avoids comparing different trees in before/after dumps.
 - `src/core/index.ts` re-exports the whole core API; `src/core/version.ts` reads `package.json` at runtime.
 
