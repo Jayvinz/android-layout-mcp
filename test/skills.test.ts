@@ -84,6 +84,10 @@ test("inspect-current-screen description owns screen and control observation", (
       "看下当前",
       "这个控件多大",
       "有没有小点击区域",
+      "打开可视化看看",
+      "在浏览器里打开当前页面",
+      "可视化当前布局",
+      "open the UI viewer",
       "locate-ui-code",
       "verify-ui-change",
     ],
@@ -122,6 +126,16 @@ test("screen command delegates to the inspect-current-screen skill", () => {
   );
 });
 
+test("view command delegates to the viewer tool", () => {
+  const command = read("commands/view.md");
+  assert.ok(command.includes("inspect-current-screen"), "view.md must reference inspect-current-screen");
+  assert.ok(command.includes("open_viewer"), "view.md must call open_viewer");
+  assert.ok(
+    /static snapshot|do not modify code|living refresh/i.test(command),
+    "view.md must describe the snapshot semantics",
+  );
+});
+
 test("MCP tool descriptions carry the screen-observation routing phrases", () => {
   const mcp = read("src/mcp.ts");
   const blocks = mcp.split("server.registerTool(");
@@ -136,5 +150,10 @@ test("MCP tool descriptions carry the screen-observation routing phrases", () =>
   assertContains(blockFor("analyze_ui"), ["有没有小点击区域", "无障碍检查"], "analyze_ui");
   assertContains(blockFor("screenshot"), ["截个图看看", "看一下画面"], "screenshot");
   assertContains(blockFor("hit_test"), ["屏幕坐标 300,800"], "hit_test");
+  assertContains(
+    blockFor("open_viewer"),
+    ["打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer", "never call it"],
+    "open_viewer",
+  );
   assertContains(blockFor("locate_code"), ["not for general Android concept questions"], "locate_code");
 });

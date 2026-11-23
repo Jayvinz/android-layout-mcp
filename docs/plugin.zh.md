@@ -22,11 +22,11 @@
 
 | 组件 | 路径 | 作用 |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` 等 |
+| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` 等 |
 | Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作与布局/无障碍检查，不追溯源码 |
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
-| Commands | `commands/locate.md`、`screen.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:verify` |
+| Commands | `commands/locate.md`、`screen.md`、`view.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:view`、`:verify` |
 | Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
@@ -75,7 +75,7 @@ claude --plugin-dir E:/repo/layout-inspector-android
 ```
 
 安装后 `/mcp` 应能看到 `layout-inspector-android` server；`/help` 中会出现
-`/layout-inspector-android:locate`、`:screen`、`:verify`。
+`/layout-inspector-android:locate`、`:screen`、`:view`、`:verify`。
 
 ## 典型流程
 
@@ -93,11 +93,16 @@ claude --plugin-dir E:/repo/layout-inspector-android
 `hit_test`，必要时再看 `analyze_ui` 和 `screenshot`。这条路径只做设备取证，不会调用
 `locate_code`；只有用户明确追问源码时才进入上面的定位流程。
 
+显式可视化请求（“打开可视化看看”“在浏览器里打开当前页面”“open the UI viewer”）走
+`/layout-inspector-android:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
+`.dli/viewer.html`，再打开默认浏览器。`dump`/`find`/`analyze`/`screenshot`/验证流程都不会打开浏览器。
+
 也可以直接调用命令：
 
 ```text
 /layout-inspector-android:locate 个人页
 /layout-inspector-android:screen
+/layout-inspector-android:view
 /layout-inspector-android:verify
 ```
 

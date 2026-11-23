@@ -16,3 +16,6 @@ helper/build/
 .tmp-locate/
 .workbuddy/
 evals/results/
+
+# Playwright MCP traces/snapshots
+.playwright-mcp/

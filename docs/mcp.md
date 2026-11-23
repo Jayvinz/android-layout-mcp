@@ -61,6 +61,7 @@ When installed through the Claude Code plugin no manual configuration is needed:
 | `hit_test` | Coordinate hit test; returns view and semantics by default; `source=compose` reaches the Compose tree |
 | `analyze_ui` | Layout/accessibility checks (rules in [cli.md](cli.md#analysis-rules)) |
 | `screenshot` | Returns PNG image content; downscaled to 720px wide by default (`fullResolution=true` to disable); can save and produce an SVG overlay |
+| `open_viewer` | Capture once, write a self-contained offline HTML viewer (tree, screenshot overlay, details, issues), and open it in the browser |
 | `diff_ui` | Compare two JSON files written by `dump_ui(savePath)` |
 | `tap` | Tap by coordinate or by `text/id/ref`; supports `imageX/imageY/imageWidth/imageHeight` image-coordinate mapping |
 | `swipe` / `input_text` / `press_key` | Interaction |
@@ -73,6 +74,8 @@ When installed through the Claude Code plugin no manual configuration is needed:
 4. `screenshot` → visual confirmation;
 5. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
 6. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
+
+`open_viewer` is outside this order: call it only on an explicit visual request such as "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", or "open the UI viewer". It opens a browser window as a visible side effect, so `dump_ui`, `find_elements`, `analyze_ui`, `screenshot`, `diff_ui`, and verification must not call it. Pass `open=false` (or set `DLI_NO_OPEN=1`) to write the HTML without launching a browser; the tool returns `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`.
 
 ### Summarizing the current screen
 

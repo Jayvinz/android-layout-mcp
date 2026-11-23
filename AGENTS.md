@@ -61,7 +61,7 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
 ```
 
 - `src/cli.ts` and `src/mcp.ts` are thin wrappers. Keep them in parity: a new inspection capability normally means a core function, a CLI subcommand, and an MCP tool. Both call the same `capture()` and `treesFor()` so behavior does not diverge.
-- Activation boundaries live in the skill frontmatter descriptions: `inspect-current-screen` owns screen/control observation and must not call `locate_code`; `locate-ui-code` owns source/state/business tracing; `verify-ui-change` owns before/after verification. Keep each description under 1024 characters and preserve the Chinese trigger phrases users actually type; `test/skills.test.ts` guards them.
+- Activation boundaries live in the skill frontmatter descriptions: `inspect-current-screen` owns screen/control observation and must not call `locate_code`; `locate-ui-code` owns source/state/business tracing; `verify-ui-change` owns before/after verification. Keep each description under 1024 characters and preserve the Chinese trigger phrases users actually type; `test/skills.test.ts` guards them. The explicit browser viewer (`open_viewer` / `view`) belongs to `inspect-current-screen` and activates only on an explicit visual request.
 - `src/core/capture.ts` orchestrates everything: resolves device/foreground app/pid, captures the requested trees, classifies the screen (`classifyUi`: `xml` / `compose` / `mixed` / `unknown`), picks the primary source for `auto`, and returns one `CaptureResult`. `treesFor(result, source, both)` is the single source-to-trees policy shared by CLI and MCP.
   - `auto` captures view + semantics, then chooses view for XML, semantics for Compose (ViewDebug stops at `AndroidComposeView`), and renders/searches both for mixed screens.
   - `compose` is opt-in (`--source compose`) because it requires a debuggable app, Android Studio, Java, and takes ~8–12s.
@@ -78,6 +78,7 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
   - `analyze.ts` — layout/accessibility rules (`small_touch_target`, `overlap`, `clipped`, `outside_parent`, `offscreen`, `invisible_clickable`, `zero_size`, `unlabeled_clickable`, `duplicate_id`, `deep_nesting`).
   - `render.ts` — human-readable tree and issue output.
   - `screenshot.ts` — PNG capture, pure-JS box-filter downscale, coordinate mapping (`imageToDevice`), and SVG annotation overlay.
+- `viewer.ts` — self-contained interactive HTML viewer: serialized per-source trees with max-node counters, downscaled screenshot data URI, details, analysis issues, 8 MB embedded-JSON budget, and an offline document (inline CSS/JS, CSP, no network). Browser launch is explicit-only (`layout-inspector view` / MCP `open_viewer` / `DLI_NO_OPEN=1`); dump/find/analyze/screenshot/verify must never call it.
   - `serialize.ts` / `diff.ts` — dump format v1 (`version: 1`) and identity-keyed added/removed/changed diff. `chooseDiffSource` avoids comparing different trees in before/after dumps.
 - `src/core/index.ts` re-exports the whole core API; `src/core/version.ts` reads `package.json` at runtime.
 

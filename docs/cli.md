@@ -50,6 +50,10 @@ layout-inspector shot --out small.png --scale 0.5
 # Layout / accessibility checks
 layout-inspector analyze
 
+# Interactive HTML viewer (explicit visual request; opens the browser)
+layout-inspector view
+layout-inspector view --no-open --out .dli/viewer.html
+
 # Tap the center of an element (locates first, then taps)
 layout-inspector tap --text "关注"
 layout-inspector tap 540 2239
@@ -92,6 +96,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `layout-inspector inspect <ref>` | Full JSON of a single node (including View properties) |
 | `layout-inspector analyze` | Layout/accessibility checks, see the table below |
 | `layout-inspector shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg` |
+| `layout-inspector view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
 | `layout-inspector diff <a> <b>` | Compare two dump JSON files |
 | `layout-inspector tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` and tap the center |
 | `layout-inspector swipe` / `input` / `key` | Swipe, input ASCII text, send keyevent |
@@ -119,6 +124,34 @@ Screenshot fallback: on capture failure a `dli-fallback-<time>.png` (720px wide 
 | `deep_nesting` | Nesting deeper than the threshold (default 14) |
 
 Enable only the rules you need: `layout-inspector analyze --rules small_touch_target,overlap`.
+
+## Interactive viewer
+
+`layout-inspector view` (alias `open`) captures the current UI once, writes one self-contained HTML file, and opens it in the default browser. Use it only when the user explicitly asks to visualize the screen; `dump`, `find`, `analyze`, `shot`, and verification never open a browser as a side effect.
+
+```bash
+layout-inspector view                                    # .dli/viewer.html + browser
+layout-inspector view --no-open                          # write the file only
+layout-inspector view --out .tmp-view/v.html             # custom path
+layout-inspector view --source semantics --max-width 720
+layout-inspector view --rules small_touch_target,overlap --no-issues
+layout-inspector view --json                             # path, opened, bytes, screenshot metadata
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--source` | `auto` | `auto`, `view`, `semantics`, `compose`, or `both` |
+| `--out` | `.dli/viewer.html` | HTML output path; parent directories are created |
+| `--no-open` | off | Write the file without launching a browser |
+| `--max-width` | `1080` | Downscale the embedded screenshot to at most this width |
+| `--max-nodes` | `4000` | Maximum serialized nodes per tree |
+| `--props` | off | Embed every ViewDebug property in node details |
+| `--rules` | all | Comma-separated analysis rules |
+| `--no-issues` | off | Skip layout/accessibility analysis |
+| `--package`, `--pid`, `--window` | foreground app | Same target selection as `dump` |
+| `--json` | off | Emit `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
+
+The page embeds the tree, a base64 screenshot, node details, and issues; it makes no network requests and works from `file://`. It is a static snapshot: refs are valid only for that capture. The HTML contains device serials, package names, and screen text — keep it under the gitignored `.dli/` and do not commit it. `DLI_NO_OPEN=1` disables browser launch globally.
 
 ## Screenshots and fallback
 
@@ -190,4 +223,5 @@ If the agent got device coordinates from `find_elements` / `hit_test`, pass them
 | `DLI_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
 | `DLI_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |
 | `DLI_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
+| `DLI_NO_OPEN=1` | Never launch a browser from `view` / `open_viewer` (still writes the HTML) |
 | `DLI_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |

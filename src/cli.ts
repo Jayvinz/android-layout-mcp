@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { basename, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson, type RuleName } from "./core/analyze.js";
@@ -19,9 +19,11 @@ import {
   saveScreenshot,
   screenshotMetadata,
   takeScreenshot,
+  type Screenshot,
 } from "./core/screenshot.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
 import { loadDump, saveDump, serializeDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
+import { openInBrowser, renderViewerHtmlFromPayload, viewerPayload, type ViewerPayload } from "./core/viewer.js";
 import { PACKAGE_VERSION } from "./core/version.js";
 
 interface GlobalOptions {
@@ -428,6 +430,105 @@ program
   });
 
 program
+  .command("view")
+  .alias("open")
+  .description("capture the current UI and open an interactive HTML viewer in the browser")
+  .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+  .option("--package <package>", "package name (defaults to foreground app)")
+  .option("--pid <pid>", "process id")
+  .option("--window <name-or-index>", "ViewRootImpl window to capture (view source)")
+  .option("--out <file>", "HTML output path", ".dli/viewer.html")
+  .option("--no-open", "write the HTML file without opening a browser")
+  .option("--max-width <px>", "downscale the embedded screenshot to at most this width", parsePositiveInt, 1080)
+  .option("--max-nodes <n>", "limit serialized nodes per tree", parsePositiveInt, 4000)
+  .option("--props", "embed every ViewDebug property")
+  .option("--rules <rules>", "comma-separated analysis rules (default: all)")
+  .option("--no-issues", "skip layout/accessibility analysis")
+  .option("--json", "output JSON")
+  .action(async (options, command) => {
+    const result = await captureFor(command, options);
+    const adb = makeAdb(command);
+    let screenshot: Screenshot | null = null;
+    let screenshotError: string | null = null;
+    try {
+      screenshot = await takeScreenshot(adb, { maxWidth: options.maxWidth });
+    } catch (error) {
+      screenshotError = errorMessage(error);
+    }
+    const rules = options.rules
+      ? (options.rules.split(",").map((rule: string) => rule.trim()).filter(Boolean) as RuleName[])
+      : undefined;
+    const analysis =
+      options.issues === false ? null : analyzeCapture(result, { rules });
+    const payload = viewerPayload(result, {
+      screenshot,
+      analysis,
+      maxNodes: options.maxNodes,
+      includeProperties: Boolean(options.props),
+    });
+    const html = renderViewerHtmlFromPayload(payload);
+    const outPath = resolve(options.out);
+    await mkdir(dirname(outPath), { recursive: true });
+    await writeFile(outPath, html, "utf8");
+
+    const openResult =
+      options.open === false ? { opened: false, error: "--no-open" } : await openInBrowser(outPath);
+    const bytes = Buffer.byteLength(html, "utf8");
+    const truncated = Object.keys(payload.trees).some(
+      (source) => payload.trees[source as NodeSource]?.truncated === true,
+    );
+    const screenshotMeta = screenshot
+      ? {
+          width: screenshot.width,
+          height: screenshot.height,
+          originalWidth: screenshot.originalWidth,
+          originalHeight: screenshot.originalHeight,
+          scale: screenshot.scale,
+        }
+      : null;
+
+    if (!options.json && !isInsideDli(outPath)) {
+      console.error("warning: the viewer contains device/screen data; do not commit it.");
+    }
+    if (options.json) {
+      printJson({
+        path: outPath,
+        opened: openResult.opened,
+        ...(openResult.browser ? { browser: openResult.browser } : {}),
+        ...(openResult.error ? { openError: openResult.error } : {}),
+        bytes,
+        uiKind: result.uiKind,
+        sources: result.sources,
+        truncated,
+        trees: viewerTreeSummary(payload),
+        screenshot: screenshotMeta,
+        ...(screenshotError ? { screenshotError } : {}),
+      });
+      return;
+    }
+
+    const state = openResult.opened
+      ? "opened in browser"
+      : `not opened: ${openResult.error ?? "unknown"}`;
+    console.log(`viewer ${outPath} (${state})`);
+    console.log(
+      `  ${bytes} bytes · uiKind ${result.uiKind} · nodes ${viewerTreeCounts(payload)}` +
+        `${truncated ? " · truncated" : ""}`,
+    );
+    if (screenshot) {
+      console.log(
+        `  screenshot ${screenshot.width}x${screenshot.height} ` +
+          `(from ${screenshot.originalWidth}x${screenshot.originalHeight})`,
+      );
+    } else {
+      console.log(`  screenshot unavailable${screenshotError ? `: ${screenshotError}` : ""}`);
+    }
+    if (payload.meta.limits.budgetExceeded) {
+      console.error("warning: embedded JSON exceeded the 8 MB budget; the payload was reduced.");
+    }
+  });
+
+program
   .command("diff <before> <after>")
   .description("diff two dump JSON files")
   .option("--source <source>", "view | semantics | compose (defaults to each dump's primary source)")
@@ -746,6 +847,31 @@ function formatMatch(match: Record<string, unknown>): string {
 
 function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
+}
+
+function isInsideDli(path: string): boolean {
+  const root = join(process.cwd(), ".dli");
+  return path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}\\`);
+}
+
+function viewerTreeSummary(
+  payload: ViewerPayload,
+): Record<string, { nodes: number; total: number; truncated: boolean }> {
+  const summary: Record<string, { nodes: number; total: number; truncated: boolean }> = {};
+  for (const [source, tree] of Object.entries(payload.trees)) {
+    if (!tree) continue;
+    summary[source] = { nodes: tree.nodeCount, total: tree.totalNodes, truncated: tree.truncated };
+  }
+  return summary;
+}
+
+function viewerTreeCounts(payload: ViewerPayload): string {
+  const parts: string[] = [];
+  for (const [source, tree] of Object.entries(payload.trees)) {
+    if (!tree) continue;
+    parts.push(`${source} ${tree.nodeCount}${tree.truncated ? `/${tree.totalNodes}` : ""}`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "none";
 }
 
 function asString(value: unknown): string | undefined {

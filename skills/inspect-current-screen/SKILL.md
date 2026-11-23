@@ -1,6 +1,6 @@
 ---
 name: inspect-current-screen
-description: Use when the user wants to look at, capture, summarize, or inspect the current Android screen or a visible control without tracing source code. Trigger on "抓取当前页面布局", "当前页面布局", "看下当前页面/界面", "当前界面有什么", "这个页面是什么", "截个图看看", "导出布局树", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪/可点击吗/什么类型", "顶部那个图标是什么", "这个按钮为什么是灰的". English triggers include "summarize the current screen", "what's on screen right now", and "list the visible entry points". Also use for direct device interaction ("点一下这个按钮", "滑到下面", "屏幕坐标 300,800 是什么", "输入 hello", "按返回键") and layout/accessibility audits ("有没有小点击区域", "有没有重叠", "无障碍检查", "布局有没有问题"). Do NOT use when the user asks where code is implemented, which file/class/Composable owns it, what happens on click, or where state comes from (use locate-ui-code), or for before/after regression checks (use verify-ui-change), or for general Android questions without a live screen.
+description: Use when the user wants to look at, capture, summarize, or inspect the current Android screen or a visible control without tracing source code. Trigger on "抓取当前页面布局", "当前页面布局", "看下当前页面/界面", "当前界面有什么", "这个页面是什么", "截个图看看", "导出布局树", "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪/可点击吗/什么类型", "顶部那个图标是什么", "这个按钮为什么是灰的". English triggers include "summarize the current screen", "what's on screen right now", and "list the visible entry points". Also use for direct device interaction ("点一下这个按钮", "滑到下面", "屏幕坐标 300,800 是什么", "输入 hello", "按返回键") and layout/accessibility audits ("有没有小点击区域", "有没有重叠", "无障碍检查", "布局有没有问题"). Do NOT use when the user asks where code is implemented, which file/class/Composable owns it, what happens on click, or where state comes from (use locate-ui-code), or for before/after regression checks (use verify-ui-change), or for general Android questions without a live screen.
 ---
 
 # Inspecting the Current Android Screen
@@ -66,6 +66,14 @@ When the user asks "有没有小点击区域", "有没有重叠", "无障碍检�
 ### Step 6 — Screenshot when visual confirmation helps
 
 Call `screenshot` only when the answer depends on appearance or the tree is ambiguous. Return the metadata (`originalWidth`/`originalHeight`, `screenWidth`/`screenHeight`) and the image-to-device mapping. A screenshot cannot reliably reveal text color, font size, or font family; do not infer style from pixels.
+
+### Explicit visual viewer
+
+Only when the user explicitly asks to visualize or open the screen in a browser ("打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer"), call MCP `open_viewer` (or the CLI fallback `node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" view`). It captures once, writes a self-contained offline HTML viewer, and may open a browser window.
+
+- Do not call it for ordinary summaries, dumps, element lookups, screenshots, analysis, or verification; those must never open a browser.
+- Report the absolute file path and whether the browser opened (`opened` / `openError`). The viewer is a static snapshot; refs are valid only for that capture.
+- The file contains device/serial/screen text; keep it under `.dli/` and do not commit it.
 
 ## uiKind policy
 

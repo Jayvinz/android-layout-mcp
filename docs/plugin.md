@@ -21,11 +21,11 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 
 | Component | Path | Purpose |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` and more |
+| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` and more |
 | Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, and layout/accessibility audits without source tracing |
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
-| Commands | `commands/locate.md`, `screen.md`, `verify.md` | `/layout-inspector-android:locate`, `:screen`, `:verify` |
+| Commands | `commands/locate.md`, `screen.md`, `view.md`, `verify.md` | `/layout-inspector-android:locate`, `:screen`, `:view`, `:verify` |
 | Agent | `agents/ui-code-locator.md` | Read-only UI→code locator subagent for isolating multi-step investigation in a subcontext |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
@@ -67,7 +67,7 @@ Or load for the current session only:
 claude --plugin-dir E:/repo/layout-inspector-android
 ```
 
-After installation `/mcp` should show the `layout-inspector-android` server and `/help` should list `/layout-inspector-android:locate`, `:screen`, `:verify`.
+After installation `/mcp` should show the `layout-inspector-android` server and `/help` should list `/layout-inspector-android:locate`, `:screen`, `:view`, `:verify`.
 
 ## Typical workflow
 
@@ -82,11 +82,14 @@ For "locate the Me button on the current screen and trace it to its related code
 
 Natural-language requests about the current screen or a visible control ("抓取当前页面布局", "看下这个按钮", "有没有重叠") route through the `inspect-current-screen` skill instead: `get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`, optionally `analyze_ui` and `screenshot`. That path stops after device evidence and never calls `locate_code`; only source questions continue into the workflow above.
 
+Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/layout-inspector-android:view` or the `open_viewer` tool: one capture, one self-contained `.dli/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
+
 Or call the commands directly:
 
 ```text
 /layout-inspector-android:locate Me
 /layout-inspector-android:screen
+/layout-inspector-android:view
 /layout-inspector-android:verify
 ```
 
