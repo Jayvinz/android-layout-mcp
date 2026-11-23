@@ -23,7 +23,7 @@
 | 组件 | 路径 | 作用 |
 |---|---|---|
 | MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` 等 |
-| Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作与布局/无障碍检查，不追溯源码 |
+| Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作、布局/无障碍检查，以及显式触发的浏览器查看器；不追溯源码 |
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |

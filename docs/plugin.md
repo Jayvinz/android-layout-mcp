@@ -22,7 +22,7 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 | Component | Path | Purpose |
 |---|---|---|
 | MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` and more |
-| Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, and layout/accessibility audits without source tracing |
+| Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, layout/accessibility audits, and the explicit browser viewer; no source tracing |
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/analyze-screen-logic/` | Whole-screen/dialog analysis: implementation, ViewModel/state, data sources, navigation, conditions, and side effects (read-only) |
 | Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
