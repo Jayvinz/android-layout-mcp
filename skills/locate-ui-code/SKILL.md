@@ -97,6 +97,12 @@ When nothing is found:
 3. A dialog/overlay may belong to another window: inspect `windows` in `get_state`, then `dump_ui(source="view", window="<index>")` if needed.
 4. Still nothing: go to Step 3 and fall back to code search using nearby static text, ids, or class names; follow `references/repo-search-recipes.md`.
 
+**Do not turn "not in this capture" into "not in the repository".** One frame is evidence about the screen, not about the codebase.
+
+- If the user names a control that is not in the captured tree (a closed dialog, another tab, a scrolled-off item), say it is not on the current screen, then either open it (`tap` / `swipe`, or ask the user) and re-capture, or search the source for the literal.
+- For Compose, search the quoted literal (`Text("Close")`, `contentDescription = "Close"`) instead of assuming attribute syntax such as `android:text` / `text =`; `locate_code` reports these as `literal-text` candidates.
+- If source hits exist while the control is absent on screen, report them as `not currently visible` and keep them separate from capture evidence. Never claim the repository lacks the control based on a single frame.
+
 Extract and record anchors:
 
 - `text` / `contentDescription`
