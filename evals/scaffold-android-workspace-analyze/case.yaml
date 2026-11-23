@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: scaffold-android-workspace-analyze
+description: Detect a real Android workspace (no Android mention in the prompt) and activate screen-logic analysis.
+tags: [scaffold, gate]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    分析当前界面的代码和业务逻辑
+  max_turns: 12
+  timeout_seconds: 180
+  allowed_tools: [Read, Glob, Grep, Skill]

@@ -8,12 +8,15 @@ Routing regression suite for the four skills. It checks that a prompt activates 
 evals/
 ├── README.md
 ├── mocks/layout-inspector-android/   # fixed JSON result per MCP tool (<tool>.md, no frontmatter)
-└── trigger-*/                        # one case per routing scenario
-    ├── prompt.md                     # user prompt + case frontmatter
-    └── graders/*.md                  # tool_used graders (skill activation, required/missing tools)
+├── fixtures/android-project/         # fake Android repo for scaffolded cases
+├── trigger-*/                        # one case per routing scenario
+│   ├── prompt.md                     # user prompt + case frontmatter
+│   └── graders/*.md                  # tool_used graders (skill activation, required/missing tools)
+├── scaffold-*/                       # case.yaml + scaffold.sh; run with --scaffold
+└── manual-gate-*/                    # non-Android refusal prompts for manual/installed-plugin runs
 ```
 
-Each case sets `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180`, and `tags: [trigger]`. The MCP server is mocked, so no device, adb, or Android Studio is needed.
+Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180`, and `tags: [trigger]`. The MCP server is mocked, so no device, adb, or Android Studio is needed.
 
 `mocks/layout-inspector-android/_tools.json` is a saved `tools/list` snapshot; it gives the mocked server the real tool names, descriptions, and schemas. Regenerate it after any `src/mcp.ts` change (rebuild `dist/` first) so the eval sees the shipped descriptions. If the file is absent, mocked tools fall back to a permissive schema with no description.
 
@@ -42,6 +45,16 @@ The eval workspace is empty, so it is not an Android project. Existing positive 
 ## Runtime gate
 
 `hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/dli-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+
+## Scaffolded Android workspace
+
+`scaffold-android-workspace-analyze` stages a fake Android project into the empty run cwd with `context.scaffold_script`, then asks to analyze the current screen **without** an Android mention. It validates the real project-detection branch (not just the explicit-Android exception) and must be run with `--scaffold`:
+
+```bash
+claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 2
+```
+
+The script runs host-side as `bash` with the empty workspace as cwd (Git Bash on Windows; the WSL launcher must not be first on PATH). `context.add_dirs` is not a workspace copy — it only grants read access to files inside the case directory, so it cannot make the cwd look like an Android project.
 
 ## Cost
 
