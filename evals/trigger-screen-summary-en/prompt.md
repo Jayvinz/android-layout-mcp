@@ -7,4 +7,4 @@ timeout_seconds: 180
 tags: [trigger]
 ---
 
-Summarize the current screen and list the visible clickable entry points.
+In an Android project, summarize the current screen and list the visible clickable entry points.

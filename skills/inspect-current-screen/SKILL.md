@@ -1,11 +1,24 @@
 ---
 name: inspect-current-screen
-description: Use when the user wants to look at, capture, summarize, or inspect the current Android screen or a visible control without tracing source code. Trigger on "抓取当前页面布局", "当前页面布局", "看下当前页面/界面", "当前界面有什么", "这个页面是什么", "截个图看看", "导出布局树", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪/可点击吗/什么类型", "顶部那个图标是什么", "这个按钮为什么是灰的". English triggers include "summarize the current screen", "what's on screen right now", and "list the visible entry points". Also use for direct device interaction ("点一下这个按钮", "滑到下面", "屏幕坐标 300,800 是什么", "输入 hello", "按返回键") and layout/accessibility audits ("有没有小点击区域", "有没有重叠", "无障碍检查", "布局有没有问题"). Do NOT use when the user asks where code is implemented, which file/class/Composable owns it, what happens on click, or where state comes from (use locate-ui-code), or for before/after regression checks (use verify-ui-change), or for general Android questions without a live screen.
+description: >-
+  Android-only. Use when the user wants to look at, capture, summarize, or inspect the current Android screen or a visible control without tracing source code. Trigger on "抓取当前页面布局", "当前页面布局", "看下当前页面/界面", "当前界面有什么", "这个页面是什么", "截个图看看", "导出布局树", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪/可点击吗/什么类型", "顶部那个图标是什么", "这个按钮为什么是灰的". English triggers include "summarize the current screen". Also use for direct device interaction ("点一下这个按钮", "滑到下面", "屏幕坐标 300,800 是什么", "输入 hello", "按返回键") and layout/accessibility audits ("有没有小点击区域", "有没有重叠", "无障碍检查", "布局有没有问题"). Only in Android projects; in a non-Android repository use only when the user explicitly asks to look at the device screen/page or explicitly mentions Android. Do NOT use when the user asks where code is implemented, which file/class/Composable owns it, what happens on click, or where state comes from (use locate-ui-code), or for before/after regression checks (use verify-ui-change), or for general Android questions without a live screen.
 ---
 
 # Inspecting the Current Android Screen
 
 Look at the live device screen and answer from captured UI evidence. Core principle: **capture device evidence first, stay read-only, and stop before source tracing.** This skill owns "what is on screen" questions; it never opens the repository or calls `locate_code`.
+
+## Step 0 — Android project gate
+
+Confirm the working directory (or the repo root the user named) is an Android project. Check the cwd and walk up parent directories:
+`settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. Skip `node_modules/`, `build/`, and `.gradle/`.
+
+**HARD STOP:** if no marker exists and the user did not explicitly ask to inspect a connected device screen/page and did not explicitly mention Android, do NOT call `get_state`, `dump_ui`, `find_elements`, `locate_code`, or any other tool. Reply in one sentence: this workspace is not an Android project, so source tracing is unavailable; offer to inspect a connected device screen if they want, or ask for the Android module path.
+
+A reference like "这个按钮/这个页面/这个弹窗" alone is not an explicit device request. A connected device does not make the repository Android.
+
+If the user explicitly asks about a connected device screen/page but no Android marker exists: observation is allowed (`get_state`/`dump_ui`/`find_elements`), but source analysis is unavailable — do not call `locate_code` until the user points at an Android module. If the user only mentions Android without an Android module present, say the module path is still needed and do not scan.
+
 
 ## Prerequisites
 
@@ -110,6 +123,7 @@ Answer in the user's language, using this structure:
 
 - This skill ends at observation. Do **not** call `locate_code`, open repository files, or scan for implementations unless the user explicitly asks where the control or page is implemented.
 - Implementation, file, class, Composable, click-chain, or state questions → switch to `locate-ui-code`.
+- Code or business-logic analysis of the whole screen/dialog (ViewModel, data sources, business chain) → switch to `analyze-screen-logic`.
 - Before/after, regression, "did my change work", or baseline comparison → switch to `verify-ui-change`.
 - When no saved baseline exists for "compare to the last version", say so and offer to save one now; never invent a before state.
 

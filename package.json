@@ -28,6 +28,7 @@
     "skills",
     "commands",
     "agents",
+    "hooks",
     "scripts"
   ],
   "scripts": {

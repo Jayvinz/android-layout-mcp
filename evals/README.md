@@ -1,6 +1,6 @@
 # Trigger evals
 
-Routing regression suite for the three skills. It checks that a prompt activates the intended skill and calls the intended MCP tools, and that general Android or coding questions activate nothing.
+Routing regression suite for the four skills. It checks that a prompt activates the intended skill and calls the intended MCP tools, that general Android or coding questions activate nothing, and that the Android project gate blocks non-Android workspaces unless the user explicitly asks for the device screen/page or mentions Android.
 
 ## Layout
 
@@ -23,17 +23,29 @@ Each case sets `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180
 # one case (smoke)
 claude plugin eval . --case 'trigger-dump-current-screen' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 1
 
-# whole suite (11 cases)
-claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 4
+# whole suite (15 cases)
+claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 6
 ```
 
 Results land in `evals/results/<timestamp>/aggregate-result.json` and are gitignored. Use `--runs 3` for a stability check; `--ablation with-without` additionally runs a no-plugin baseline arm.
 
 Some multi-step workflows reach the 8-turn cap after their graders have already passed. That appears as `exit 1: Reached maximum number of turns` and keeps the run's temp sandbox, but it does not change the score. Raise `max_turns` when you need the full final answer rather than just the routing decision.
 
+## Gate cases
+
+The eval workspace is empty, so it is not an Android project. Existing positive prompts carry an explicit `在一个 Android 工程中，` (or `In an Android project, `) prefix, which is the gate's Android-mention exception. The dedicated cases cover the rest:
+
+- `trigger-exception-device` — an explicit device/screen request activates observation only;
+- `trigger-exception-android` — an explicit Android mention activates source analysis;
+- `manual-gate-nonandroid-*` — reference prompts for the non-Android refusal. `claude plugin eval` does not load plugin hooks, so these are not in the `trigger-*` glob; the deterministic gate is covered by `test/android-gate.test.ts` and by the `PreToolUse` hook in an installed plugin session.
+
+## Runtime gate
+
+`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/dli-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+
 ## Cost
 
-About $2.50–$3.50 for this 11-case suite at `--runs 1` (observed $2.72; a single smoke case is roughly $0.15–$0.30). A `--runs 3` stability pass costs roughly 3×. The `--max-cost-usd` ceiling is checked before each run launches; a low ceiling stops the run early rather than failing a case.
+About $4–$7 for this 15-case suite at `--runs 1` (the analyze cases are the most expensive because they explore several files; a single smoke case is roughly $0.15–$0.30). A `--runs 3` stability pass costs roughly 3×. The `--max-cost-usd` ceiling is checked before each run launches; a low ceiling stops the run early rather than failing a case.
 
 ## Windows
 

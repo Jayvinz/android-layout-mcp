@@ -25,9 +25,11 @@
 | MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` 等 |
 | Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作与布局/无障碍检查，不追溯源码 |
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
+| Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
-| Commands | `commands/locate.md`、`screen.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:verify` |
+| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:verify` |
 | Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
+| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
 
@@ -75,7 +77,7 @@ claude --plugin-dir E:/repo/layout-inspector-android
 ```
 
 安装后 `/mcp` 应能看到 `layout-inspector-android` server；`/help` 中会出现
-`/layout-inspector-android:locate`、`:screen`、`:verify`。
+`/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:verify`。
 
 ## 典型流程
 
@@ -93,11 +95,22 @@ claude --plugin-dir E:/repo/layout-inspector-android
 `hit_test`，必要时再看 `analyze_ui` 和 `screenshot`。这条路径只做设备取证，不会调用
 `locate_code`；只有用户明确追问源码时才进入上面的定位流程。
 
+整页/弹窗请求（“分析当前界面的代码和业务逻辑”“分析这个弹窗的数据从哪来”）会走
+`analyze-screen-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）→ 判断页面/弹窗/底部弹层并列出区块
+（独立窗口时按窗口 dump）→ 确定 Activity/Fragment/Composable/route/弹窗类 → 区块映射到 `file:line`
+→ 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
+
+**Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
+`settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
+`AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android
+时才会激活；连接了设备并不代表仓库是 Android 工程。
+
 也可以直接调用命令：
 
 ```text
 /layout-inspector-android:locate 个人页
 /layout-inspector-android:screen
+/layout-inspector-android:analyze-screen
 /layout-inspector-android:verify
 ```
 

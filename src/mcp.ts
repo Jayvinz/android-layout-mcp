@@ -148,7 +148,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Get device and app state",
       description:
-        "Returns the connected device, screen size/density/orientation, foreground package and activity, process ids, and the app's ViewRootImpl windows (if debuggable). Call this before UI inspection to learn what is on screen.",
+        "Returns the connected device, screen size/density/orientation, foreground package and activity, process ids, and the app's ViewRootImpl windows (if debuggable). Call this before UI inspection to learn what is on screen. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {
         serial: z.string().optional().describe("Device serial; omit when only one device is connected."),
         package: z.string().optional().describe("Package to inspect; defaults to the foreground app."),
@@ -187,7 +187,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Dump the UI hierarchy",
       description:
-        "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/controls; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\").",
+        "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/controls; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\"). Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {
         serial: z.string().optional().describe("Device serial."),
         package: z.string().optional().describe("Package to inspect; defaults to foreground app."),
@@ -281,7 +281,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Find elements",
       description:
-        "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className.",
+        "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {
         query: z.string().describe("Text, id, class, ref, or regex to search for."),
         by: z.enum(["any", "text", "desc", "id", "class", "ref"]).optional().describe("Field to search (default any)."),
@@ -340,7 +340,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Locate code behind a UI element",
       description:
-        "Scan the current Android repository for the source of a UI element. Pass the anchors returned by dump_ui/find_elements: visible text, content description, resource id, Compose name/file/line, or View class. Returns string-resource/layout/Compose anchors plus ranked candidates with file, line, kind, score, reason and a snippet. This is the deterministic step before reading code; it is read-only and does not modify the repository. Use the returned anchors and candidates to open files and trace the click/state chain. Use only when the user references a visible UI element on the current screen or asks where UI code is implemented; not for general Android concept questions, code review, or performance debugging.",
+        "Scan the current Android repository for the source of a UI element. Pass the anchors returned by dump_ui/find_elements: visible text, content description, resource id, Compose name/file/line, or View class. Returns string-resource/layout/Compose anchors plus ranked candidates with file, line, kind, score, reason and a snippet. This is the deterministic step before reading code; it is read-only and does not modify the repository. Use the returned anchors and candidates to open files and trace the click/state chain. Use only when the user references a visible UI element on the current screen or asks where UI code is implemented; not for general Android concept questions, code review, or performance debugging. Android repos only; non-Android: call only on an explicit Android/device request.",
       inputSchema: {
         root: z.string().optional().describe("Repository root (default: the MCP server's working directory)."),
         text: z.array(z.string()).optional().describe("Visible text anchors; repeatable."),

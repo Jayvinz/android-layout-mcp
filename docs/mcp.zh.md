@@ -67,6 +67,11 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 | `tap` | 坐标或 `text/id/ref` 元素点击；支持 `imageX/imageY/imageWidth/imageHeight` 图片坐标映射 |
 | `swipe` / `input_text` / `press_key` | 交互 |
 
+**Android 工程门槛。** `get_state`、`dump_ui`、`find_elements`、`locate_code` 面向 Android 工程：
+`settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
+`AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才调用；
+`locate_code` 还要求明确提到 Android 或设备。连接了设备并不代表仓库是 Android 工程。
+
 ## 推荐调用顺序
 
 1. `get_state` → 确认前台 App；
@@ -93,6 +98,17 @@ get_state → dump_ui(source="auto") → (Compose 页面) dump_ui(source="compos
 
 `locate_code` 的参数就是上一步得到的 text/desc/id/Compose name/file/line/class；它只做候选排序，
 不修改仓库。定位脚本 `scripts/locate-code.mjs` 的独立用法见 [plugin.zh.md](plugin.zh.md#定位脚本)。
+
+### 分析当前页面/弹窗的代码与业务逻辑
+
+```text
+get_state → dump_ui(source="auto", format="tree") → (独立弹窗窗口) dump_ui(source="view", window=...)
+→ locate_code → 读候选文件 → ViewModel/状态 → Repository/API/缓存 → 带 confirmed|inferred 的状态/数据链路
+```
+
+适用于“分析当前界面/弹窗的代码和业务逻辑”：先判断是页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
+再追 1–3 跳状态与数据。全程只读，不修改代码。`analyze-screen-logic` skill 与
+`/layout-inspector-android:analyze-screen` 命令就是这条流程。
 
 ## 环境变量
 

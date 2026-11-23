@@ -7,4 +7,4 @@ timeout_seconds: 180
 tags: [trigger]
 ---
 
-屏幕坐标 300,800 上是什么控件？
+在一个 Android 工程中，屏幕坐标 300,800 上是什么控件？

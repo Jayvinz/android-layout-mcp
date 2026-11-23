@@ -9,6 +9,18 @@ Package hint: $ARGUMENTS
 
 Follow the `inspect-current-screen` skill.
 
+## Step 0 — Android project gate
+
+Confirm the working directory (or the repo root the user named) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`.
+
+If none:
+- continue only when the user explicitly asked to inspect the device screen/page or explicitly mentioned Android;
+- otherwise stop, say this plugin targets Android projects, and never scan the repository or call `locate_code`.
+
+A connected device does not make the repository Android.
+
+**HARD STOP:** if no Android marker exists and the user did not explicitly ask to inspect a connected device screen/page and did not explicitly mention Android, do NOT call `get_state`, `dump_ui`, `find_elements`, `locate_code`, or any other tool. Say the workspace is not an Android project; offer device observation or ask for the Android module path. A reference like "这个按钮/这个页面/这个弹窗" alone is not an explicit device request.
+
 Use the layout-inspector-android MCP tools (or the bundled CLI if MCP is unavailable):
 
 1. `get_state` (with `package` if provided): device, screen, foreground package/activity, pids, windows.

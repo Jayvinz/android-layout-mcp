@@ -60,8 +60,19 @@ const components = {
   inspect: read("skills/inspect-current-screen/SKILL.md"),
   locate: read("skills/locate-ui-code/SKILL.md"),
   verify: read("skills/verify-ui-change/SKILL.md"),
+  analyze: read("skills/analyze-screen-logic/SKILL.md"),
   agent: read("agents/ui-code-locator.md"),
 };
+
+const skills = {
+  inspect: components.inspect,
+  locate: components.locate,
+  verify: components.verify,
+  analyze: components.analyze,
+};
+
+const SKILL_GATE = "Android-only";
+const MCP_GATE = "Android repos only";
 
 test("component descriptions are valid and within the 1024-character limit", () => {
   for (const [name, source] of Object.entries(components)) {
@@ -91,6 +102,12 @@ test("inspect-current-screen description owns screen and control observation", (
   );
 });
 
+test("every skill description carries the Android project gate", () => {
+  for (const [name, source] of Object.entries(skills)) {
+    assertContains(scalarField(source, "description"), [SKILL_GATE], name);
+  }
+});
+
 test("locate-ui-code description owns source tracing and excludes screen observation", () => {
   assertContains(
     scalarField(components.locate, "description"),
@@ -113,12 +130,56 @@ test("verify-ui-change description owns before/after verification", () => {
   );
 });
 
+test("analyze-screen-logic description owns whole-screen/dialog business analysis", () => {
+  assertContains(
+    scalarField(components.analyze, "description"),
+    [
+      "分析当前界面的代码",
+      "分析当前界面/弹窗的代码/业务逻辑",
+      "分析这个弹窗的业务逻辑",
+      "locate-ui-code",
+      "inspect-current-screen",
+    ],
+    "analyze-screen-logic",
+  );
+});
+
 test("screen command delegates to the inspect-current-screen skill", () => {
   const command = read("commands/screen.md");
   assert.ok(command.includes("inspect-current-screen"), "screen.md must reference inspect-current-screen");
   assert.ok(
     /Do not scan the repository or call `locate_code`/i.test(command),
     "screen.md must tell the model not to scan source by default",
+  );
+});
+
+test("commands gate activation on an Android project", () => {
+  for (const command of ["screen", "locate", "verify"]) {
+    const source = read(`commands/${command}.md`);
+    assert.ok(
+      source.includes("Android project gate"),
+      `commands/${command}.md must include the Android project gate`,
+    );
+    assert.ok(
+      source.includes("does not make the repository Android"),
+      `commands/${command}.md must say a connected device does not make the repo Android`,
+    );
+  }
+});
+
+test("analyze-screen command delegates to the analyze-screen-logic skill", () => {
+  const command = read("commands/analyze-screen.md");
+  assert.ok(
+    command.includes("analyze-screen-logic"),
+    "commands/analyze-screen.md must reference analyze-screen-logic",
+  );
+  assert.ok(
+    command.includes("Android project gate"),
+    "commands/analyze-screen.md must include the Android project gate",
+  );
+  assert.ok(
+    command.includes("does not make the repository Android"),
+    "commands/analyze-screen.md must say a connected device does not make the repo Android",
   );
 });
 
@@ -137,4 +198,24 @@ test("MCP tool descriptions carry the screen-observation routing phrases", () =>
   assertContains(blockFor("screenshot"), ["截个图看看", "看一下画面"], "screenshot");
   assertContains(blockFor("hit_test"), ["屏幕坐标 300,800"], "hit_test");
   assertContains(blockFor("locate_code"), ["not for general Android concept questions"], "locate_code");
+
+  for (const tool of ["get_state", "dump_ui", "find_elements", "locate_code"]) {
+    assertContains(blockFor(tool), [MCP_GATE], `${tool} MCP description`);
+  }
+});
+
+test("skills, commands, and the agent hard-stop outside Android projects", () => {
+  for (const [name, source] of Object.entries(skills)) {
+    assert.ok(source.includes("HARD STOP"), `${name} body must include HARD STOP`);
+    assert.ok(
+      source.includes("do NOT call `get_state`, `dump_ui`, `find_elements`, `locate_code`"),
+      `${name} body must name the tools it must not call`,
+    );
+  }
+  for (const command of ["screen", "locate", "verify", "analyze-screen"]) {
+    const source = read(`commands/${command}.md`);
+    assert.ok(source.includes("HARD STOP"), `commands/${command}.md must include HARD STOP`);
+  }
+  const agent = read("agents/ui-code-locator.md");
+  assert.ok(agent.includes("HARD STOP"), "agent must include HARD STOP");
 });

@@ -58,8 +58,8 @@ After installation you get:
 | Component                             | Content                                                                                                          |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | MCP server `layout-inspector-android` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `diff_ui`, `tap`, and more    |
-| Slash commands                        | `/layout-inspector-android:locate` (UI→source), `:screen` (current screen), `:verify` (verify changes on device) |
-| Skills                                | `inspect-current-screen`, `locate-ui-code`, `verify-ui-change`                                                   |
+| Slash commands                        | `/layout-inspector-android:locate` (UI→source), `:screen` (current screen), `:analyze-screen` (screen/dialog logic), `:verify` (verify changes on device) |
+| Skills                                | `inspect-current-screen`, `locate-ui-code`, `analyze-screen-logic`, `verify-ui-change`                          |
 | Read-only subagent                    | `ui-code-locator`                                                                                                |
 
 Use `/mcp` to confirm the server is loaded; `/help` lists the commands above.
@@ -122,11 +122,16 @@ Or run the command:
 
 The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. After a UI change, use `/layout-inspector-android:verify` to compare before/after.
 
+To analyze a whole screen, dialog, or bottom sheet instead of one control, say "分析当前界面的代码和业务逻辑" or run `/layout-inspector-android:analyze-screen`: it maps the screen's sections to source, then follows the ViewModel, data sources, navigation, and side effects.
+
+**Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
+
 ## What you can do
 
 | Task                                                                      | Entry point                                                   |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | Locate the Compose/XML source and business chain of a control             | `/layout-inspector-android:locate` / `locate_code`            |
+| Analyze the code, state, data flow, and business logic of the current screen/dialog | `/layout-inspector-android:analyze-screen` / `analyze-screen-logic` skill |
 | Understand the current screen (foreground app, Activity, visible entries) | `/layout-inspector-android:screen` / `get_state` + `dump_ui`  |
 | Inspect a visible control's bounds, center, clickable/enabled state, and class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | Verify a UI change on a real device (diff + rules + screenshot)           | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
@@ -161,6 +166,7 @@ The tools confirm the foreground app → capture the UI tree → lock onto the t
 - JDWP usually allows one debugger at a time; attach may fail while Android Studio is debugging.
 - `compose` additionally needs a local Android Studio and Java 17+; each capture takes about 8–12s.
 - `input text` reliably supports ASCII only; every command captures a fresh snapshot — there is no live monitoring.
+- Activation targets Android projects; in other repositories it requires an explicit device/screen request or an explicit Android mention.
 
 See [docs/data-sources.md](docs/data-sources.md) for the full boundaries of each source.
 

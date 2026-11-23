@@ -7,4 +7,4 @@ timeout_seconds: 180
 tags: [trigger]
 ---
 
-当前这个页面是哪个 Activity 或 Composable 实现的？
+在一个 Android 工程中，当前这个页面是哪个 Activity 或 Composable 实现的？

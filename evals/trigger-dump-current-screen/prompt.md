@@ -7,4 +7,4 @@ timeout_seconds: 180
 tags: [trigger]
 ---
 
-抓取当前页面布局
+在一个 Android 工程中，抓取当前页面布局

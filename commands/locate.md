@@ -9,6 +9,18 @@ Target element: $ARGUMENTS
 
 Follow the `locate-ui-code` skill. Required behaviour:
 
+## Step 0 — Android project gate
+
+Confirm the working directory (or the repo root the user named) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`.
+
+If none:
+- continue only when the user explicitly asked to inspect the device screen/page or explicitly mentioned Android;
+- otherwise stop, say this plugin targets Android projects, and never scan the repository or call `locate_code`.
+
+A connected device does not make the repository Android.
+
+**HARD STOP:** if no Android marker exists and the user did not explicitly ask to inspect a connected device screen/page and did not explicitly mention Android, do NOT call `get_state`, `dump_ui`, `find_elements`, `locate_code`, or any other tool. Say the workspace is not an Android project; offer device observation or ask for the Android module path. A reference like "这个按钮/这个页面/这个弹窗" alone is not an explicit device request.
+
 1. Call `get_state` first to confirm the foreground package, activity, screen size, and pid. State the package and page in the answer.
 2. Capture the UI with `dump_ui(source="auto", format="tree", visibleOnly=true)`. Note `uiKind`.
 3. If `uiKind` is `compose`, also call `dump_ui(source="compose", maxNodes=2000)` so the element has a `file:line` and Composable name. If it fails, continue with semantics and mark confidence lower.

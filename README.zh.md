@@ -51,8 +51,8 @@ MCP Server ──────────────┘          ├── adb 
 | 组件 | 内容 |
 |---|---|
 | MCP server `layout-inspector-android` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`diff_ui`、`tap` 等工具 |
-| Slash 命令 | `/layout-inspector-android:locate`（UI→源码）、`:screen`（当前页面速览）、`:verify`（真机验证改动） |
-| Skills | `inspect-current-screen`、`locate-ui-code`、`verify-ui-change` |
+| Slash 命令 | `/layout-inspector-android:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:verify`（真机验证改动） |
+| Skills | `inspect-current-screen`、`locate-ui-code`、`analyze-screen-logic`、`verify-ui-change` |
 | 只读子代理 | `ui-code-locator` |
 
 可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
@@ -115,11 +115,16 @@ layout-inspector find "开拍"   # 按文本查找
 
 工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。UI 改动完成后用 `/layout-inspector-android:verify` 做改前/改后对比验证。
 
+如果要分析的是整个页面、弹窗或底部弹层而不是单个控件，可以说“分析当前界面的代码和业务逻辑”，或运行 `/layout-inspector-android:analyze-screen`：它会把页面各区块映射到源码，再追 ViewModel、数据来源、导航与副作用。
+
+**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
+
 ## 能做什么
 
 | 想做的事 | 入口 |
 |---|---|
 | 定位控件对应的 Compose/XML 源码与业务链路 | `/layout-inspector-android:locate` / `locate_code` |
+| 分析当前页面/弹窗的代码、状态、数据流与业务逻辑 | `/layout-inspector-android:analyze-screen` / `analyze-screen-logic` skill |
 | 看懂当前页面（前台 App、Activity、可见入口） | `/layout-inspector-android:screen` / `get_state` + `dump_ui` |
 | 检查某个可见控件的 bounds、center、可点击/enabled 状态与 class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | 真机验证 UI 改动（diff + 规则 + 截图） | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
@@ -154,6 +159,7 @@ layout-inspector find "开拍"   # 按文本查找
 - JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
 - `compose` 额外需要本机 Android Studio 与 Java 17+，单次抓取约 8–12s。
 - `input text` 只可靠支持 ASCII；每次命令都是全新快照，没有实时监听。
+- 激活面向 Android 工程；在其他仓库中需要用户明确要求查看设备页面/界面，或明确提到 Android。
 
 各数据源的完整边界见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
 
