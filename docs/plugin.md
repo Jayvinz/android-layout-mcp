@@ -21,14 +21,14 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 
 | Component | Path | Purpose |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` and more |
+| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` and more |
 | Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, and layout/accessibility audits without source tracing |
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/analyze-screen-logic/` | Whole-screen/dialog analysis: implementation, ViewModel/state, data sources, navigation, conditions, and side effects (read-only) |
 | Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
-| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `verify.md` | `/layout-inspector-android:locate`, `:screen`, `:analyze-screen`, `:verify` |
+| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `view.md`, `verify.md` | `/layout-inspector-android:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify` |
 | Agent | `agents/ui-code-locator.md` | Read-only UI→code locator subagent for isolating multi-step investigation in a subcontext |
-| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`; restart Claude Code after installing or updating the plugin |
+| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
 
@@ -69,7 +69,7 @@ Or load for the current session only:
 claude --plugin-dir E:/repo/layout-inspector-android
 ```
 
-After installation `/mcp` should show the `layout-inspector-android` server and `/help` should list `/layout-inspector-android:locate`, `:screen`, `:analyze-screen`, `:verify`.
+After installation `/mcp` should show the `layout-inspector-android` server and `/help` should list `/layout-inspector-android:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify`.
 
 ## Typical workflow
 
@@ -86,7 +86,9 @@ Natural-language requests about the current screen or a visible control ("抓取
 
 Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `analyze-screen-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
 
-**Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android.
+Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/layout-inspector-android:view` or the `open_viewer` tool: one capture, one self-contained `.dli/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
+
+**Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after install/update.
 
 Or call the commands directly:
 
@@ -94,6 +96,7 @@ Or call the commands directly:
 /layout-inspector-android:locate Me
 /layout-inspector-android:screen
 /layout-inspector-android:analyze-screen
+/layout-inspector-android:view
 /layout-inspector-android:verify
 ```
 

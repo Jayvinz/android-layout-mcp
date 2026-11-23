@@ -51,6 +51,7 @@ test("denies device tools in a non-Android workspace without an explicit cue", (
     assert.equal(decide(project, "分析当前界面的代码", "get_state"), "deny");
     assert.equal(decide(project, "分析当前界面的代码", "dump_ui"), "deny");
     assert.equal(decide(project, "这个按钮在哪实现的", "locate_code"), "deny");
+    assert.equal(decide(project, "打开可视化看看当前页面", "open_viewer"), "deny");
   } finally {
     rmSync(project, { recursive: true, force: true });
   }
@@ -115,6 +116,7 @@ test("allows observation on an explicit device request in a non-Android workspac
   try {
     assert.equal(decide(project, "看下当前设备页面", "get_state"), "allow");
     assert.equal(decide(project, "看下当前设备页面", "dump_ui"), "allow");
+    assert.equal(decide(project, "在设备上打开可视化看看", "open_viewer"), "allow");
     // A device cue alone does not justify source scanning.
     assert.equal(decide(project, "看下当前设备页面", "locate_code"), "deny");
   } finally {
@@ -137,6 +139,7 @@ test("allows gated tools in an Android project and leaves other tools alone", ()
   try {
     assert.equal(decide(project, "分析当前界面的代码", "get_state"), "allow");
     assert.equal(decide(project, "分析当前界面的代码", "locate_code"), "allow");
+    assert.equal(decide(project, "打开可视化看看", "open_viewer"), "allow");
   } finally {
     rmSync(project, { recursive: true, force: true });
   }

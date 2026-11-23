@@ -22,14 +22,14 @@
 
 | 组件 | 路径 | 作用 |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` 等 |
+| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` 等 |
 | Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作与布局/无障碍检查，不追溯源码 |
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
-| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:verify` |
+| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`view.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify` |
 | Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
-| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`；安装或更新插件后需重启 Claude Code |
+| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
 
@@ -77,7 +77,7 @@ claude --plugin-dir E:/repo/layout-inspector-android
 ```
 
 安装后 `/mcp` 应能看到 `layout-inspector-android` server；`/help` 中会出现
-`/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:verify`。
+`/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify`。
 
 ## 典型流程
 
@@ -100,10 +100,15 @@ claude --plugin-dir E:/repo/layout-inspector-android
 （独立窗口时按窗口 dump）→ 确定 Activity/Fragment/Composable/route/弹窗类 → 区块映射到 `file:line`
 → 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
 
+显式可视化请求（“打开可视化看看”“在浏览器里打开当前页面”“open the UI viewer”）走
+`/layout-inspector-android:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
+`.dli/viewer.html`，再打开默认浏览器。`dump`/`find`/`analyze`/`screenshot`/验证流程都不会打开浏览器。
+
 **Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
 `AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android
-时才会激活；连接了设备并不代表仓库是 Android 工程。
+时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对
+`get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer` 强制执行同一门槛；安装或更新后需重启 Claude Code。
 
 也可以直接调用命令：
 
@@ -111,6 +116,7 @@ claude --plugin-dir E:/repo/layout-inspector-android
 /layout-inspector-android:locate 个人页
 /layout-inspector-android:screen
 /layout-inspector-android:analyze-screen
+/layout-inspector-android:view
 /layout-inspector-android:verify
 ```
 

@@ -16,6 +16,7 @@
 - **数据源自适应** —— `auto` 按页面选择正确的数据树：XML 用 ViewDebug v2，Compose 用无障碍语义树，混合页面两者并用；需要 Composable 名称与 `file:line` 时可显式启用 Compose JVMTI 树。
 - **查找、命中测试、交互** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的所有元素（按面积从小到大排序），然后点击、滑动或输入。
 - **可视化验证** —— 截图支持 SVG 节点标注与图片坐标→设备坐标的自动映射；结构化抓取失败时会自动保存一张兜底截图。
+- **按需交互式浏览器查看器** —— 说“打开可视化看看”即可生成一个自包含的离线 HTML 文件（树、截图叠加层、节点详情、布局问题）并在浏览器中打开；其他命令绝不会顺带打开浏览器。
 - **检查与对比** —— 10 条布局/无障碍规则，以及围绕代码改动的 identity-keyed 改前/改后 diff。
 - **UI → 源码定位** —— 以 UI 锚点扫描仓库，返回排序后的 `file:line` 候选、string/layout/Compose 定义与点击处理逻辑。全程只读，不修改仓库。
 - **一个内核，两个前端** —— CLI 与 MCP server 共享同一套 `capture()` / `treesFor()` 流程，行为不会分叉。
@@ -50,8 +51,8 @@ MCP Server ──────────────┘          ├── adb 
 
 | 组件 | 内容 |
 |---|---|
-| MCP server `layout-inspector-android` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`diff_ui`、`tap` 等工具 |
-| Slash 命令 | `/layout-inspector-android:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:verify`（真机验证改动） |
+| MCP server `layout-inspector-android` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`open_viewer`、`diff_ui`、`tap` 等工具 |
+| Slash 命令 | `/layout-inspector-android:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:view`（浏览器查看器）、`:verify`（真机验证改动） |
 | Skills | `inspect-current-screen`、`locate-ui-code`、`analyze-screen-logic`、`verify-ui-change` |
 | 只读子代理 | `ui-code-locator` |
 
@@ -97,6 +98,7 @@ layout-inspector devices       # 已连接设备
 layout-inspector state         # 屏幕、前台 App、pid
 layout-inspector dump          # 抓取当前 UI（默认 auto）
 layout-inspector find "开拍"   # 按文本查找
+layout-inspector view          # 生成交互式 HTML 查看器并在浏览器中打开
 ```
 
 完整命令表、分析规则、截图与坐标映射见 [docs/cli.zh.md](docs/cli.zh.md)。
@@ -117,7 +119,7 @@ layout-inspector find "开拍"   # 按文本查找
 
 如果要分析的是整个页面、弹窗或底部弹层而不是单个控件，可以说“分析当前界面的代码和业务逻辑”，或运行 `/layout-inspector-android:analyze-screen`：它会把页面各区块映射到源码，再追 ViewModel、数据来源、导航与副作用。
 
-**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
+**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code`、`open_viewer` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
 
 ## 能做什么
 
@@ -130,6 +132,7 @@ layout-inspector find "开拍"   # 按文本查找
 | 真机验证 UI 改动（diff + 规则 + 截图） | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
 | 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text` |
 | 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `layout-inspector shot` |
+| 在浏览器中可视化当前页面（仅显式请求） | `open_viewer` / `layout-inspector view` / `/layout-inspector-android:view` |
 | 布局与无障碍问题检查 | `analyze_ui` / `layout-inspector analyze` |
 | 改码前后布局对比 | `diff_ui` / `layout-inspector diff` |
 

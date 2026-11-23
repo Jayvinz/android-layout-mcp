@@ -13,7 +13,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-const GATED_TOOLS = /(?:^|__)(get_state|dump_ui|find_elements|locate_code)$/;
+const GATED_TOOLS = /(?:^|__)(get_state|dump_ui|find_elements|locate_code|open_viewer)$/;
 
 function debug(value) {
   if (process.env.DLI_GATE_DEBUG !== "1") return;

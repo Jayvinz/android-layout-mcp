@@ -26,7 +26,7 @@ Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 
 # one case (smoke)
 claude plugin eval . --case 'trigger-dump-current-screen' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 1
 
-# whole suite (15 cases)
+# whole suite (16 cases)
 claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 6
 ```
 
@@ -44,7 +44,7 @@ The eval workspace is empty, so it is not an Android project. Existing positive 
 
 ## Runtime gate
 
-`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/dli-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/dli-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
 
 ## Scaffolded Android workspace
 

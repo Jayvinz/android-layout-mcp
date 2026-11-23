@@ -2,27 +2,17 @@
   "tools": [
     {
       "name": "list_devices",
-      "title": "List Android devices",
       "description": "List connected Android devices with model, Android version, and SDK level. Use the serial in other tools when multiple devices are connected.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": {}
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "get_state",
-      "title": "Get device and app state",
       "description": "Returns the connected device, screen size/density/orientation, foreground package and activity, process ids, and the app's ViewRootImpl windows (if debuggable). Call this before UI inspection to learn what is on screen. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "serial": {
@@ -33,22 +23,14 @@
             "description": "Package to inspect; defaults to the foreground app.",
             "type": "string"
           }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "dump_ui",
-      "title": "Dump the UI hierarchy",
       "description": "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/controls; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\"). Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "serial": {
@@ -106,22 +88,14 @@
             "description": "Write the full JSON dump to this file.",
             "type": "string"
           }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "find_elements",
-      "title": "Find elements",
       "description": "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "query": {
@@ -186,22 +160,14 @@
         },
         "required": [
           "query"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "locate_code",
-      "title": "Locate code behind a UI element",
       "description": "Scan the current Android repository for the source of a UI element. Pass the anchors returned by dump_ui/find_elements: visible text, content description, resource id, Compose name/file/line, or View class. Returns string-resource/layout/Compose anchors plus ranked candidates with file, line, kind, score, reason and a snippet. This is the deterministic step before reading code; it is read-only and does not modify the repository. Use the returned anchors and candidates to open files and trace the click/state chain. Use only when the user references a visible UI element on the current screen or asks where UI code is implemented; not for general Android concept questions, code review, or performance debugging. Android repos only; non-Android: call only on an explicit Android/device request.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "root": {
@@ -267,22 +233,14 @@
               "type": "string"
             }
           }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "hit_test",
-      "title": "Hit-test a screen point",
       "description": "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "x": {
@@ -321,22 +279,14 @@
         "required": [
           "x",
           "y"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "analyze_ui",
-      "title": "Analyze layout issues",
       "description": "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\".",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "source": {
@@ -386,22 +336,14 @@
           "package": {
             "type": "string"
           }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "screenshot",
-      "title": "Take a screenshot",
       "description": "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before tapping. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "savePath": {
@@ -434,22 +376,75 @@
           "package": {
             "type": "string"
           }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "open_viewer",
+      "description": "Capture the current Android UI once, write a self-contained interactive HTML viewer (tree, screenshot overlay, node details, layout issues), and open it in the default browser. Use ONLY when the user explicitly asks to visualize or open the screen in a browser, such as \"打开可视化看看\", \"在浏览器里打开当前页面\", \"可视化当前布局\", \"open the UI viewer\", \"open this screen in the browser\", or \"visualize the current screen\". This opens a browser window as an explicit, user-visible side effect: never call it for ordinary summaries (dump_ui), element lookup (find_elements), screenshots (screenshot), analysis (analyze_ui), diffs (diff_ui), or verification. The result is a static offline snapshot; refs are valid only for this capture. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "serial": {
+            "description": "Device serial; omit when only one device is connected.",
+            "type": "string"
+          },
+          "package": {
+            "description": "Package to inspect; defaults to the foreground app.",
+            "type": "string"
+          },
+          "window": {
+            "description": "ViewRootImpl window name or index for source=view.",
+            "type": "string"
+          },
+          "source": {
+            "description": "auto (default), view, semantics, compose, or both.",
+            "type": "string",
+            "enum": [
+              "auto",
+              "view",
+              "semantics",
+              "compose",
+              "both"
+            ]
+          },
+          "savePath": {
+            "description": "HTML output path (default .dli/viewer.html).",
+            "type": "string"
+          },
+          "open": {
+            "description": "Open the browser after writing (default true).",
+            "type": "boolean"
+          },
+          "maxWidth": {
+            "description": "Downscale the embedded screenshot to at most this width (default 1080).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4000
+          },
+          "maxNodes": {
+            "description": "Maximum serialized nodes per tree (default 4000).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20000
+          },
+          "includeProperties": {
+            "description": "Embed every ViewDebug property in node details.",
+            "type": "boolean"
+          },
+          "includeIssues": {
+            "description": "Run layout/accessibility analysis (default true).",
+            "type": "boolean"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "diff_ui",
-      "title": "Diff two saved UI dumps",
       "description": "Compare two dump JSON files written by dump_ui (savePath). Reports added, removed, and moved/resized nodes. Useful for verifying a UI change: dump before, make the change, dump after, then diff.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "beforePath": {
@@ -479,22 +474,14 @@
         "required": [
           "beforePath",
           "afterPath"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "openWorldHint": false
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "tap",
-      "title": "Tap the screen",
       "description": "Tap device coordinates, the center of an element matched by text/id/ref, or a point read from a downscaled screenshot. For screenshot coordinates use imageX/imageY plus imageWidth/imageHeight and the device size is mapped automatically (never tap image pixels directly). Provide x+y, imageX/imageY/imageWidth/imageHeight, or a selector (text, id, ref).",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "x": {
@@ -580,23 +567,14 @@
           "package": {
             "type": "string"
           }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "swipe",
-      "title": "Swipe the screen",
       "description": "Swipe between two screen coordinates with an optional duration in milliseconds.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "x1": {
@@ -633,23 +611,14 @@
           "y1",
           "x2",
           "y2"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "input_text",
-      "title": "Type text",
       "description": "Type ASCII text into the focused field using adb shell input text.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "text": {
@@ -661,23 +630,14 @@
         },
         "required": [
           "text"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
     {
       "name": "press_key",
-      "title": "Press a key",
       "description": "Send an Android key event, e.g. KEYCODE_BACK, KEYCODE_ENTER, KEYCODE_HOME, or a numeric keycode.",
       "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "key": {
@@ -689,15 +649,8 @@
         },
         "required": [
           "key"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
       }
     }
   ]
