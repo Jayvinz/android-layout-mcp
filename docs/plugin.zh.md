@@ -23,6 +23,7 @@
 | 组件 | 路径 | 作用 |
 |---|---|---|
 | MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` 等 |
+| Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作与布局/无障碍检查，不追溯源码 |
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
 | Commands | `commands/locate.md`、`screen.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:verify` |
@@ -86,6 +87,11 @@ claude --plugin-dir E:/repo/layout-inspector-android
 4. `find_elements` / `hit_test` 锁定目标，记录 text/id/bounds/clickable；
 5. `locate_code`（或直接运行定位脚本）得到字符串、布局、Compose、ViewBinding、点击处理等候选；
 6. 打开候选文件验证，追 1–3 跳业务链路，输出带 `file:line` 的报告。
+
+“抓取当前页面布局”“看下这个按钮”“有没有重叠”这类关于当前页面或可见控件的自然语言请求会走
+`inspect-current-screen` skill：`get_state` → `dump_ui(format="tree")` → `find_elements` /
+`hit_test`，必要时再看 `analyze_ui` 和 `screenshot`。这条路径只做设备取证，不会调用
+`locate_code`；只有用户明确追问源码时才进入上面的定位流程。
 
 也可以直接调用命令：
 

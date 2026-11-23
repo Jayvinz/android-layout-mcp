@@ -20,9 +20,12 @@ node scripts/sync-version.mjs          # sync package.json version -> .claude-pl
 node scripts/sync-version.mjs --check  # CI/release check
 npm version patch      # bumps package.json and syncs plugin.json via the "version" lifecycle script
 claude plugin validate --strict .      # validate plugin + marketplace manifests
+claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 4  # mocked activation regression, no device
 ```
 
 Tests are fixture-based (`test/fixtures/`) and need no device. The fixtures are real API 33 captures: a Compose app's `ViewDebug.dumpv2` binary, an XML app's binary, uiautomator XML, a screenshot, and Compose helper JSON.
+
+`evals/` holds mocked activation regression cases (`prompt.md` + `graders/*.md`). They assert skill/tool selection, not code output; `evals/mocks/` replaces the MCP server, so no device is needed. `evals/mocks/layout-inspector-android/_tools.json` is a saved `tools/list` snapshot; regenerate it after changing tool descriptions in `src/mcp.ts` and rebuilding `dist/`. They are not part of CI because they run real Claude Code sessions and cost tokens.
 
 ## Language conventions
 
@@ -58,6 +61,7 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
 ```
 
 - `src/cli.ts` and `src/mcp.ts` are thin wrappers. Keep them in parity: a new inspection capability normally means a core function, a CLI subcommand, and an MCP tool. Both call the same `capture()` and `treesFor()` so behavior does not diverge.
+- Activation boundaries live in the skill frontmatter descriptions: `inspect-current-screen` owns screen/control observation and must not call `locate_code`; `locate-ui-code` owns source/state/business tracing; `verify-ui-change` owns before/after verification. Keep each description under 1024 characters and preserve the Chinese trigger phrases users actually type; `test/skills.test.ts` guards them.
 - `src/core/capture.ts` orchestrates everything: resolves device/foreground app/pid, captures the requested trees, classifies the screen (`classifyUi`: `xml` / `compose` / `mixed` / `unknown`), picks the primary source for `auto`, and returns one `CaptureResult`. `treesFor(result, source, both)` is the single source-to-trees policy shared by CLI and MCP.
   - `auto` captures view + semantics, then chooses view for XML, semantics for Compose (ViewDebug stops at `AndroidComposeView`), and renders/searches both for mixed screens.
   - `compose` is opt-in (`--source compose`) because it requires a debuggable app, Android Studio, Java, and takes ~8–12s.

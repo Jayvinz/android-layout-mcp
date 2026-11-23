@@ -15,3 +15,4 @@ helper/build/
 .dli/
 .tmp-locate/
 .workbuddy/
+evals/results/

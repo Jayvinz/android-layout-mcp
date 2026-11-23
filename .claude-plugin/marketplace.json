@@ -10,7 +10,7 @@
     {
       "name": "layout-inspector-android",
       "source": "./",
-      "description": "Locate controls on a live Android screen and trace them to Compose/XML source files, event handlers, state and business logic.",
+      "description": "Summarize and inspect a live Android screen, audit layout and accessibility, and trace controls to Compose/XML source files, event handlers, state and business logic.",
       "license": "MIT",
       "category": "development",
       "keywords": [

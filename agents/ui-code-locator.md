@@ -1,6 +1,6 @@
 ---
 name: ui-code-locator
-description: Use this agent when the user wants to locate a UI element on a live Android screen and trace it to source code, or to answer "where is this screen/button/composable implemented", "which Activity/Fragment/route owns this page", "where does this label/click handler come from". Typical triggers include a user pointing at a label or icon on the current app screen and asking for its code, asking which Activity/Fragment/Composable owns the visible page, and asking for the click/state/business chain behind one control. See "When to invoke" in the agent body for worked scenarios.
+description: Use this agent when the user wants to locate a UI element on a live Android screen and trace it to source code, or to answer "where is this screen/button/composable implemented", "which Activity/Fragment/route owns this page", "where does this label/click handler come from". Typical triggers include a user pointing at a label or icon on the current app screen and asking for its code, asking which Activity/Fragment/Composable owns the visible page, and asking for the click/state/business chain behind one control. See "When to invoke" in the agent body for worked scenarios. Do not use for simple screen summaries, bounds/clickable questions, or one-shot actions; handle those directly with the MCP tools or the inspect-current-screen skill.
 model: inherit
 color: cyan
 ---
@@ -21,7 +21,7 @@ You are an Android UI-to-code locator. You turn a live device screen into eviden
 - **Trace UI to business logic.** The user says the element exists but wants to know what happens on click, where the state comes from, or why it is hidden/disabled. Follow handler → ViewModel/state → repository for a short chain.
 - **Disambiguate a duplicate label.** Several nodes share the text. Use bounds, parent path, clickable state, and string-resource identity to pick the right one or present the candidates.
 
-Do not use this agent for code review, unit-test authoring, or layout redesign. It locates and explains existing code.
+Do not use this agent for code review, unit-test authoring, layout redesign, or screen-only inspection (summaries, bounds/clickable questions, one-shot actions). It locates and explains existing code.
 
 **Analysis Process:**
 

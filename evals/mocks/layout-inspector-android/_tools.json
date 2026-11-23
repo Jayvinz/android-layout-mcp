@@ -1,0 +1,596 @@
+{
+  "tools": [
+    {
+      "name": "list_devices",
+      "description": "List connected Android devices with model, Android version, and SDK level. Use the serial in other tools when multiple devices are connected.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_state",
+      "description": "Returns the connected device, screen size/density/orientation, foreground package and activity, process ids, and the app's ViewRootImpl windows (if debuggable). Call this before UI inspection to learn what is on screen.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "serial": {
+            "description": "Device serial; omit when only one device is connected.",
+            "type": "string"
+          },
+          "package": {
+            "description": "Package to inspect; defaults to the foreground app.",
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "dump_ui",
+      "description": "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/controls; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\").",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "serial": {
+            "description": "Device serial.",
+            "type": "string"
+          },
+          "package": {
+            "description": "Package to inspect; defaults to foreground app.",
+            "type": "string"
+          },
+          "source": {
+            "description": "auto (default), view, semantics, compose, or both.",
+            "type": "string",
+            "enum": [
+              "auto",
+              "view",
+              "semantics",
+              "compose",
+              "both"
+            ]
+          },
+          "format": {
+            "description": "json (default) or tree.",
+            "type": "string",
+            "enum": [
+              "json",
+              "tree"
+            ]
+          },
+          "depth": {
+            "description": "Limit JSON tree depth; omit for full depth.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "maxNodes": {
+            "description": "Limit JSON nodes (default 800).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "includeProperties": {
+            "description": "Include every ViewDebug property in JSON.",
+            "type": "boolean"
+          },
+          "visibleOnly": {
+            "description": "For format=tree, hide invisible/gone views.",
+            "type": "boolean"
+          },
+          "window": {
+            "description": "ViewRootImpl window name or index for source=view.",
+            "type": "string"
+          },
+          "savePath": {
+            "description": "Write the full JSON dump to this file.",
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "find_elements",
+      "description": "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Text, id, class, ref, or regex to search for."
+          },
+          "by": {
+            "description": "Field to search (default any).",
+            "type": "string",
+            "enum": [
+              "any",
+              "text",
+              "desc",
+              "id",
+              "class",
+              "ref"
+            ]
+          },
+          "match": {
+            "description": "Match mode (default contains; /regex/ syntax is also accepted).",
+            "type": "string",
+            "enum": [
+              "contains",
+              "exact",
+              "regex"
+            ]
+          },
+          "clickable": {
+            "description": "Only clickable elements.",
+            "type": "boolean"
+          },
+          "includeInvisible": {
+            "description": "Include invisible/gone views (view source).",
+            "type": "boolean"
+          },
+          "both": {
+            "description": "Search both view and semantics trees (default: primary tree only).",
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "view",
+              "semantics",
+              "compose",
+              "both"
+            ]
+          },
+          "limit": {
+            "description": "Maximum matches (default 30).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "serial": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "locate_code",
+      "description": "Scan the current Android repository for the source of a UI element. Pass the anchors returned by dump_ui/find_elements: visible text, content description, resource id, Compose name/file/line, or View class. Returns string-resource/layout/Compose anchors plus ranked candidates with file, line, kind, score, reason and a snippet. This is the deterministic step before reading code; it is read-only and does not modify the repository. Use the returned anchors and candidates to open files and trace the click/state chain. Use only when the user references a visible UI element on the current screen or asks where UI code is implemented; not for general Android concept questions, code review, or performance debugging.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "description": "Repository root (default: the MCP server's working directory).",
+            "type": "string"
+          },
+          "text": {
+            "description": "Visible text anchors; repeatable.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "desc": {
+            "description": "contentDescription anchors; repeatable.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "description": "Resource ids, with or without package prefix; repeatable.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "composeName": {
+            "description": "Composable function name from dump_ui(source=compose).",
+            "type": "string"
+          },
+          "composeFile": {
+            "description": "File name/path reported by the Compose inspector.",
+            "type": "string"
+          },
+          "composeLine": {
+            "description": "Line reported by the Compose inspector.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "className": {
+            "description": "View/Compose class names; repeatable.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "description": "Maximum candidates (default 25).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "includeTests": {
+            "description": "Include test sources in the ranking.",
+            "type": "boolean"
+          },
+          "exclude": {
+            "description": "Skip path substrings; repeatable.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "hit_test",
+      "description": "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "index": {
+            "description": "Candidate index for overlapping nodes (default 0).",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "view",
+              "semantics",
+              "compose",
+              "both"
+            ]
+          },
+          "serial": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "analyze_ui",
+      "description": "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\".",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "view",
+              "semantics",
+              "compose",
+              "both"
+            ]
+          },
+          "rules": {
+            "description": "Subset of rules; default all.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "zero_size",
+                "offscreen",
+                "small_touch_target",
+                "invisible_clickable",
+                "unlabeled_clickable",
+                "duplicate_id",
+                "deep_nesting",
+                "overlap",
+                "clipped",
+                "outside_parent"
+              ]
+            }
+          },
+          "minTouchTargetDp": {
+            "description": "Minimum touch target in dp (default 48).",
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "maxDepth": {
+            "description": "Deep nesting threshold (default 14).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "serial": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "screenshot",
+      "description": "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before tapping. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "savePath": {
+            "description": "Write the PNG here (e.g. screenshot.png).",
+            "type": "string"
+          },
+          "annotate": {
+            "description": "Also write an .annotated.svg with node boxes next to savePath.",
+            "type": "boolean"
+          },
+          "maxWidth": {
+            "description": "Downscale to at most this width (default 720).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4000
+          },
+          "scale": {
+            "description": "Downscale by this factor (alternative to maxWidth).",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 1
+          },
+          "fullResolution": {
+            "description": "Return the native resolution instead of the default 720px width.",
+            "type": "boolean"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "diff_ui",
+      "description": "Compare two dump JSON files written by dump_ui (savePath). Reports added, removed, and moved/resized nodes. Useful for verifying a UI change: dump before, make the change, dump after, then diff.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "beforePath": {
+            "type": "string",
+            "description": "Path to the earlier dump JSON."
+          },
+          "afterPath": {
+            "type": "string",
+            "description": "Path to the later dump JSON."
+          },
+          "source": {
+            "description": "Tree to compare; defaults to each dump's primary source.",
+            "type": "string",
+            "enum": [
+              "view",
+              "semantics",
+              "compose"
+            ]
+          },
+          "tolerance": {
+            "description": "Bounds tolerance in pixels (default 1).",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "beforePath",
+          "afterPath"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "tap",
+      "description": "Tap device coordinates, the center of an element matched by text/id/ref, or a point read from a downscaled screenshot. For screenshot coordinates use imageX/imageY plus imageWidth/imageHeight and the device size is mapped automatically (never tap image pixels directly). Provide x+y, imageX/imageY/imageWidth/imageHeight, or a selector (text, id, ref).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "imageX": {
+            "description": "x coordinate in the downscaled screenshot image.",
+            "type": "number",
+            "minimum": 0
+          },
+          "imageY": {
+            "description": "y coordinate in the downscaled screenshot image.",
+            "type": "number",
+            "minimum": 0
+          },
+          "imageWidth": {
+            "description": "Screenshot image width from the screenshot metadata.",
+            "type": "number",
+            "minimum": 1
+          },
+          "imageHeight": {
+            "description": "Screenshot image height from the screenshot metadata.",
+            "type": "number",
+            "minimum": 1
+          },
+          "text": {
+            "description": "Element text/description query.",
+            "type": "string"
+          },
+          "id": {
+            "description": "Resource id query.",
+            "type": "string"
+          },
+          "ref": {
+            "description": "Node ref from dump_ui/find_elements (v12/s12).",
+            "type": "string"
+          },
+          "by": {
+            "type": "string",
+            "enum": [
+              "any",
+              "text",
+              "desc",
+              "id",
+              "class",
+              "ref"
+            ]
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "contains",
+              "exact",
+              "regex"
+            ]
+          },
+          "index": {
+            "description": "Match index (default 0).",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "view",
+              "semantics",
+              "compose",
+              "both"
+            ]
+          },
+          "serial": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "swipe",
+      "description": "Swipe between two screen coordinates with an optional duration in milliseconds.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "x1": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "y1": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "x2": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "y2": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "serial": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "input_text",
+      "description": "Type ASCII text into the focused field using adb shell input text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "press_key",
+      "description": "Send an Android key event, e.g. KEYCODE_BACK, KEYCODE_ENTER, KEYCODE_HOME, or a numeric keycode.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ]
+}

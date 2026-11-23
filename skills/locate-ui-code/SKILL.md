@@ -1,11 +1,16 @@
 ---
 name: locate-ui-code
-description: Use when the user wants to locate a control on the current Android screen and trace it to Compose/XML source code, event handlers, state, or business logic; when they ask which Activity/Fragment/Composable/route implements a page or dialog; or when they ask where a visible label, icon, click handler, visibility rule, or state comes from. Also trigger on Chinese requests such as "定位当前页面中的 X 按钮/入口/图标", "这个页面/弹窗是哪个 Activity/Fragment/Composable/route 实现的", "这个控件/页面是哪些代码实现的", "按 UI 找已有业务逻辑", "这个文案/图标在哪个 strings.xml/代码里", "这个点击事件/可见性/状态在哪个 ViewModel/Repository", and "把当前界面映射到 Android 源码". Works from the live device or emulator UI in Android repositories of any size.
+description: >-
+  Use when the user wants to locate a control on the current Android screen and trace it to Compose/XML source, event handlers, state, or business logic; asks which Activity/Fragment/Composable/route implements a page or dialog; or asks where a visible label, icon, click handler, visibility rule, or state comes from. Chinese trigger phrases include "定位当前页面中的 X 按钮/入口/图标", "这个页面/弹窗是哪个 Activity/Fragment/Composable/route 实现的", "这个控件/页面是哪些代码实现的", "按 UI 找已有业务逻辑", "这个点击事件/可见性/状态在哪个 ViewModel/Repository", "这个按钮在哪实现的", "这个 tab/入口的代码", "这个文案/图标在哪个 strings.xml/代码里", "这个图标是什么资源", "点了会发生什么", "这个状态从哪来的", "为什么这个按钮不显示", "把当前界面映射到 Android 源码". Only use when the user asks for source, implementation, state, or business logic; if they only want the screen or a control's bounds/size/clickable state/class, use inspect-current-screen instead. Not for general Android questions, code review, performance, or reading a layout file without a live screen.
 ---
 
 # UI → Code Location
 
 Turn a control on the live device screen into verifiable source anchors and a business chain. Core principle: **capture device evidence first, then code anchors, then read the code to verify**. Never guess the implementation from text alone.
+
+## Scope boundary
+
+This skill traces UI to source. If the user only wants to see the current screen or a control's bounds, size, position, clickable/enabled state, class, or icon on screen, use `inspect-current-screen` instead and do not scan the repository. For before/after or regression checks, use `verify-ui-change`.
 
 ## Prerequisites
 

@@ -76,6 +76,14 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 5. `analyze_ui` → 检查小触摸区、重叠、裁剪等；
 6. 修改代码后：`dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`。
 
+### 速览当前页面
+
+```text
+get_state → dump_ui(source="auto", format="tree") → find_elements（指定控件）→ 可选 analyze_ui / screenshot
+```
+
+这条路径只做观察：只有用户追问源码时才调用 `locate_code`，只有做改前/改后对比时才调用 `diff_ui`。
+
 ### 定位 UI 对应源码
 
 ```text

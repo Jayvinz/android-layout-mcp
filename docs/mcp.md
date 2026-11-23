@@ -74,6 +74,14 @@ When installed through the Claude Code plugin no manual configuration is needed:
 5. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
 6. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
 
+### Summarizing the current screen
+
+```text
+get_state → dump_ui(source="auto", format="tree") → find_elements (named control) → optional analyze_ui / screenshot
+```
+
+This is observation only. Call `locate_code` only when the user asks for source, and `diff_ui` only for before/after comparisons.
+
 ### Locating UI source code
 
 ```text

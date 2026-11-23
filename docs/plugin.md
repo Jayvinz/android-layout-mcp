@@ -22,6 +22,7 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 | Component | Path | Purpose |
 |---|---|---|
 | MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `diff_ui` / `analyze_ui` / `tap` and more |
+| Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, and layout/accessibility audits without source tracing |
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
 | Commands | `commands/locate.md`, `screen.md`, `verify.md` | `/layout-inspector-android:locate`, `:screen`, `:verify` |
@@ -78,6 +79,8 @@ For "locate the Me button on the current screen and trace it to its related code
 4. `find_elements` / `hit_test` lock onto the target; record text/id/bounds/clickable;
 5. `locate_code` (or the locate script directly) returns string, layout, Compose, ViewBinding, and click-handler candidates;
 6. Open the candidate files to verify, follow 1–3 hops of business logic, and report with `file:line`.
+
+Natural-language requests about the current screen or a visible control ("抓取当前页面布局", "看下这个按钮", "有没有重叠") route through the `inspect-current-screen` skill instead: `get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`, optionally `analyze_ui` and `screenshot`. That path stops after device evidence and never calls `locate_code`; only source questions continue into the workflow above.
 
 Or call the commands directly:
 

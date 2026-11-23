@@ -52,7 +52,7 @@ MCP Server ──────────────┘          ├── adb 
 |---|---|
 | MCP server `layout-inspector-android` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`diff_ui`、`tap` 等工具 |
 | Slash 命令 | `/layout-inspector-android:locate`（UI→源码）、`:screen`（当前页面速览）、`:verify`（真机验证改动） |
-| Skills | `locate-ui-code`、`verify-ui-change` |
+| Skills | `inspect-current-screen`、`locate-ui-code`、`verify-ui-change` |
 | 只读子代理 | `ui-code-locator` |
 
 可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
@@ -121,6 +121,7 @@ layout-inspector find "开拍"   # 按文本查找
 |---|---|
 | 定位控件对应的 Compose/XML 源码与业务链路 | `/layout-inspector-android:locate` / `locate_code` |
 | 看懂当前页面（前台 App、Activity、可见入口） | `/layout-inspector-android:screen` / `get_state` + `dump_ui` |
+| 检查某个可见控件的 bounds、center、可点击/enabled 状态与 class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | 真机验证 UI 改动（diff + 规则 + 截图） | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
 | 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text` |
 | 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `layout-inspector shot` |

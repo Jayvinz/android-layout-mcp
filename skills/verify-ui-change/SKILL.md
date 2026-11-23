@@ -1,6 +1,7 @@
 ---
 name: verify-ui-change
-description: Use when the user asks to verify that a UI change works on a real device, compare layouts before and after a change, or check a screen for regressions such as misalignment, clipping, overlapping, or unclickable controls. Also trigger on Chinese requests such as "验证这个 UI 改动在真机上有没有生效", "改前改后布局对比", "看看这个页面有没有回归/错位/被裁剪/点不到", and "真机验证 UI 改动". Applies to Android XML and Compose screens after the build has been installed.
+description: >-
+  Use when the user asks to verify that a UI change works on a real device, compare layouts before and after a change, or check a screen for regressions such as misalignment, clipping, overlapping, or unclickable controls. Chinese trigger phrases include "验证这个 UI 改动在真机上有没有生效", "改完了看看生效没", "改好了吗，真机上看一下", "改前改后布局对比", "这次改动有没有回归", "有没有错位/被裁剪/点不到", "真机验证 UI 改动". Applies to Android XML and Compose screens after the build has been installed. Do not use for a first-time screen summary or a control inspection without a before/after intent (use inspect-current-screen).
 ---
 
 # Verifying UI Changes on a Device

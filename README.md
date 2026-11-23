@@ -59,7 +59,7 @@ After installation you get:
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | MCP server `layout-inspector-android` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `diff_ui`, `tap`, and more    |
 | Slash commands                        | `/layout-inspector-android:locate` (UI→source), `:screen` (current screen), `:verify` (verify changes on device) |
-| Skills                                | `locate-ui-code`, `verify-ui-change`                                                                             |
+| Skills                                | `inspect-current-screen`, `locate-ui-code`, `verify-ui-change`                                                   |
 | Read-only subagent                    | `ui-code-locator`                                                                                                |
 
 Use `/mcp` to confirm the server is loaded; `/help` lists the commands above.
@@ -128,6 +128,7 @@ The tools confirm the foreground app → capture the UI tree → lock onto the t
 | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | Locate the Compose/XML source and business chain of a control             | `/layout-inspector-android:locate` / `locate_code`            |
 | Understand the current screen (foreground app, Activity, visible entries) | `/layout-inspector-android:screen` / `get_state` + `dump_ui`  |
+| Inspect a visible control's bounds, center, clickable/enabled state, and class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | Verify a UI change on a real device (diff + rules + screenshot)           | `/layout-inspector-android:verify` / `diff_ui` + `analyze_ui` |
 | Find elements / hit-test / tap, swipe, input                              | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text`   |
 | Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `layout-inspector shot`                        |

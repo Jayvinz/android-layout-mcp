@@ -187,7 +187,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Dump the UI hierarchy",
       description:
-        "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/controls; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements.",
+        "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/controls; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\").",
       inputSchema: {
         serial: z.string().optional().describe("Device serial."),
         package: z.string().optional().describe("Package to inspect; defaults to foreground app."),
@@ -281,7 +281,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Find elements",
       description:
-        "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it.",
+        "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className.",
       inputSchema: {
         query: z.string().describe("Text, id, class, ref, or regex to search for."),
         by: z.enum(["any", "text", "desc", "id", "class", "ref"]).optional().describe("Field to search (default any)."),
@@ -340,7 +340,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Locate code behind a UI element",
       description:
-        "Scan the current Android repository for the source of a UI element. Pass the anchors returned by dump_ui/find_elements: visible text, content description, resource id, Compose name/file/line, or View class. Returns string-resource/layout/Compose anchors plus ranked candidates with file, line, kind, score, reason and a snippet. This is the deterministic step before reading code; it is read-only and does not modify the repository. Use the returned anchors and candidates to open files and trace the click/state chain.",
+        "Scan the current Android repository for the source of a UI element. Pass the anchors returned by dump_ui/find_elements: visible text, content description, resource id, Compose name/file/line, or View class. Returns string-resource/layout/Compose anchors plus ranked candidates with file, line, kind, score, reason and a snippet. This is the deterministic step before reading code; it is read-only and does not modify the repository. Use the returned anchors and candidates to open files and trace the click/state chain. Use only when the user references a visible UI element on the current screen or asks where UI code is implemented; not for general Android concept questions, code review, or performance debugging.",
       inputSchema: {
         root: z.string().optional().describe("Repository root (default: the MCP server's working directory)."),
         text: z.array(z.string()).optional().describe("Visible text anchors; repeatable."),
@@ -422,7 +422,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Hit-test a screen point",
       description:
-        "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates.",
+        "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index.",
       inputSchema: {
         x: z.number().int().min(0),
         y: z.number().int().min(0),
@@ -473,7 +473,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Analyze layout issues",
       description:
-        "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions.",
+        "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\".",
       inputSchema: {
         source: sourceSchema.optional(),
         rules: z.array(ruleSchema).optional().describe("Subset of rules; default all."),
@@ -509,7 +509,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Take a screenshot",
       description:
-        "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before tapping. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath).",
+        "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before tapping. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
       inputSchema: {
         savePath: z.string().optional().describe("Write the PNG here (e.g. screenshot.png)."),
         annotate: z.boolean().optional().describe("Also write an .annotated.svg with node boxes next to savePath."),
