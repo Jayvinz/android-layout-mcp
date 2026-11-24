@@ -20,7 +20,7 @@ export interface ComposeCaptureResult {
     captureMs: number;
     warnings: string[];
 }
-export interface StudioPaths {
+interface StudioPaths {
     root: string;
     resources: string;
     lib: string;
@@ -78,6 +78,8 @@ export declare function locateAndroidStudio(explicit?: string): Promise<StudioLo
 /** Finds Studio installations from running IDE processes (custom paths, Toolbox, ...). */
 export declare function detectRunningStudioRoots(): Promise<string[]>;
 /** Exported for tests; the search order is user-visible via `docs/data-sources.md`. */
-export declare function resolveJava(explicit: string | undefined, studio: StudioPaths, warn?: (message: string) => void): Promise<string>;
+export declare function resolveJava(explicit: string | undefined, studio: {
+    java?: string | null;
+}, warn?: (message: string) => void): Promise<string>;
 export declare function buildComposeRoots(roots: HelperRoot[], packageName: string): UiNode[];
 export {};

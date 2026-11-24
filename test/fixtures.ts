@@ -49,3 +49,27 @@ export function loadFixtureCapture(): CaptureResult {
     warnings: [],
   };
 }
+
+/**
+ * Runs `run` with `vars` applied to `process.env` (a `undefined` value unsets the
+ * variable), restoring every previous value afterwards. Keeps tests independent of
+ * whatever the host machine exports, e.g. a CI image's `JAVA_HOME`.
+ */
+export async function withEnv(
+  vars: Record<string, string | undefined>,
+  run: () => Promise<void>,
+): Promise<void> {
+  const saved = new Map(Object.keys(vars).map((key) => [key, process.env[key]]));
+  for (const [key, value] of Object.entries(vars)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  try {
+    await run();
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}

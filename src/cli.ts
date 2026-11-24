@@ -23,7 +23,7 @@ import {
 } from "./core/screenshot.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
 import { loadDump, saveDump, serializeDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
-import { openInBrowser, renderViewerHtmlFromPayload, viewerPayload, type ViewerPayload } from "./core/viewer.js";
+import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload, type ViewerPayload } from "./core/viewer.js";
 import { PACKAGE_VERSION } from "./core/version.js";
 
 interface GlobalOptions {
@@ -853,7 +853,7 @@ function printJson(value: unknown): void {
 }
 
 function isInsideAui(path: string): boolean {
-  const root = join(process.cwd(), ".aui");
+  const root = dirname(defaultViewerPath());
   return path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}\\`);
 }
 

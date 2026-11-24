@@ -37,7 +37,7 @@ export interface ComposeCaptureResult {
   warnings: string[];
 }
 
-export interface StudioPaths {
+interface StudioPaths {
   root: string;
   resources: string;
   lib: string;
@@ -440,42 +440,26 @@ function defaultStudioCandidates(): string[] {
 /** Exported for tests; the search order is user-visible via `docs/data-sources.md`. */
 export async function resolveJava(
   explicit: string | undefined,
-  studio: StudioPaths,
+  studio: { java?: string | null },
   warn: (message: string) => void = () => undefined,
 ): Promise<string> {
+  const javaName = process.platform === "win32" ? "java.exe" : "java";
   // Only the two user-controlled entries are worth warning about; a missing
-  // JAVA_HOME or Studio JBR is an expected part of the search order.
-  const candidates: Array<{ path: string; label: string | null }> = [
-    { path: explicit ?? "", label: "--java" },
-    { path: process.env.AUI_JAVA ?? "", label: "AUI_JAVA" },
-    {
-      path: process.env.JAVA_HOME
-        ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java")
-        : "",
-      label: null,
-    },
-    { path: studio.java ?? "", label: null },
-    { path: process.platform === "win32" ? "java.exe" : "java", label: null },
-  ];
-  for (const candidate of candidates) {
-    if (candidate.path.length === 0) continue;
-    if (candidate.path.includes("/") || candidate.path.includes("\\")) {
-      try {
-        await access(candidate.path);
-        return candidate.path;
-      } catch {
-        if (candidate.label) {
-          warn(
-            `Ignoring ${candidate.label}: ${candidate.path} does not exist. Falling back to the next Java in the search order.`,
-          );
-        }
-        continue;
-      }
-    }
+  // JAVA_HOME, Studio JBR, or PATH lookup is an expected part of the search order.
+  for (const [label, path] of [
+    ["--java", explicit],
+    ["AUI_JAVA", process.env.AUI_JAVA],
+  ] as const) {
     // A bare name such as `--java java` means "use PATH"; the OS resolves it.
-    return candidate.path;
+    if (!path) continue;
+    if (!isPathLike(path) || (await exists(path))) return path;
+    warn(`Ignoring ${label}: ${path} does not exist. Falling back to the next Java in the search order.`);
   }
-  throw new AuiError("COMPOSE_FAILED", "No Java runtime found for the Compose inspector helper.", "Set AUI_JAVA or install a JDK.");
+  const fallback = await firstExisting([
+    process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", javaName) : "",
+    studio.java ?? "",
+  ]);
+  return fallback ?? javaName;
 }
 
 const PACKAGED_HELPER_JAR = fileURLToPath(new URL("../../helper/aui-compose-helper.jar", import.meta.url));
@@ -513,7 +497,7 @@ async function resolveHelperJar(
     return explicit;
   }
   const exe = process.platform === "win32" ? ".exe" : "";
-  const javaBin = java.includes("/") || java.includes("\\") ? dirname(java) : null;
+  const javaBin = isPathLike(java) ? dirname(java) : null;
   const siblingJavac = javaBin
     ? await firstExisting([join(javaBin, `javac${exe}`), join(javaBin, "javac")])
     : null;
@@ -861,14 +845,22 @@ async function ensureFile(path: string, message: string): Promise<void> {
   }
 }
 
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isPathLike(value: string): boolean {
+  return value.includes("/") || value.includes("\\");
+}
+
 async function firstExisting(paths: string[]): Promise<string | null> {
   for (const path of paths) {
-    try {
-      await access(path);
-      return path;
-    } catch {
-      continue;
-    }
+    if (path && (await exists(path))) return path;
   }
   return null;
 }

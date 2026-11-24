@@ -117,6 +117,8 @@ export interface OpenBrowserOptions {
 }
 
 export const VIEWER_BUDGET_BYTES = 8 * 1024 * 1024;
+/** Product name in the document title, the header, and the browser-script fallback. */
+const VIEWER_TITLE = "Android UI Inspector";
 export const DEFAULT_MAX_NODES = 4000;
 const MIN_NODES = 200;
 
@@ -183,13 +185,13 @@ export function renderViewerHtmlFromPayload(payload: ViewerPayload): string {
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<meta http-equiv="Content-Security-Policy" content="${CSP}">`,
-    "<title>Android UI Inspector</title>",
+    `<title>${VIEWER_TITLE}</title>`,
     `<style>${VIEWER_CSS}</style>`,
     "</head>",
     "<body>",
     '<header id="app-header">',
     '  <div class="header-top">',
-    '    <h1 id="app-title">Android UI Inspector</h1>',
+    `    <h1 id="app-title">${VIEWER_TITLE}</h1>`,
     '    <div class="legend" aria-label="Overlay legend">',
     '      <span class="legend-item"><span class="swatch click"></span>clickable</span>',
     '      <span class="legend-item"><span class="swatch label"></span>labelled</span>',
@@ -403,7 +405,7 @@ function payloadBytes(payload: ViewerPayload): number {
 
 function defaultTitle(result: CaptureResult): string {
   const packageName = result.target.packageName;
-  return packageName ? `${packageName} Android UI Inspector` : "Android UI Inspector";
+  return packageName ? `${packageName} ${VIEWER_TITLE}` : VIEWER_TITLE;
 }
 
 /**
@@ -707,7 +709,7 @@ const VIEWER_SCRIPT = String.raw`
 
   function initHeader() {
     if (meta.title) document.title = meta.title;
-    byId("app-title").textContent = meta.title || "Android UI Inspector";
+    byId("app-title").textContent = meta.title || "${VIEWER_TITLE}";
     var parts = [];
     if (meta.device) {
       parts.push("device " + (meta.device.model || meta.device.serial || "?"));

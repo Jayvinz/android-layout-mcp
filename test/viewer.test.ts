@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
-import { loadFixtureCapture } from "./fixtures.js";
+import { loadFixtureCapture, withEnv } from "./fixtures.js";
 import {
   defaultViewerPath,
   openInBrowser,
@@ -144,10 +144,8 @@ test("maps downscaled image pixels back to device pixels", () => {
 });
 
 test("AUI_NO_OPEN=1 disables browser launch", async () => {
-  const previous = process.env.AUI_NO_OPEN;
   let launcherCalled = false;
-  try {
-    process.env.AUI_NO_OPEN = "1";
+  await withEnv({ AUI_NO_OPEN: "1" }, async () => {
     const result = await openInBrowser(defaultViewerPath(), {
       launcher: async () => {
         launcherCalled = true;
@@ -156,22 +154,15 @@ test("AUI_NO_OPEN=1 disables browser launch", async () => {
     assert.equal(result.opened, false);
     assert.equal(launcherCalled, false);
     assert.match(result.error ?? "", /AUI_NO_OPEN/);
-  } finally {
-    if (previous === undefined) delete process.env.AUI_NO_OPEN;
-    else process.env.AUI_NO_OPEN = previous;
-  }
+  });
 });
 
 test("an injected launcher reports the open result without spawning", async () => {
-  const previous = process.env.AUI_NO_OPEN;
-  delete process.env.AUI_NO_OPEN;
-  try {
+  await withEnv({ AUI_NO_OPEN: undefined }, async () => {
     const result = await openInBrowser(defaultViewerPath(), { launcher: async () => undefined });
     assert.equal(result.opened, true);
     assert.equal(result.browser, "custom");
-  } finally {
-    if (previous !== undefined) process.env.AUI_NO_OPEN = previous;
-  }
+  });
 });
 
 test("defaultViewerPath points at .aui/viewer.html", () => {
