@@ -1,6 +1,6 @@
 {
   "name": "android-ui-inspector",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "CLI + MCP server for inspecting Android UI: view hierarchy, Compose tree, and accessibility semantics over ADB",
   "type": "module",
   "license": "MIT",

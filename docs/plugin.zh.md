@@ -233,3 +233,17 @@ node scripts/sync-version.mjs --check
 ```
 
 版本不一致时 CI 会直接失败，不需要再手动改两份文件。
+
+### 发布
+
+推送 `v*` 形式的 tag 会触发 `.github/workflows/release.yml`：它先校验 tag 与 `package.json` 版本一致，再跑与 validate 相同的检查（版本同步检查、typecheck、测试、build、`dist/` 校验），最后用自动生成的发布说明创建 GitHub Release。
+
+```bash
+npm version 1.0.0 --no-git-tag-version   # 更新 package.json、package-lock.json、plugin.json
+npm run typecheck && npm test && npm run build
+git commit -am "chore: release v1.0.0"
+git tag -a v1.0.0 -m "v1.0.0"
+git push origin main v1.0.0
+```
+
+发布到 npm 仍是独立的手动步骤：`npm publish`（`prepublishOnly` 会先跑版本检查、typecheck、测试和 build）。

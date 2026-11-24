@@ -195,4 +195,18 @@ CI runs this check:
 node scripts/sync-version.mjs --check
 ```
 
+### Releasing
+
+Pushing a `v*` tag triggers `.github/workflows/release.yml`: it verifies the tag matches the `package.json` version, reruns the validate checks (version sync, typecheck, tests, build, `dist/` diff), and then publishes the GitHub Release with generated notes.
+
+```bash
+npm version 1.0.0 --no-git-tag-version   # updates package.json, package-lock.json, and plugin.json
+npm run typecheck && npm test && npm run build
+git commit -am "chore: release v1.0.0"
+git tag -a v1.0.0 -m "v1.0.0"
+git push origin main v1.0.0
+```
+
+Publishing to npm stays a separate manual step: `npm publish` (`prepublishOnly` runs the version check, typecheck, tests, and build first).
+
 A mismatch fails CI directly — there is no need to edit two files by hand.

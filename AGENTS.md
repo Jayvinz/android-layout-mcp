@@ -46,6 +46,7 @@ User-facing docs come in parallel language versions that link to each other: `RE
   - `skills/`, `commands/`, `agents/` are shipped plugin components. `scripts/locate-code.mjs` is dependency-free so it works before `npm install`.
 - The module system is ESM (`"type": "module"`, TypeScript `NodeNext`): relative imports in `src/` must use the `.js` extension, even when importing a `.ts` file.
 - CI (`.github/workflows/validate.yml`) runs, in order: `sync-version --check`, typecheck, tests, build, `git diff --exit-code -- dist`, then `claude plugin validate --strict .`.
+- Pushing a `v*` tag runs `.github/workflows/release.yml`: it checks the tag against `package.json`, reruns the validate steps, and creates the GitHub Release with generated notes.
 - Do not commit dumps or screenshots: they contain device serials, package names, and screen text. `.aui/`, `aui-fallback-*.png`, and `*.annotated.svg` are gitignored.
 
 ## Architecture
