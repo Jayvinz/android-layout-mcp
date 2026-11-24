@@ -77,7 +77,7 @@ CodeBuddy Code 2.186.0 was also verified: the default `mcpServers` config connec
 
 Codex CLI 0.172.0 was verified with the generated TOML: `codex mcp list` parses the server entry and `codex exec` called `list_devices` to get a real device. The four skills copied into `.agents/skills/` were discovered as well. The remaining clients in the table were not exercised on this machine.
 
-WorkBuddy reads `~/.workbuddy/mcp.json` with the same `mcpServers` object and project skills from `.workbuddy/skills/`. Both files were written with the generated config and the sync script; WorkBuddy loads its MCP config and skill cache at startup, so restart it before checking the tool list. This session could not restart itself to confirm the live connection.
+WorkBuddy reads `~/.workbuddy/mcp.json` with the same `mcpServers` object and project skills from `.workbuddy/skills/` (a user-level copy in `~/.workbuddy/skills/` also works). The generated config and skill copies were verified after a WorkBuddy restart and GUI approval of the custom server: `list_devices` returned a real device and the `inspect-current-screen` skill loaded from the project directory. WorkBuddy requires a one-time GUI enable/trust step for a new custom MCP server; writing the file alone does not expose its tools.
 
 ### Skills in other agents
 

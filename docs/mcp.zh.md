@@ -90,8 +90,9 @@ Codex CLI 0.172.0 也已实测：生成的 TOML 能被 `codex mcp list` 解析�
 未在本机实测。
 
 WorkBuddy 读 `~/.workbuddy/mcp.json`，同样是 `mcpServers` 对象；技能目录是项目根的
-`.workbuddy/skills/`。两处文件都已用生成配置和同步脚本写好。WorkBuddy 在启动时加载 MCP 配置与
-技能缓存，重启后再检查工具列表；当前会话无法自行重启验证运行时连接。
+`.workbuddy/skills/`（装到 `~/.workbuddy/skills/` 的用户级副本同样有效）。重启并在 GUI 中一次性
+启用/信任这个自定义 MCP server 后已完成实测：`list_devices` 返回真实设备，`inspect-current-screen`
+技能也能从项目目录加载。只写配置文件不会自动暴露工具，GUI 的启用步骤不能省。
 
 ### 在其他 agent 中使用技能
 
