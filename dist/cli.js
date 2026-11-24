@@ -20,7 +20,7 @@ import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPa
 import { PACKAGE_VERSION } from "./core/version.js";
 const program = new Command();
 program
-    .name("android-ui")
+    .name("android-layout")
     .description("Inspect Android UI from a terminal.\n\n" +
     "Captures the ViewDebug hierarchy over JDWP (like LayoutInspectorV2-Pro) and the\n" +
     "accessibility/semantics tree via uiautomator, then offers hit-testing, search,\n" +
@@ -700,7 +700,7 @@ async function captureFor(command, options) {
         studioPath: globals.studio,
         javaPath: globals.java,
         composeVersion: globals.composeVersion,
-        onProgress: globals.verbose || options.verbose ? (message) => console.error(`[android-ui] ${message}`) : undefined,
+        onProgress: globals.verbose || options.verbose ? (message) => console.error(`[android-layout] ${message}`) : undefined,
     };
     try {
         return await capture(captureOptions);

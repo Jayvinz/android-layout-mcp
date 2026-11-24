@@ -1,6 +1,6 @@
 # Cross-agent compatibility
 
-This document records how [Android UI Inspector](https://github.com/Jayvinz/android-ui-inspector) works outside Claude Code: which parts travel, the exact config shapes for each client, the four clients verified on one machine, and the checklist for adding another. The authoritative tool reference stays [mcp.md](mcp.md); this page is the engineering record of the portability work.
+This document records how [Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) works outside Claude Code: which parts travel, the exact config shapes for each client, the four clients verified on one machine, and the checklist for adding another. The authoritative tool reference stays [mcp.md](mcp.md); this page is the engineering record of the portability work.
 
 ## What travels and what does not
 
@@ -14,7 +14,7 @@ The plugin is four layers. Only the top two cross agent boundaries.
 | Subagent | `agents/ui-code-locator.md`, `model: inherit` / `color` | Claude Code only |
 | Gate + distribution | `hooks/hooks.json` `PreToolUse`, `plugin.json`, marketplace | Claude Code only |
 
-Two properties make the skills portable: their frontmatter contains only `name` and `description`, and their CLI fallback uses `$AUI_ROOT/dist/cli.js` instead of `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`. In Claude Code `AUI_ROOT` is `${CLAUDE_PLUGIN_ROOT}`; elsewhere it is your plugin checkout, or you can put `android-ui` on `PATH`. Skills never hard-code a Claude-only path in an executable command; `test/agent-portability.test.ts` enforces this.
+Two properties make the skills portable: their frontmatter contains only `name` and `description`, and their CLI fallback uses `$AUI_ROOT/dist/cli.js` instead of `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`. In Claude Code `AUI_ROOT` is `${CLAUDE_PLUGIN_ROOT}`; elsewhere it is your plugin checkout, or you can put `android-layout` on `PATH`. Skills never hard-code a Claude-only path in an executable command; `test/agent-portability.test.ts` enforces this.
 
 The Android-project gate is a hard `PreToolUse` hook only in Claude Code. In other clients it is the soft rule written in every skill body: call device tools only in an Android project, or when the user explicitly asks about the device screen.
 
@@ -34,7 +34,7 @@ There are 20 client ids across seven shapes:
 |---|---|---|
 | `mcpServers` object | `claude` (default), `claude-desktop`, `codebuddy`, `workbuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config |
 | `servers` + `type: "stdio"` | `vscode` | `.vscode/mcp.json` |
-| TOML `[mcp_servers.android-ui]` | `codex` | `~/.codex/config.toml` |
+| TOML `[mcp_servers.android-layout]` | `codex` | `~/.codex/config.toml` |
 | `context_servers` + `command.path` | `zed` | `settings.json` |
 | `mcp` + local command array | `opencode` | `opencode.json` |
 | YAML `extensions` | `goose` | `~/.config/goose/config.yaml` |
@@ -49,7 +49,7 @@ Four clients were exercised end to end on one machine. An "exercise" means the g
 | Client | Version | Verified behaviour | Gotcha worth remembering |
 |---|---|---|---|
 | OpenCode | 1.19.5 | `opencode mcp list` reports connected; `tools/list` returns all 14 tools; `opencode debug skill` finds four skills in `.agents/skills/` | Strict config validation; `type: "local"` plus a command array is the accepted shape |
-| CodeBuddy Code | 2.186.0 | `mcp__android-ui__list_devices` returns a real device; skills load from `.codebuddy/skills/` | Project servers need one-time approval; headless runs need `--settings '{"enableAllProjectMcpServers":true}'` and often `-y` for gated tools |
+| CodeBuddy Code | 2.186.0 | `mcp__android-layout__list_devices` returns a real device; skills load from `.codebuddy/skills/` | Project servers need one-time approval; headless runs need `--settings '{"enableAllProjectMcpServers":true}'` and often `-y` for gated tools |
 | Codex CLI | 0.172.0 | Generated TOML parses; `codex exec` calls `list_devices` and gets a real device; skills in `.agents/skills/` are found | `codex exec` waits on stdin in a non-interactive shell, so redirect from `/dev/null`; a custom provider must use `env_key`, inline `api_key` is ignored |
 | WorkBuddy | bundled | After a restart and one-time GUI approval, `list_devices` returns a real device and `inspect-current-screen` loads from `.workbuddy/skills/` | Writing `mcp.json` alone does not expose tools; the GUI enable/trust step is mandatory |
 

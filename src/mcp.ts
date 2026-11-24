@@ -36,7 +36,7 @@ import {
 import { PACKAGE_VERSION } from "./core/version.js";
 
 const TOOL_SERVER_INFO = {
-  name: "android-ui",
+  name: "android-layout",
   version: PACKAGE_VERSION,
 };
 
@@ -868,7 +868,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
   );
 
   await server.connect(new StdioServerTransport());
-  console.error(`[android-ui] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
+  console.error(`[android-layout] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
 }
 
 function emptyHint(result: CaptureResult): string {
@@ -909,7 +909,7 @@ function parseServerArgs(argv: string[]): McpServerOptions {
       console.error(
         "Usage: node mcp.js [--serial <serial>] [--adb <path>] [--timeout <ms>]\n" +
           "       [--studio <path>] [--java <path>] [--compose-version <version>]\n" +
-          "Starts the Android UI Inspector MCP server over stdio.",
+          "Starts the Android Layout MCP MCP server over stdio.",
       );
       process.exit(0);
     } else {
@@ -926,7 +926,7 @@ const invokedDirectly =
 
 if (invokedDirectly) {
   startMcpServer(parseServerArgs(process.argv.slice(2))).catch((error) => {
-    console.error(`[android-ui] failed to start: ${errorMessage(error)}`);
+    console.error(`[android-layout] failed to start: ${errorMessage(error)}`);
     process.exit(1);
   });
 }

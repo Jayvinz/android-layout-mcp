@@ -21,7 +21,7 @@ import { loadDump, saveDump, snapshotRoots, chooseDiffSource } from "./core/seri
 import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload, } from "./core/viewer.js";
 import { PACKAGE_VERSION } from "./core/version.js";
 const TOOL_SERVER_INFO = {
-    name: "android-ui",
+    name: "android-layout",
     version: PACKAGE_VERSION,
 };
 const execFileAsync = promisify(execFile);
@@ -748,7 +748,7 @@ export async function startMcpServer(options = {}) {
         }
     });
     await server.connect(new StdioServerTransport());
-    console.error(`[android-ui] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
+    console.error(`[android-layout] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
 }
 function emptyHint(result) {
     if (result.source === "view" && result.semantics) {
@@ -789,7 +789,7 @@ function parseServerArgs(argv) {
         else if (arg === "--help" || arg === "-h") {
             console.error("Usage: node mcp.js [--serial <serial>] [--adb <path>] [--timeout <ms>]\n" +
                 "       [--studio <path>] [--java <path>] [--compose-version <version>]\n" +
-                "Starts the Android UI Inspector MCP server over stdio.");
+                "Starts the Android Layout MCP MCP server over stdio.");
             process.exit(0);
         }
         else {
@@ -803,7 +803,7 @@ const invokedDirectly = process.argv[1] !== undefined &&
     pathToFileURL(process.argv[1]).href === import.meta.url;
 if (invokedDirectly) {
     startMcpServer(parseServerArgs(process.argv.slice(2))).catch((error) => {
-        console.error(`[android-ui] failed to start: ${errorMessage(error)}`);
+        console.error(`[android-layout] failed to start: ${errorMessage(error)}`);
         process.exit(1);
     });
 }

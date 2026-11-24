@@ -16,7 +16,7 @@ node dist/mcp.js       # start the built MCP server over stdio
 node dist/cli.js mcp --print-config
 
 npm run build:helper   # rebuild helper/aui-compose-helper.jar against the local Android Studio
-npm run build:plugin-zip   # build dist-plugin/android-ui-inspector-<version>.zip (gitignored; stages npm ci --omit=dev, --no-deps to skip)
+npm run build:plugin-zip   # build dist-plugin/android-layout-mcp-<version>.zip (gitignored; stages npm ci --omit=dev, --no-deps to skip)
 node scripts/sync-agent-skills.mjs --dest <project>   # copy skills/ into <project>/.agents/skills (--codebuddy, --workbuddy, --both, --global, --check, --dry-run)
 node scripts/sync-version.mjs          # sync package.json version -> .claude-plugin/plugin.json
 node scripts/sync-version.mjs --check  # CI/release check
@@ -27,7 +27,7 @@ claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin 
 
 Tests are fixture-based (`test/fixtures/`) and need no device. The fixtures are real API 33 captures: a Compose app's `ViewDebug.dumpv2` binary, an XML app's binary, uiautomator XML, a screenshot, and Compose helper JSON.
 
-`evals/` holds mocked activation regression cases (`prompt.md` + `graders/*.md`). They assert skill/tool selection, not code output; `evals/mocks/` replaces the MCP server, so no device is needed. `evals/mocks/android-ui/_tools.json` is a saved `tools/list` snapshot; regenerate it after changing tool descriptions in `src/mcp.ts` and rebuilding `dist/`. They are not part of CI because they run real Claude Code sessions and cost tokens.
+`evals/` holds mocked activation regression cases (`prompt.md` + `graders/*.md`). They assert skill/tool selection, not code output; `evals/mocks/` replaces the MCP server, so no device is needed. `evals/mocks/android-layout/_tools.json` is a saved `tools/list` snapshot; regenerate it after changing tool descriptions in `src/mcp.ts` and rebuilding `dist/`. They are not part of CI because they run real Claude Code sessions and cost tokens.
 
 ## Language conventions
 
@@ -42,14 +42,14 @@ User-facing docs come in parallel language versions that link to each other: `RE
 
 - **`dist/` is intentionally committed.** GitHub marketplace installs copy the repo and start the MCP server from `dist/mcp.js`; `node_modules/` is not committed. CI runs `git diff --exit-code -- dist`, so after changing anything in `src/`, run `npm run build` and commit the regenerated `dist/` (and `dist/*.d.ts`) in the same change. Never hand-edit `dist/`.
 - **`package.json` is the only version source.** `.claude-plugin/plugin.json` needs a literal version; `scripts/sync-version.mjs` keeps them equal. `prepublishOnly` and CI fail on mismatch.
-- The repository is simultaneously an npm package (`android-ui-inspector`, binary `android-ui`) and a Claude Code plugin + marketplace:
-  - `.claude-plugin/plugin.json` — plugin `android-ui`; inline `mcpServers` launches `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`.
+- The repository is simultaneously an npm package (`android-layout-mcp`, binary `android-layout`) and a Claude Code plugin + marketplace:
+  - `.claude-plugin/plugin.json` — plugin `android-layout`; inline `mcpServers` launches `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`.
   - `.claude-plugin/marketplace.json` — marketplace `jayvinz-tools`, with `source: "./"` (repo root is the first plugin).
   - `skills/`, `commands/`, `agents/` are shipped plugin components. `scripts/locate-code.mjs` and `scripts/sync-agent-skills.mjs` are dependency-free so they work before `npm install`.
   - Beyond Claude Code, the plugin reaches other agents in two layers: `mcp --print-config --client <id>` shapes the MCP config for 20 clients (`src/core/mcp-config.ts`), and the four skills stay portable — only `name` + `description` frontmatter, no `${CLAUDE_PLUGIN_ROOT}` in executable paths (they use `AUI_ROOT`), so `scripts/sync-agent-skills.mjs` can copy them to `.agents/skills/` (Codex CLI, Gemini CLI, Cline, Goose), `.codebuddy/skills/` (CodeBuddy, via `--codebuddy`), or `.workbuddy/skills/` (WorkBuddy, via `--workbuddy`). `--both` writes the first two. Cursor and VS Code read `.claude/skills/` directly. Commands, the subagent, and the `PreToolUse` hook stay Claude Code specific; do not add agent-specific fields to skill frontmatter. `test/agent-portability.test.ts` guards these rules. Verified locally with OpenCode 1.19.5, CodeBuddy Code 2.186.0, Codex CLI 0.172.0, and WorkBuddy (its custom MCP needs one-time GUI approval); see `docs/mcp.md#verified-locally`. The full engineering record, including per-client gotchas and the "add a client" checklist, is `docs/cross-agent.md` (zh: `docs/cross-agent.zh.md`). `test/cross-agent-compat.test.ts` derives its expectations from `MCP_CLIENT_IDS`, so a client id added in code without updating the client tables in README (both languages), `docs/mcp.*`, and `docs/cross-agent.*` fails CI.
 - The module system is ESM (`"type": "module"`, TypeScript `NodeNext`): relative imports in `src/` must use the `.js` extension, even when importing a `.ts` file.
 - CI (`.github/workflows/validate.yml`) runs, in order: `sync-version --check`, typecheck, tests, build, `git diff --exit-code -- dist`, then `claude plugin validate --strict .`.
-- Pushing a `v*` tag runs `.github/workflows/release.yml`: it checks the tag against `package.json`, reruns the validate steps, builds and re-validates the Claude Code plugin bundle (`npm run build:plugin-zip` → `dist-plugin/android-ui-inspector-<version>.zip`, archive root = plugin folder), then creates the GitHub Release and attaches that bundle. `dist-plugin/` is a build output and is gitignored.
+- Pushing a `v*` tag runs `.github/workflows/release.yml`: it checks the tag against `package.json`, reruns the validate steps, builds and re-validates the Claude Code plugin bundle (`npm run build:plugin-zip` → `dist-plugin/android-layout-mcp-<version>.zip`, archive root = plugin folder), then creates the GitHub Release and attaches that bundle. `dist-plugin/` is a build output and is gitignored.
 - The bundle must stay self-contained: it ships production `node_modules/` plus `package-lock.json` because Claude Code installs plugin dependencies only when copying into its cache (and only with a lockfile), while `--plugin-dir`/`--plugin-url` archives are unpacked to a session temp folder with no install. Keep `helper/` and `scripts/locate-code.mjs` beside `dist/` for the same reason.
 - Do not commit dumps or screenshots: they contain device serials, package names, and screen text. `.aui/`, `aui-fallback-*.png`, and `*.annotated.svg` are gitignored.
 
@@ -85,7 +85,7 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
   - `analyze.ts` — layout/accessibility rules (`small_touch_target`, `overlap`, `clipped`, `outside_parent`, `offscreen`, `invisible_clickable`, `zero_size`, `unlabeled_clickable`, `duplicate_id`, `deep_nesting`).
   - `render.ts` — human-readable tree and issue output.
   - `screenshot.ts` — PNG capture, pure-JS box-filter downscale, coordinate mapping (`imageToDevice`), and SVG annotation overlay.
-- `viewer.ts` — self-contained interactive HTML viewer: serialized per-source trees with max-node counters, downscaled screenshot data URI, details, analysis issues, 8 MB embedded-JSON budget, and an offline document (inline CSS/JS, CSP, no network). Browser launch is explicit-only (`android-ui view` / MCP `open_viewer` / `AUI_NO_OPEN=1`); dump/find/analyze/screenshot/verify must never call it.
+- `viewer.ts` — self-contained interactive HTML viewer: serialized per-source trees with max-node counters, downscaled screenshot data URI, details, analysis issues, 8 MB embedded-JSON budget, and an offline document (inline CSS/JS, CSP, no network). Browser launch is explicit-only (`android-layout view` / MCP `open_viewer` / `AUI_NO_OPEN=1`); dump/find/analyze/screenshot/verify must never call it.
   - `serialize.ts` / `diff.ts` — dump format v1 (`version: 1`) and identity-keyed added/removed/changed diff. `chooseDiffSource` avoids comparing different trees in before/after dumps.
 - `src/core/index.ts` re-exports the whole core API; `src/core/version.ts` reads `package.json` at runtime.
 

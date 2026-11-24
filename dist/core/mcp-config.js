@@ -49,7 +49,7 @@ const CLIENTS = {
     amp: { family: "amp", target: "~/.config/amp/settings.json or .amp/settings.json" },
     generic: { family: "mcpServers", target: "any client that reads a mcpServers object" },
 };
-const SERVER_NAME = "android-ui";
+const SERVER_NAME = "android-layout";
 export function isMcpClient(value) {
     return MCP_CLIENT_IDS.includes(value);
 }

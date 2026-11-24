@@ -1,5 +1,5 @@
-android-ui-inspector
-====================
+android-layout-mcp
+==================
 
 This project implements the Android view-debug capture protocol and hit-testing
 behavior that are also used by LayoutInspectorV2-Pro:

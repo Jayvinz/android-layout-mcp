@@ -179,7 +179,7 @@ export class Adb {
       throw new AuiError(
         "NO_DEVICE",
         "No ready Android device or emulator found.",
-        "Connect a device, start an emulator, or run `android-ui devices` to see available devices.",
+        "Connect a device, start an emulator, or run `android-layout devices` to see available devices.",
       );
     }
     if (ready.length > 1) {

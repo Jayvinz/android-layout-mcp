@@ -2,7 +2,7 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`android-ui` 可以通过三个数据源抓取 Android 实时界面：
+`android-layout` 可以通过三个数据源抓取 Android 实时界面：
 
 | 数据源 | 原理 | 依赖 | 适合 |
 |---|---|---|---|
@@ -85,11 +85,11 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
 ## Studio / JDK 版本适配
 
 - **Studio 版本**：不假设固定安装路径；会读取 `product-info.json` / `build.txt` 得到版本号，
-  `android-ui studio` 会显示 build。不同版本的 protobuf/gRPC 类名和 inspector proto 可能不同，因此
+  `android-layout studio` 会显示 build。不同版本的 protobuf/gRPC 类名和 inspector proto 可能不同，因此
   helper 不再只依赖预编译 jar：首次使用某个 Studio build 时，会用**该 Studio 自带的 JBR
   `javac`/`jar`** 针对其 `plugins/android/lib/*.jar` 重新编译 helper，并按
   `Studio build + helper 源码 hash + 编译器版本` 缓存到
-  `~/.cache/android-ui/helper/<key>/`。
+  `~/.cache/android-layout/helper/<key>/`。
 - **JDK 版本**：Java 选择顺序为 `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → PATH。
   显式指定的 `--java` 或 `AUI_JAVA` 若不存在，会跳过并给出 warning（继续尝试下一个候选），而不是直接失败，因此失效的覆盖配置不会让检查静默中断。
   helper 编译优先使用**与运行时 Java 同一目录下的 `javac`/`jar`**，避免 class file version
@@ -99,7 +99,7 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
 - 若使用其他 JBR/JDK，可用：
 
   ```bash
-  android-ui dump --source compose --java "C:/path/to/jdk/bin/java.exe"
+  android-layout dump --source compose --java "C:/path/to/jdk/bin/java.exe"
   ```
 
   或显式提供已编译 helper：`AUI_COMPOSE_HELPER_JAR=/path/to/helper.jar`。
@@ -111,11 +111,11 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
 ## Compose JVMTI 树（Android Studio 级）
 
 ```bash
-android-ui dump --source compose --depth 10
-android-ui find 推荐 --source compose
-android-ui hit 540 2239 --source compose
-android-ui analyze --source compose
-android-ui dump --source compose --json --out ui.json
+android-layout dump --source compose --depth 10
+android-layout find 推荐 --source compose
+android-layout hit 540 2239 --source compose
+android-layout analyze --source compose
+android-layout dump --source compose --json --out ui.json
 ```
 
 前置条件：
@@ -123,10 +123,10 @@ android-ui dump --source compose --json --out ui.json
 - App 是可调试构建（`android:debuggable=true`）；
 - 本机安装 Android Studio（默认自动探测；可用 `AUI_ANDROID_STUDIO` 或 `--studio` 指定）；
   探测顺序：`--studio`/环境变量 → **正在运行的 `studio64.exe`/`studio` 进程路径** → 常见安装路径。
-  优先使用开发者实际在用的那个 Studio 安装（同时覆盖自定义/Toolbox 安装）；可用 `android-ui studio`
+  优先使用开发者实际在用的那个 Studio 安装（同时覆盖自定义/Toolbox 安装）；可用 `android-layout studio`
   查看实际命中的路径和来源；
 - Java 17+（优先用 Android Studio 自带 JBR；可用 `AUI_JAVA` 或 `--java` 指定）；
-- Compose inspector jar 默认按 **1.8.3** 下载并缓存到 `~/.cache/android-ui/`；
+- Compose inspector jar 默认按 **1.8.3** 下载并缓存到 `~/.cache/android-layout/`；
   如 App 的 Compose 版本不同，设置 `AUI_COMPOSE_VERSION` 或 `AUI_COMPOSE_INSPECTOR_JAR`；
 - 只支持 API 29+（Compose inspector 要求），并且 App 需在前台。
 
@@ -141,7 +141,7 @@ android-ui dump --source compose --json --out ui.json
 CLI 会自动 push daemon/agent、`run-as` 安装 inspector jar、attach agent、通过 gRPC 驱动
 View inspector（只拿 root view id，关闭截图以避免 78MB 的 SKP 内存峰值）和 Compose inspector。
 daemon 会常驻在 `/data/local/tmp/aui-compose`，后续调用直接复用；用
-`android-ui compose-clean` 停止 daemon 并清理设备侧文件。
+`android-layout compose-clean` 停止 daemon 并清理设备侧文件。
 
 Android Studio 定位：显式配置 → 运行中进程的可执行文件路径 → 标准安装路径。进程探测结果在
 长驻 MCP 进程内缓存 **1 小时**；Windows 上首次探测因 PowerShell 启动约 1.5–2s，之后复用缓存。
@@ -186,7 +186,7 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 - `view` 要求 App `android:debuggable=true`；Release/未开启调试的包只能用 `semantics`。
 - JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
 - `compose` 额外要求：本机 Android Studio、Java 17+、App 在前台、Compose inspector jar 版本匹配；
-  单次抓取约 8–12s，且会在设备上常驻一个 transport daemon（`android-ui compose-clean` 可清理）。
+  单次抓取约 8–12s，且会在设备上常驻一个 transport daemon（`android-layout compose-clean` 可清理）。
 - 没有 Android Studio 时，Compose 仍可用 `semantics`（零依赖、文本/点击语义可用）。
 - 直接画到 `Canvas` 上的内容（自定义 `View.onDraw`、`SurfaceView`、`WebView` 的像素）在 `view` 树中没有文本和子节点；`semantics` 树只能看到 App 暴露给无障碍的信息，`compose` 树只能看到 composable，看不到 canvas 绘制。
 - `view` 的文本来自系统文本控件；自绘文字的自定义 View 不会暴露文本属性。

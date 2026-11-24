@@ -6,7 +6,7 @@ import { errorMessage } from "./errors.js";
 import { flattenNodes, serializeNode } from "./viewdump.js";
 export const VIEWER_BUDGET_BYTES = 8 * 1024 * 1024;
 /** Product name in the document title, the header, and the browser-script fallback. */
-const VIEWER_TITLE = "Android UI Inspector";
+const VIEWER_TITLE = "Android Layout MCP";
 export const DEFAULT_MAX_NODES = 4000;
 const MIN_NODES = 200;
 /** `<baseDir or cwd>/.aui/viewer.html`, using the platform separator. */

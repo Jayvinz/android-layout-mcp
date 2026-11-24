@@ -1,6 +1,6 @@
 # 跨 agent 兼容
 
-本文记录 [Android UI Inspector](https://github.com/Jayvinz/android-ui-inspector) 在 Claude Code 之外的工作方式：哪些部分可以迁移、每个客户端的确切配置形状、已在本机实测的四家，以及接入新客户端的清单。工具本身的权威参考仍是 [mcp.zh.md](mcp.zh.md)；本页是可移植性工作的工程记录。
+本文记录 [Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) 在 Claude Code 之外的工作方式：哪些部分可以迁移、每个客户端的确切配置形状、已在本机实测的四家，以及接入新客户端的清单。工具本身的权威参考仍是 [mcp.zh.md](mcp.zh.md)；本页是可移植性工作的工程记录。
 
 ## 哪些能迁移，哪些不能
 
@@ -14,7 +14,7 @@
 | 子代理 | `agents/ui-code-locator.md`，`model: inherit` / `color` | 仅 Claude Code |
 | 门禁与分发 | `hooks/hooks.json` 的 `PreToolUse`、`plugin.json`、marketplace | 仅 Claude Code |
 
-技能可移植靠两个性质：frontmatter 只用 `name` 与 `description`；CLI 兜底路径用 `$AUI_ROOT/dist/cli.js`，而不是 `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`。在 Claude Code 里 `AUI_ROOT` 就是 `${CLAUDE_PLUGIN_ROOT}`；其他地方它是你的插件 checkout，或者把 `android-ui` 放进 `PATH`。技能的可执行命令里不会硬编码 Claude 专属路径，`test/agent-portability.test.ts` 强制这一点。
+技能可移植靠两个性质：frontmatter 只用 `name` 与 `description`；CLI 兜底路径用 `$AUI_ROOT/dist/cli.js`，而不是 `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`。在 Claude Code 里 `AUI_ROOT` 就是 `${CLAUDE_PLUGIN_ROOT}`；其他地方它是你的插件 checkout，或者把 `android-layout` 放进 `PATH`。技能的可执行命令里不会硬编码 Claude 专属路径，`test/agent-portability.test.ts` 强制这一点。
 
 Android 工程门禁只有在 Claude Code 里才是硬性的 `PreToolUse` hook。其他客户端里它是写进每个技能正文的软规则：只在 Android 工程中调用设备工具，或用户明确要求查看设备页面时才调用。
 
@@ -34,7 +34,7 @@ node dist/cli.js mcp --print-config --client <id>
 |---|---|---|
 | `mcpServers` 对象 | `claude`（默认）、`claude-desktop`、`codebuddy`、`workbuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 |
 | `servers` + `type: "stdio"` | `vscode` | `.vscode/mcp.json` |
-| TOML `[mcp_servers.android-ui]` | `codex` | `~/.codex/config.toml` |
+| TOML `[mcp_servers.android-layout]` | `codex` | `~/.codex/config.toml` |
 | `context_servers` + `command.path` | `zed` | `settings.json` |
 | `mcp` + 本地命令数组 | `opencode` | `opencode.json` |
 | YAML `extensions` | `goose` | `~/.config/goose/config.yaml` |
@@ -49,7 +49,7 @@ id 定义在 `src/core/mcp-config.ts`；CLI 的 `--client` choices 直接从该�
 | 客户端 | 版本 | 验证内容 | 需要记住的坑 |
 |---|---|---|---|
 | OpenCode | 1.19.5 | `opencode mcp list` 显示已连接；`tools/list` 收到全部 14 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 | 配置校验严格；`type: "local"` 加命令数组才是被接受的形状 |
-| CodeBuddy Code | 2.186.0 | `mcp__android-ui__list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载 | 项目级 server 需要一次性审批；无交互运行要加 `--settings '{"enableAllProjectMcpServers":true}'`，工具被门禁时还要 `-y` |
+| CodeBuddy Code | 2.186.0 | `mcp__android-layout__list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载 | 项目级 server 需要一次性审批；无交互运行要加 `--settings '{"enableAllProjectMcpServers":true}'`，工具被门禁时还要 `-y` |
 | Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 | 非交互 shell 里 `codex exec` 会等 stdin，需从 `/dev/null` 重定向；自定义 provider 必须用 `env_key`，inline `api_key` 会被忽略 |
 | WorkBuddy | 内置 | 重启并在 GUI 中一次性启用后，`list_devices` 返回真实设备，`inspect-current-screen` 从 `.workbuddy/skills/` 加载 | 只写 `mcp.json` 不会暴露工具，GUI 启用/信任步骤不能省 |
 

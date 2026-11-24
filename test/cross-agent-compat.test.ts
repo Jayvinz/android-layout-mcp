@@ -73,13 +73,13 @@ test("every config family keeps its documented envelope", () => {
   }
 
   const vscode = JSON.parse(configOf("vscode").content) as Record<string, Record<string, { type: string }>>;
-  assert.equal(vscode.servers["android-ui"].type, "stdio");
+  assert.equal(vscode.servers["android-layout"].type, "stdio");
 
   const zed = JSON.parse(configOf("zed").content) as Record<string, Record<string, { command: { path: string } }>>;
-  assert.equal(zed.context_servers["android-ui"].command.path, "node");
+  assert.equal(zed.context_servers["android-layout"].command.path, "node");
 
   const opencode = JSON.parse(configOf("opencode").content) as Record<string, Record<string, { type: string }>>;
-  assert.equal(opencode.mcp["android-ui"].type, "local");
+  assert.equal(opencode.mcp["android-layout"].type, "local");
 
   const amp = JSON.parse(configOf("amp").content) as Record<string, unknown>;
   assert.ok("amp.mcpServers" in amp);

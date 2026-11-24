@@ -1,10 +1,10 @@
-# Android UI Inspector
+# Android Layout MCP
 
 [English](README.md) | [简体中文](README.zh.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org/)
-[![CI](https://github.com/Jayvinz/android-ui-inspector/actions/workflows/validate.yml/badge.svg)](https://github.com/Jayvinz/android-ui-inspector/actions/workflows/validate.yml)
+[![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml)
 
 **面向 coding agent 的 Android UI 检查工具。** 通过 ADB 读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍检查、改码前后布局对比，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
 
@@ -24,26 +24,27 @@
 
 | 层级 | 名字 |
 | --- | --- |
-| GitHub 仓库 | `Jayvinz/android-ui-inspector` |
-| MCP server key（所有客户端） | `android-ui` |
-| CLI 命令 | `android-ui` |
-| Claude Code 插件与 marketplace 条目 | `android-ui` |
-| 插件显示名 | Android UI Inspector |
+| GitHub 仓库 | `Jayvinz/android-layout-mcp` |
+| MCP server key（所有客户端） | `android-layout` |
+| CLI 命令 | `android-layout` |
+| Claude Code 插件与 marketplace 条目 | `android-layout` |
+| 插件显示名 | Android Layout MCP |
 
+仓库名与 npm 包名保留 `-mcp` 后缀，CLI 命令、MCP server key 与插件名使用更短的 `android-layout`。
 MCP server 与 CLI 适用于任何 MCP 客户端；Claude Code 只是受支持的前端之一，并非唯一选择。
 客户端矩阵与各客户端的接入方式见[跨 agent 指南](docs/cross-agent.zh.md)。
 
-1.0.0 是首个正式版本（2026-11-24），旧名字从未发布过，因此没有需要迁移的内容：接入客户端后
-直接使用 `android-ui` 即可。在 Claude Code 中门禁 hook 只在会话启动时读取，安装或更新插件后
+0.1.0 是当前名字下的首个版本。此前用过的名字都从未发布，因此没有需要迁移的内容：接入客户端后
+直接使用 `android-layout` 即可。在 Claude Code 中门禁 hook 只在会话启动时读取，安装或更新插件后
 重启一次。
 
 ## 架构
 
 ```
-CLI (android-ui) ──┐
-                   ├── core ──┬── JDWP + DDM → ViewDebug v2 视图树
-MCP Server ────────┘          ├── adb uiautomator → Semantics 树
-                              └── Android Studio transport + JVMTI → Compose 树
+CLI (android-layout) ──────┐
+                               ├── core ──┬── JDWP + DDM → ViewDebug v2 视图树
+MCP Server ────────────────────┘          ├── adb uiautomator → Semantics 树
+                                          └── Android Studio transport + JVMTI → Compose 树
 ```
 
 ## 快速上手
@@ -59,16 +60,16 @@ MCP Server ────────┘          ├── adb uiautomator → Se
 ### 1. 接入 Claude Code 插件
 
 ```text
-/plugin marketplace add Jayvinz/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add Jayvinz/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
 安装成功后即获得：
 
 | 组件 | 内容 |
 |---|---|
-| MCP server `android-ui` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`open_viewer`、`diff_ui`、`tap` 等工具 |
-| Slash 命令 | `/android-ui:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:view`（浏览器查看器）、`:verify`（真机验证改动） |
+| MCP server `android-layout` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`open_viewer`、`diff_ui`、`tap` 等工具 |
+| Slash 命令 | `/android-layout:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:view`（浏览器查看器）、`:verify`（真机验证改动） |
 | Skills | `inspect-current-screen`、`locate-ui-code`、`analyze-screen-logic`、`verify-ui-change` |
 | 只读子代理 | `ui-code-locator` |
 
@@ -77,14 +78,14 @@ MCP Server ────────┘          ├── adb uiautomator → Se
 不想添加 marketplace 时，每个 Release 还附带一个自包含的插件包（构建好的 `dist/`、helper jar 与生产依赖），可免克隆直接加载，详见 [docs/plugin.zh.md](docs/plugin.zh.md#插件包)：
 
 ```text
-claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-dir ./android-layout-mcp-<version>.zip
 ```
 
 **本地开发/调试**：先在仓库根目录执行 `npm install && npm run build`，再把 marketplace 指向本地路径（换成你自己的克隆路径）：
 
 ```text
-/plugin marketplace add E:/repo/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add E:/repo/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
 组件清单、发布、版本号等细节见 [docs/plugin.zh.md](docs/plugin.zh.md)。
@@ -103,9 +104,9 @@ node dist/cli.js mcp --print-config --client cursor
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
-      "args": ["E:/repo/android-ui-inspector/dist/mcp.js"]
+      "args": ["E:/repo/android-layout-mcp/dist/mcp.js"]
     }
   }
 }
@@ -125,13 +126,13 @@ node dist/cli.js mcp --print-config --client cursor
 
 ```bash
 npm install && npm run build
-npm link                       # 提供全局 android-ui 命令
+npm link                       # 提供全局 android-layout 命令
 
-android-ui devices       # 已连接设备
-android-ui state         # 屏幕、前台 App、pid
-android-ui dump          # 抓取当前 UI（默认 auto）
-android-ui find "开拍"   # 按文本查找
-android-ui view          # 生成交互式 HTML 查看器并在浏览器中打开
+android-layout devices       # 已连接设备
+android-layout state         # 屏幕、前台 App、pid
+android-layout dump          # 抓取当前 UI（默认 auto）
+android-layout find "开拍"   # 按文本查找
+android-layout view          # 生成交互式 HTML 查看器并在浏览器中打开
 ```
 
 完整命令表、分析规则、截图与坐标映射见 [docs/cli.zh.md](docs/cli.zh.md)。
@@ -145,12 +146,12 @@ android-ui view          # 生成交互式 HTML 查看器并在浏览器中打�
 或运行命令：
 
 ```text
-/android-ui:locate 个人页
+/android-layout:locate 个人页
 ```
 
-工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。UI 改动完成后用 `/android-ui:verify` 做改前/改后对比验证。
+工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。UI 改动完成后用 `/android-layout:verify` 做改前/改后对比验证。
 
-如果要分析的是整个页面、弹窗或底部弹层而不是单个控件，可以说“分析当前界面的代码和业务逻辑”，或运行 `/android-ui:analyze-screen`：它会把页面各区块映射到源码，再追 ViewModel、数据来源、导航与副作用。
+如果要分析的是整个页面、弹窗或底部弹层而不是单个控件，可以说“分析当前界面的代码和业务逻辑”，或运行 `/android-layout:analyze-screen`：它会把页面各区块映射到源码，再追 ViewModel、数据来源、导航与副作用。
 
 **仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code`、`open_viewer` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
 
@@ -158,16 +159,16 @@ android-ui view          # 生成交互式 HTML 查看器并在浏览器中打�
 
 | 想做的事 | 入口 |
 |---|---|
-| 定位控件对应的 Compose/XML 源码与业务链路 | `/android-ui:locate` / `locate_code` |
-| 分析当前页面/弹窗的代码、状态、数据流与业务逻辑 | `/android-ui:analyze-screen` / `analyze-screen-logic` skill |
-| 看懂当前页面（前台 App、Activity、可见入口） | `/android-ui:screen` / `get_state` + `dump_ui` |
+| 定位控件对应的 Compose/XML 源码与业务链路 | `/android-layout:locate` / `locate_code` |
+| 分析当前页面/弹窗的代码、状态、数据流与业务逻辑 | `/android-layout:analyze-screen` / `analyze-screen-logic` skill |
+| 看懂当前页面（前台 App、Activity、可见入口） | `/android-layout:screen` / `get_state` + `dump_ui` |
 | 检查某个可见控件的 bounds、center、可点击/enabled 状态与 class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
-| 真机验证 UI 改动（diff + 规则 + 截图） | `/android-ui:verify` / `diff_ui` + `analyze_ui` |
+| 真机验证 UI 改动（diff + 规则 + 截图） | `/android-layout:verify` / `diff_ui` + `analyze_ui` |
 | 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text`、`press_key` |
-| 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-ui shot` |
-| 在浏览器中可视化当前页面（仅显式请求） | `open_viewer` / `android-ui view` / `/android-ui:view` |
-| 布局与无障碍问题检查 | `analyze_ui` / `android-ui analyze` |
-| 改码前后布局对比 | `diff_ui` / `android-ui diff` |
+| 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-layout shot` |
+| 在浏览器中可视化当前页面（仅显式请求） | `open_viewer` / `android-layout view` / `/android-layout:view` |
+| 布局与无障碍问题检查 | `analyze_ui` / `android-layout analyze` |
+| 改码前后布局对比 | `diff_ui` / `android-layout diff` |
 
 ## 数据来源速览
 

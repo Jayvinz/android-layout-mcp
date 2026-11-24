@@ -35,7 +35,7 @@ function decide(project: string, prompt: string, tool: string, injected?: string
   writeFileSync(transcript, `${lines.join("\n")}\n`);
   const result = spawnSync(process.execPath, [hook], {
     input: JSON.stringify({
-      tool_name: `mcp__plugin_android-ui_android-ui__${tool}`,
+      tool_name: `mcp__plugin_android-layout_android-layout__${tool}`,
       cwd: project,
       transcript_path: transcript,
     }),
@@ -93,7 +93,7 @@ test("ignores plugin-name context in later user turns", () => {
         project,
         "分析当前界面的代码",
         "get_state",
-        "android-ui: MCP server android-ui is ready. Commands: /android-ui:screen, /android-ui:locate.",
+        "android-layout: MCP server android-layout is ready. Commands: /android-layout:screen, /android-layout:locate.",
       ),
       "deny",
     );

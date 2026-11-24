@@ -210,7 +210,7 @@ public final class ComposeInspectorHelper {
         .setCreateInspectorCommand(AppInspection.CreateInspectorCommand.newBuilder()
             .setDexPath(dexPath)
             .setLaunchMetadata(AppInspection.LaunchMetadata.newBuilder()
-                .setLaunchedByName("android-ui-inspector")
+                .setLaunchedByName("android-layout")
                 .setForce(true))
             .build())
         .build();

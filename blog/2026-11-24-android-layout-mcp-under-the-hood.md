@@ -1,12 +1,12 @@
-# How Android UI Inspector Reads a Screen: JDWP, UIAutomator, and JVMTI
+# How Android Layout MCP Reads a Screen: JDWP, UIAutomator, and JVMTI
 
-*Part 2 of two. [Part 1](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-getting-started.md) covers installation and everyday use.*
+*Part 2 of two. [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-getting-started.md) covers installation and everyday use.*
 
 *[Figure 1: one screen captured by three sources, merged into a single tree]*
 
 Android has no single API that answers "what is on this screen". There is the View hierarchy, reachable through the debugger; the accessibility tree, exposed by `uiautomator`; and the Compose inspector, which lives inside Android Studio and speaks gRPC. Each returns different data at a different cost.
 
-[Android UI Inspector](https://github.com/Jayvinz/android-ui-inspector) uses all three and normalizes them into one node tree with short refs. This post follows each path, shows where the raw data changes shape, and explains the decisions that keep the output usable by a coding agent.
+[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) uses all three and normalizes them into one node tree with short refs. This post follows each path, shows where the raw data changes shape, and explains the decisions that keep the output usable by a coding agent.
 
 ### Three answers to one question
 
@@ -87,13 +87,13 @@ The upside is reach. The semantics tree works on release builds, on any app, and
 
 This path borrows Android Studio's own tooling. The tool locates a Studio installation (`--studio`, `AUI_ANDROID_STUDIO`, the running process, or default paths), reads its build number, and stages five artifacts on the device: the gRPC `transport` daemon, the [JVMTI](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html) agent, `perfa.jar`, the View inspector jar, and the Compose inspector jar it fetched for the app's Compose version.
 
-The Compose inspector jar does not come from the Studio install. It is extracted from the `ui-android` AAR on Google Maven for the app's Compose version (1.8.3 by default) and cached under `~/.cache/android-ui/`. The helper jar is compiled on first use against the exact Studio build and compiler version, then cached by a hash of build id, helper source, and compiler version. When no compiler is available, a committed helper jar is used instead.
+The Compose inspector jar does not come from the Studio install. It is extracted from the `ui-android` AAR on Google Maven for the app's Compose version (1.8.3 by default) and cached under `~/.cache/android-layout/`. The helper jar is compiled on first use against the exact Studio build and compiler version, then cached by a hash of build id, helper source, and compiler version. When no compiler is available, a committed helper jar is used instead.
 
 On the device, `run-as` copies the inspector jars into the app's `code_cache`, and the transport daemon starts with a hand-encoded protobuf config. There is no protobuf runtime in the project; the few messages needed are written as varint fields directly. The helper then drives the View and Compose inspectors over gRPC and prints JSON.
 
 Two deliberate limits reduce the cost. The capture asks for the root view id only and disables inspector screenshots, which would allocate a large SKP buffer; the project notes a 78 MB peak when screenshots are left on. The daemon stays resident in `/data/local/tmp/aui-compose`, so later captures skip startup.
 
-The result carries what the other sources cannot: `CommunityActivity.kt:85`, Composable names, parameter text, and recompose counts. It costs 8 to 12 seconds, needs API 29 or newer, and leaves state on the device until `android-ui compose-clean` runs.
+The result carries what the other sources cannot: `CommunityActivity.kt:85`, Composable names, parameter text, and recompose counts. It costs 8 to 12 seconds, needs API 29 or newer, and leaves state on the device until `android-layout compose-clean` runs.
 
 *[Figure 3: Studio artifacts staged on the device, the resident transport daemon, and the helper's gRPC calls]*
 
@@ -157,14 +157,14 @@ Three sources mean three sets of prerequisites. Two of them need a debug build, 
 
 Those constraints appear in the output. Captures carry warnings, refs expire with the snapshot, and the JSON says which sources produced the tree. The next time an agent reports that a button sits at `(540, 2239)`, that number came from one of these paths, and the payload names it.
 
-If you want to try it, [Part 1](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-getting-started.md) has the install steps.
+If you want to try it, [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-getting-started.md) has the install steps.
 
 **Resources**
 
-- [Repository](https://github.com/Jayvinz/android-ui-inspector)
-- [Data sources and measured results](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/data-sources.md)
-- [CLI reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cli.md)
-- [Cross-agent compatibility](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cross-agent.md)
+- [Repository](https://github.com/Jayvinz/android-layout-mcp)
+- [Data sources and measured results](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md)
+- [CLI reference](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cli.md)
+- [Cross-agent compatibility](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md)
 - [JDWP specification](https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/jdwp-spec.html)
 - [JVMTI specification](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html)
 - [UI Automator](https://developer.android.com/training/testing/other-components/ui-automator)

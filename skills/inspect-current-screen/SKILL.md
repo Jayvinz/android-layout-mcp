@@ -24,8 +24,8 @@ If the user explicitly asks about a connected device screen/page but no Android 
 
 1. Confirm `adb` is available and the device is online: MCP `list_devices`, or `adb devices`. With multiple devices, pick a `serial` and pass the same one to every call.
 2. The target app should be in the foreground. Record `package` and `activity` from `get_state`; if the user names an app that is not in the foreground, say so before summarizing.
-3. MCP tools come from the `android-ui` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, `analyze_ui`, `tap`, `swipe`, `input_text`, and `press_key`.
-4. If MCP is unavailable, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`, `scripts/`, and `skills/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout. `android-ui` on `PATH` is equivalent:
+3. MCP tools come from the `android-layout` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, `analyze_ui`, `tap`, `swipe`, `input_text`, and `press_key`.
+4. If MCP is unavailable, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`, `scripts/`, and `skills/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout. `android-layout` on `PATH` is equivalent:
    ```bash
    mkdir -p .aui
    node "$AUI_ROOT/dist/cli.js" state --json

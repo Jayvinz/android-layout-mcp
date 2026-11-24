@@ -23,7 +23,7 @@ If the user explicitly asks about a connected device screen/page but no Android 
 ## Prerequisites
 
 - The target app is installed and in the foreground; the package matches this build.
-- MCP `android-ui` is available. If not, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout, or `android-ui` on `PATH`:
+- MCP `android-layout` is available. If not, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout, or `android-layout` on `PATH`:
   ```bash
   node "$AUI_ROOT/dist/cli.js" dump --json --out before.json
   node "$AUI_ROOT/dist/cli.js" diff before.json after.json

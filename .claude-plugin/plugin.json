@@ -1,27 +1,27 @@
 {
-  "name": "android-ui",
-  "displayName": "Android UI Inspector",
-  "version": "1.0.0",
-  "description": "Inspect a live Android UI (XML View, Compose JVMTI, or accessibility semantics): summarize the current page, inspect a visible control's bounds and clickable state, audit layout and accessibility, and trace UI elements back to their Compose/XML source code and business logic through the bundled android-ui MCP server.",
+  "name": "android-layout",
+  "displayName": "Android Layout MCP",
+  "version": "0.1.0",
+  "description": "Inspect a live Android UI (XML View, Compose JVMTI, or accessibility semantics): summarize the current page, inspect a visible control's bounds and clickable state, audit layout and accessibility, and trace UI elements back to their Compose/XML source code and business logic through the bundled android-layout MCP server.",
   "author": {
     "name": "Jayvinz",
     "url": "https://github.com/Jayvinz"
   },
-  "homepage": "https://github.com/Jayvinz/android-ui-inspector",
-  "repository": "https://github.com/Jayvinz/android-ui-inspector",
+  "homepage": "https://github.com/Jayvinz/android-layout-mcp",
+  "repository": "https://github.com/Jayvinz/android-layout-mcp",
   "license": "MIT",
   "keywords": [
     "android",
     "compose",
     "xml",
     "ui-inspector",
-    "android-ui",
+    "android-layout",
     "adb",
     "mcp",
     "code-navigation"
   ],
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp.js"]
     }

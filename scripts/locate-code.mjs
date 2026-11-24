@@ -2,7 +2,7 @@
 /**
  * Deterministic code anchors for a UI element.
  *
- * Given the evidence returned by android-ui (text / content-description / resource-id /
+ * Given the evidence returned by android-layout (text / content-description / resource-id /
  * Compose file+line+name), scan an Android repository and rank the places that
  * most likely define or reference that element.
  *

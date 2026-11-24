@@ -55,7 +55,7 @@ export async function loadDump(path) {
     const text = await readFile(path, "utf8");
     const parsed = JSON.parse(text);
     if (!parsed || typeof parsed !== "object" || parsed.version !== 1) {
-        throw new Error(`${path} is not an android-ui-inspector dump (version 1).`);
+        throw new Error(`${path} is not an android-layout dump (version 1).`);
     }
     return parsed;
 }

@@ -1,4 +1,4 @@
-# Android UI Inspector
+# Android Layout MCP
 
 |                      |                      |
 | -------------------- | -------------------- |
@@ -8,7 +8,7 @@
 
 ![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)
 
-![CI](https://github.com/Jayvinz/android-ui-inspector/actions/workflows/validate.yml/badge.svg)
+![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)
 
 **Android UI inspection for coding agents.** Read the live screen of a real device or emulator over ADB, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, diff before/after layouts, and trace any control back to its Compose/XML source and business logic.
 
@@ -28,26 +28,28 @@ Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-l
 
 | Layer | Name |
 | --- | --- |
-| GitHub repository | `Jayvinz/android-ui-inspector` |
-| MCP server key (all clients) | `android-ui` |
-| CLI command | `android-ui` |
-| Claude Code plugin and marketplace entry | `android-ui` |
-| Plugin display name | Android UI Inspector |
+| GitHub repository | `Jayvinz/android-layout-mcp` |
+| MCP server key (all clients) | `android-layout` |
+| CLI command | `android-layout` |
+| Claude Code plugin and marketplace entry | `android-layout` |
+| Plugin display name | Android Layout MCP |
 
-The MCP server and CLI work with any MCP client; Claude Code is one supported front end, not the
-only one. See the [cross-agent guide](docs/cross-agent.md) for the client matrix and per-client setup.
+The repository and npm package keep the `-mcp` suffix; the CLI, MCP server key, and plugin use the
+shorter `android-layout`. The MCP server and CLI work with any MCP client; Claude Code is one
+supported front end, not the only one. See the [cross-agent guide](docs/cross-agent.md) for the
+client matrix and per-client setup.
 
-Version 1.0.0 is the first stable release (2026-11-24); the earlier name was never published, so
-there is nothing to migrate: connect a client and run `android-ui`. In Claude Code the gate hook is
+Version 0.1.0 is the first release under this name. Earlier names were never published, so there is
+nothing to migrate: connect a client and run `android-layout`. In Claude Code the gate hook is
 read at session start, so restart once after installing or updating the plugin.
 
 ## Architecture
 
 ```
-CLI (android-ui) ──┐
-                   ├── core ──┬── JDWP + DDM → ViewDebug v2 view tree
-MCP Server ────────┘          ├── adb uiautomator → semantics tree
-                              └── Android Studio transport + JVMTI → Compose tree
+CLI (android-layout) ──────┐
+                               ├── core ──┬── JDWP + DDM → ViewDebug v2 view tree
+MCP Server ────────────────────┘          ├── adb uiautomator → semantics tree
+                                          └── Android Studio transport + JVMTI → Compose tree
 ```
 
 ## Quick start
@@ -63,16 +65,16 @@ MCP Server ────────┘          ├── adb uiautomator → se
 ### 1. Install the Claude Code plugin
 
 ```text
-/plugin marketplace add Jayvinz/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add Jayvinz/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
 After installation you get:
 
 | Component               | Content                                                                                                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MCP server `android-ui` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `open_viewer`, `diff_ui`, `tap`, and more                                          |
-| Slash commands          | `/android-ui:locate` (UI→source), `:screen` (current screen), `:analyze-screen` (screen/dialog logic), `:view` (browser viewer), `:verify` (verify changes on device) |
+| MCP server `android-layout` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `open_viewer`, `diff_ui`, `tap`, and more                                          |
+| Slash commands          | `/android-layout:locate` (UI→source), `:screen` (current screen), `:analyze-screen` (screen/dialog logic), `:view` (browser viewer), `:verify` (verify changes on device) |
 | Skills                  | `inspect-current-screen`, `locate-ui-code`, `analyze-screen-logic`, `verify-ui-change`                                                                                |
 | Read-only subagent      | `ui-code-locator`                                                                                                                                                     |
 
@@ -83,14 +85,14 @@ Prefer not to add the marketplace? Each release also ships a self-contained plug
 [docs/plugin.md](docs/plugin.md#plugin-bundle):
 
 ```text
-claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-dir ./android-layout-mcp-<version>.zip
 ```
 
 **Local development/debugging**: run `npm install && npm run build` in the repository root first, then point the marketplace at your local path (substitute your actual clone path):
 
 ```text
-/plugin marketplace add E:/repo/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add E:/repo/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
 See [docs/plugin.md](docs/plugin.md) for the component list and versioning.
@@ -110,9 +112,9 @@ object:
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
-      "args": ["E:/repo/android-ui-inspector/dist/mcp.js"]
+      "args": ["E:/repo/android-layout-mcp/dist/mcp.js"]
     }
   }
 }
@@ -132,13 +134,13 @@ and WorkBuddy; WorkBuddy needs a one-time GUI approval for the custom server).
 
 ```bash
 npm install && npm run build
-npm link                       # provides the global android-ui command
+npm link                       # provides the global android-layout command
 
-android-ui devices       # connected devices
-android-ui state         # screen, foreground app, pid
-android-ui dump          # capture the current UI (auto source)
-android-ui find "开拍"   # search by text
-android-ui view          # write an interactive HTML viewer and open it in the browser
+android-layout devices       # connected devices
+android-layout state         # screen, foreground app, pid
+android-layout dump          # capture the current UI (auto source)
+android-layout find "开拍"   # search by text
+android-layout view          # write an interactive HTML viewer and open it in the browser
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command table, analysis rules, screenshots, and coordinate mapping.
@@ -152,12 +154,12 @@ Put the target app on the page you care about, then just say in Claude Code:
 Or run the command:
 
 ```text
-/android-ui:locate Me
+/android-layout:locate Me
 ```
 
-The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. After a UI change, use `/android-ui:verify` to compare before/after.
+The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. After a UI change, use `/android-layout:verify` to compare before/after.
 
-To analyze a whole screen, dialog, or bottom sheet instead of one control, say "分析当前界面的代码和业务逻辑" or run `/android-ui:analyze-screen`: it maps the screen's sections to source, then follows the ViewModel, data sources, navigation, and side effects.
+To analyze a whole screen, dialog, or bottom sheet instead of one control, say "分析当前界面的代码和业务逻辑" or run `/android-layout:analyze-screen`: it maps the screen's sections to source, then follows the ViewModel, data sources, navigation, and side effects.
 
 **Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer`. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
 
@@ -165,16 +167,16 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 
 | Task                                                                      | Entry point                                                   |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Locate the Compose/XML source and business chain of a control             | `/android-ui:locate` / `locate_code`            |
-| Analyze the code, state, data flow, and business logic of the current screen/dialog | `/android-ui:analyze-screen` / `analyze-screen-logic` skill |
-| Understand the current screen (foreground app, Activity, visible entries) | `/android-ui:screen` / `get_state` + `dump_ui`  |
+| Locate the Compose/XML source and business chain of a control             | `/android-layout:locate` / `locate_code`            |
+| Analyze the code, state, data flow, and business logic of the current screen/dialog | `/android-layout:analyze-screen` / `analyze-screen-logic` skill |
+| Understand the current screen (foreground app, Activity, visible entries) | `/android-layout:screen` / `get_state` + `dump_ui`  |
 | Inspect a visible control's bounds, center, clickable/enabled state, and class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
-| Verify a UI change on a real device (diff + rules + screenshot)           | `/android-ui:verify` / `diff_ui` + `analyze_ui` |
+| Verify a UI change on a real device (diff + rules + screenshot)           | `/android-layout:verify` / `diff_ui` + `analyze_ui` |
 | Find elements / hit-test / tap, swipe, input                              | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text`, `press_key` |
-| Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `android-ui shot`                        |
-| Visualize the current screen in a browser (explicit request only)         | `open_viewer` / `android-ui view` / `/android-ui:view` |
-| Layout and accessibility checks                                           | `analyze_ui` / `android-ui analyze`                     |
-| Before/after layout diff around a code change                             | `diff_ui` / `android-ui diff`                           |
+| Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `android-layout shot`                        |
+| Visualize the current screen in a browser (explicit request only)         | `open_viewer` / `android-layout view` / `/android-layout:view` |
+| Layout and accessibility checks                                           | `analyze_ui` / `android-layout analyze`                     |
+| Before/after layout diff around a code change                             | `diff_ui` / `android-layout diff`                           |
 
 ## Data sources at a glance
 

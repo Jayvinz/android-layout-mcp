@@ -2,7 +2,7 @@
 
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
-The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-ui`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. This page covers the Claude Code packaging; the MCP server and skills also work in other agents, described in the [cross-agent guide](cross-agent.md). The typical task it targets:
+The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-layout`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. This page covers the Claude Code packaging; the MCP server and skills also work in other agents, described in the [cross-agent guide](cross-agent.md). The typical task it targets:
 
 > "Locate the **Me** button on the current screen and trace it to its related code logic."
 
@@ -10,13 +10,16 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 
 | Object | Name |
 |---|---|
-| Product | `Android UI Inspector` |
-| GitHub repository | `Jayvinz/android-ui-inspector` |
+| Product | `Android Layout MCP` |
+| GitHub repository | `Jayvinz/android-layout-mcp` |
 | Marketplace | `jayvinz-tools` |
-| Plugin | `android-ui` |
-| npm package name | `android-ui-inspector` (not published to the registry) |
-| MCP server | `android-ui` |
-| CLI command | `android-ui` |
+| Plugin | `android-layout` |
+| npm package name | `android-layout-mcp` (not published to the registry) |
+| MCP server | `android-layout` |
+| CLI command | `android-layout` |
+
+The repository and npm package keep the `-mcp` suffix (`android-layout-mcp`); the plugin slug, MCP
+server key, and CLI command are the shorter `android-layout`.
 
 ## Components
 
@@ -27,7 +30,7 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/analyze-screen-logic/` | Whole-screen/dialog analysis: implementation, ViewModel/state, data sources, navigation, conditions, and side effects (read-only) |
 | Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
-| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `view.md`, `verify.md` | `/android-ui:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify` |
+| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `view.md`, `verify.md` | `/android-layout:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify` |
 | Agent | `agents/ui-code-locator.md` | Read-only UI→code locator subagent for isolating multi-step investigation in a subcontext |
 | Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
@@ -43,18 +46,18 @@ Prerequisites: Node.js ≥ 20, `adb` available; Compose JVMTI additionally needs
 **Install from the GitHub marketplace** (recommended for other users):
 
 ```text
-/plugin marketplace add Jayvinz/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add Jayvinz/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
-The repo root is both the marketplace and the first plugin: `.claude-plugin/marketplace.json` has `source: "./"`, the plugin is `android-ui`, the marketplace is `jayvinz-tools`. The package name is `android-ui-inspector`, but it is not published to the npm registry: install the plugin, or `npm link` from a clone. Either way the CLI command is `android-ui`.
+The repo root is both the marketplace and the first plugin: `.claude-plugin/marketplace.json` has `source: "./"`, the plugin is `android-layout`, the marketplace is `jayvinz-tools`. The package name is `android-layout-mcp`, but it is not published to the npm registry: install the plugin, or `npm link` from a clone. Either way the CLI command is `android-layout`.
 
 On a GitHub install, Claude Code copies the plugin into its cache and installs Node dependencies from `package.json` + `package-lock.json` (no lifecycle scripts, 60s timeout). That is why `dist/` must be committed and `node_modules/` must not be committed to the repository — the release bundle ships its own production copy instead (see [Plugin bundle](#plugin-bundle)).
 
-**Install a release bundle** (no clone, no marketplace). Every GitHub Release attaches a self-contained plugin zip built from the tagged commit; download `android-ui-inspector-<version>.zip` from the release page and load it:
+**Install a release bundle** (no clone, no marketplace). Every GitHub Release attaches a self-contained plugin zip built from the tagged commit; download `android-layout-mcp-<version>.zip` from the release page and load it:
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-dir ./android-layout-mcp-<version>.zip
 # or point at the release asset URL directly
 claude --plugin-url <release-asset-url>
 ```
@@ -69,21 +72,21 @@ npm run build
 ```
 
 ```text
-/plugin marketplace add E:/repo/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add E:/repo/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
-(Replace `E:/repo/android-ui-inspector` with your actual path.)
+(Replace `E:/repo/android-layout-mcp` with your actual path.)
 
 A marketplace added from a **local path** loads plugins in place and does not install dependencies for you, so run `npm install && npm run build` first.
 
 Or load for the current session only:
 
 ```bash
-claude --plugin-dir E:/repo/android-ui-inspector
+claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
-After installation `/mcp` should show the `android-ui` server and `/help` should list `/android-ui:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify`.
+After installation `/mcp` should show the `android-layout` server and `/help` should list `/android-layout:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify`.
 
 ## Typical workflow
 
@@ -100,18 +103,18 @@ Natural-language requests about the current screen or a visible control ("抓取
 
 Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `analyze-screen-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
 
-Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/android-ui:view` or the `open_viewer` tool: one capture, one self-contained `.aui/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
+Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/android-layout:view` or the `open_viewer` tool: one capture, one self-contained `.aui/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
 
 **Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after install/update.
 
 Or call the commands directly:
 
 ```text
-/android-ui:locate Me
-/android-ui:screen
-/android-ui:analyze-screen
-/android-ui:view
-/android-ui:verify
+/android-layout:locate Me
+/android-layout:screen
+/android-layout:analyze-screen
+/android-layout:view
+/android-layout:verify
 ```
 
 ## Locate script
@@ -154,10 +157,10 @@ The plugin manifest's `mcpServers` injects no environment variables; the MCP pro
 This project is the first plugin of the marketplace, with `source` pointing at the repo root. To add another plugin later:
 
 ```text
-android-ui-inspector/
+android-layout/
 ├── .claude-plugin/
 │   ├── marketplace.json       # jayvinz-tools catalog
-│   └── plugin.json            # first plugin android-ui
+│   └── plugin.json            # first plugin android-layout
 ├── plugins/
 │   └── another-plugin/
 │       └── .claude-plugin/plugin.json
@@ -182,7 +185,7 @@ claude plugin validate --strict .
 ## Release and validation
 
 - The marketplace and plugin live in the same GitHub repository; after pushing, users can install with `/plugin marketplace add <owner>/<repo>` — no review required.
-- The repository is conventionally `Jayvinz/android-ui-inspector`; if the GitHub owner/repo differs, update `marketplace.json`'s `owner.url`, `plugin.json`'s `homepage`/`repository`, and the install commands in the READMEs together.
+- The repository is conventionally `Jayvinz/android-layout-mcp`; if the GitHub owner/repo differs, update `marketplace.json`'s `owner.url`, `plugin.json`'s `homepage`/`repository`, and the install commands in the READMEs together.
 - Run `claude plugin validate --strict .` before a release; the CI workflow `.github/workflows/validate.yml` runs typecheck, tests, build, verifies `dist/` matches the source, and finishes with the same validation.
 - To go further into the official Anthropic directory: submit a Plugin bundle at `claude.ai/directory/manage` — it requires a paid claude.ai plan, a GitHub repository, automated validation and security scanning, and new listings pass human review; `claude-plugins-official` itself accepts no public submissions.
 
@@ -215,21 +218,21 @@ A mismatch fails CI directly — there is no need to edit two files by hand.
 Pushing a `v*` tag triggers `.github/workflows/release.yml`: it verifies the tag matches the `package.json` version, reruns the validate checks (version sync, typecheck, tests, build, `dist/` diff), and then publishes the GitHub Release with generated notes.
 
 ```bash
-npm version 1.0.0 --no-git-tag-version   # updates package.json, package-lock.json, and plugin.json
+npm version 0.1.0 --no-git-tag-version   # updates package.json, package-lock.json, and plugin.json
 npm run typecheck && npm test && npm run build
-git commit -am "chore: release v1.0.0"
-git tag -a v1.0.0 -m "v1.0.0"
-git push origin main v1.0.0
+git commit -am "chore: release v0.1.0"
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin main v0.1.0
 ```
 
 Publishing to npm stays a separate manual step: `npm publish` (`prepublishOnly` runs the version check, typecheck, tests, and build first).
 
 ### Plugin bundle
 
-The release workflow also builds `dist-plugin/android-ui-inspector-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `agents/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `README.md`, `README.zh.md`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
+The release workflow also builds `dist-plugin/android-layout-mcp-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `agents/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `README.md`, `README.zh.md`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-dir ./android-layout-mcp-<version>.zip
 claude --plugin-url <release-asset-url>
 ```
 

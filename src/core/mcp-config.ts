@@ -70,7 +70,7 @@ export interface McpClientConfig {
   content: string;
 }
 
-const SERVER_NAME = "android-ui";
+const SERVER_NAME = "android-layout";
 
 export function isMcpClient(value: string): value is McpClientId {
   return (MCP_CLIENT_IDS as readonly string[]).includes(value);

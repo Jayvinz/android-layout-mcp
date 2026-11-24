@@ -2,7 +2,7 @@
 
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
-仓库根目录同时是一个 Claude Code marketplace（`jayvinz-tools`）和 plugin（`android-ui`），
+仓库根目录同时是一个 Claude Code marketplace（`jayvinz-tools`）和 plugin（`android-layout`），
 把 CLI、MCP Server、UI→代码定位脚本和一套 skill/command/agent 打包在一起。本页讲的是 Claude Code
 的打包形态；MCP Server 与技能在其他 agent 中同样可用，见[跨 agent 指南](cross-agent.zh.md)。
 它面向的典型任务是：
@@ -13,13 +13,16 @@
 
 | 对象 | 名称 |
 |---|---|
-| 产品名 | `Android UI Inspector` |
-| GitHub 仓库 | `Jayvinz/android-ui-inspector` |
+| 产品名 | `Android Layout MCP` |
+| GitHub 仓库 | `Jayvinz/android-layout-mcp` |
 | Marketplace | `jayvinz-tools` |
-| Plugin | `android-ui` |
-| npm 包名 | `android-ui-inspector`（不发布到 registry） |
-| MCP server | `android-ui` |
-| CLI 命令 | `android-ui` |
+| Plugin | `android-layout` |
+| npm 包名 | `android-layout-mcp`（不发布到 registry） |
+| MCP server | `android-layout` |
+| CLI 命令 | `android-layout` |
+
+仓库名与 npm 包名保留 `-mcp` 后缀（`android-layout-mcp`）；插件 slug、MCP server key 与 CLI 命令
+使用更短的 `android-layout`。
 
 ## 组件
 
@@ -30,7 +33,7 @@
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
-| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`view.md`、`verify.md` | `/android-ui:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify` |
+| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`view.md`、`verify.md` | `/android-layout:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify` |
 | Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
 | Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
@@ -47,22 +50,22 @@ Claude Code 需要能从 PATH 调用 `node` / `npm`。
 **从 GitHub marketplace 安装**（推荐给其他用户）：
 
 ```text
-/plugin marketplace add Jayvinz/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add Jayvinz/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
 仓库根目录同时是 marketplace 和第一个插件：`.claude-plugin/marketplace.json` 里 `source: "./"`，
-插件名 `android-ui`，marketplace 名 `jayvinz-tools`。
-包名是 `android-ui-inspector`，但不会发布到 npm registry：请安装插件，或在本地克隆后 `npm link`。两种情况 CLI 命令都是 `android-ui`。
+插件名 `android-layout`，marketplace 名 `jayvinz-tools`。
+包名是 `android-layout-mcp`，但不会发布到 npm registry：请安装插件，或在本地克隆后 `npm link`。两种情况 CLI 命令都是 `android-layout`。
 
 GitHub 安装时 Claude Code 会把插件复制到缓存，并根据 `package.json` +
 `package-lock.json` 自动安装 Node 依赖（无 lifecycle scripts、60 秒超时）。因此仓库里
 必须提交 `dist/`，`node_modules/` 不提交到仓库——发布插件包会自带一份生产依赖（见[插件包](#插件包)）。
 
-**安装 Release 插件包**（无需克隆、无需 marketplace）。每个 GitHub Release 都附带一个从 tag 对应 commit 构建的自包含插件 zip；从 Release 页面下载 `android-ui-inspector-<version>.zip` 后加载：
+**安装 Release 插件包**（无需克隆、无需 marketplace）。每个 GitHub Release 都附带一个从 tag 对应 commit 构建的自包含插件 zip；从 Release 页面下载 `android-layout-mcp-<version>.zip` 后加载：
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-dir ./android-layout-mcp-<version>.zip
 # 或直接指向 release 资产 URL
 claude --plugin-url <release-asset-url>
 ```
@@ -77,11 +80,11 @@ npm run build
 ```
 
 ```text
-/plugin marketplace add E:/repo/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add E:/repo/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
-（如果本地目录不同，把 `E:/repo/android-ui-inspector` 换成实际路径。）
+（如果本地目录不同，把 `E:/repo/android-layout-mcp` 换成实际路径。）
 
 从**本地路径**添加的 marketplace 会原地加载插件，不会自动在源码目录安装依赖，所以先执行
 上面的 `npm install && npm run build`。
@@ -89,11 +92,11 @@ npm run build
 或只在当前会话加载：
 
 ```bash
-claude --plugin-dir E:/repo/android-ui-inspector
+claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
-安装后 `/mcp` 应能看到 `android-ui` server；`/help` 中会出现
-`/android-ui:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify`。
+安装后 `/mcp` 应能看到 `android-layout` server；`/help` 中会出现
+`/android-layout:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify`。
 
 ## 典型流程
 
@@ -117,7 +120,7 @@ claude --plugin-dir E:/repo/android-ui-inspector
 → 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
 
 显式可视化请求（“打开可视化看看”“在浏览器里打开当前页面”“open the UI viewer”）走
-`/android-ui:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
+`/android-layout:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
 `.aui/viewer.html`，再打开默认浏览器。`dump`/`find`/`analyze`/`screenshot`/验证流程都不会打开浏览器。
 
 **Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
@@ -129,11 +132,11 @@ claude --plugin-dir E:/repo/android-ui-inspector
 也可以直接调用命令：
 
 ```text
-/android-ui:locate 个人页
-/android-ui:screen
-/android-ui:analyze-screen
-/android-ui:view
-/android-ui:verify
+/android-layout:locate 个人页
+/android-layout:screen
+/android-layout:analyze-screen
+/android-layout:view
+/android-layout:verify
 ```
 
 ## 定位脚本
@@ -184,10 +187,10 @@ serial/adb/Studio 参数时，优先用环境变量，或在项目级 `.mcp.json
 当前项目是 marketplace 的第一个插件，`source` 指向仓库根目录。以后新增插件时：
 
 ```text
-android-ui-inspector/
+android-layout/
 ├── .claude-plugin/
 │   ├── marketplace.json       # jayvinz-tools 目录
-│   └── plugin.json            # 第一个插件 android-ui
+│   └── plugin.json            # 第一个插件 android-layout
 ├── plugins/
 │   └── another-plugin/
 │       └── .claude-plugin/plugin.json
@@ -214,7 +217,7 @@ claude plugin validate --strict .
 
 - marketplace 和插件都托管在同一个 GitHub 仓库；推送后用户即可
   `/plugin marketplace add <owner>/<repo>` 安装，无需任何审核。
-- 仓库约定为 `Jayvinz/android-ui-inspector`；如果 GitHub owner/repo 不同，同步修改
+- 仓库约定为 `Jayvinz/android-layout-mcp`；如果 GitHub owner/repo 不同，同步修改
   `marketplace.json` 的 `owner.url`、`plugin.json` 的 `homepage`/`repository`
   和 README 中的安装命令。
 - 发布前运行 `claude plugin validate --strict .`；CI 工作流
@@ -254,21 +257,21 @@ node scripts/sync-version.mjs --check
 推送 `v*` 形式的 tag 会触发 `.github/workflows/release.yml`：它先校验 tag 与 `package.json` 版本一致，再跑与 validate 相同的检查（版本同步检查、typecheck、测试、build、`dist/` 校验），最后用自动生成的发布说明创建 GitHub Release。
 
 ```bash
-npm version 1.0.0 --no-git-tag-version   # 更新 package.json、package-lock.json、plugin.json
+npm version 0.1.0 --no-git-tag-version   # 更新 package.json、package-lock.json、plugin.json
 npm run typecheck && npm test && npm run build
-git commit -am "chore: release v1.0.0"
-git tag -a v1.0.0 -m "v1.0.0"
-git push origin main v1.0.0
+git commit -am "chore: release v0.1.0"
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin main v0.1.0
 ```
 
 发布到 npm 仍是独立的手动步骤：`npm publish`（`prepublishOnly` 会先跑版本检查、typecheck、测试和 build）。
 
 ### 插件包
 
-release workflow 还会构建 `dist-plugin/android-ui-inspector-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`agents/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`README.md`、`README.zh.md`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
+release workflow 还会构建 `dist-plugin/android-layout-mcp-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`agents/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`README.md`、`README.zh.md`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-dir ./android-layout-mcp-<version>.zip
 claude --plugin-url <release-asset-url>
 ```
 

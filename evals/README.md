@@ -7,7 +7,7 @@ Routing regression suite for the four skills. It checks that a prompt activates 
 ```text
 evals/
 ├── README.md
-├── mocks/android-ui/   # fixed JSON result per MCP tool (<tool>.md, no frontmatter)
+├── mocks/android-layout/   # fixed JSON result per MCP tool (<tool>.md, no frontmatter)
 ├── fixtures/android-project/         # fake Android repo for scaffolded cases
 ├── trigger-*/                        # one case per routing scenario
 │   ├── prompt.md                     # user prompt + case frontmatter
@@ -18,7 +18,7 @@ evals/
 
 Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180`, and `tags: [trigger]`. The MCP server is mocked, so no device, adb, or Android Studio is needed.
 
-`mocks/android-ui/_tools.json` is a saved `tools/list` snapshot; it gives the mocked server the real tool names, descriptions, and schemas. Regenerate it after any `src/mcp.ts` change (rebuild `dist/` first) so the eval sees the shipped descriptions. If the file is absent, mocked tools fall back to a permissive schema with no description.
+`mocks/android-layout/_tools.json` is a saved `tools/list` snapshot; it gives the mocked server the real tool names, descriptions, and schemas. Regenerate it after any `src/mcp.ts` change (rebuild `dist/` first) so the eval sees the shipped descriptions. If the file is absent, mocked tools fall back to a permissive schema with no description.
 
 ## Running
 

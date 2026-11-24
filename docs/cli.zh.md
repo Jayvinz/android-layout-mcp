@@ -2,7 +2,7 @@
 
 [English](cli.md) | [简体中文](cli.zh.md)
 
-`android-ui` CLI 与 MCP Server 驱动同一套 core。要求：Node.js ≥ 20，Android platform-tools（`adb` 在 PATH 中，或设置 `AUI_ADB` / `ADB_PATH`）。
+`android-layout` CLI 与 MCP Server 驱动同一套 core。要求：Node.js ≥ 20，Android platform-tools（`adb` 在 PATH 中，或设置 `AUI_ADB` / `ADB_PATH`）。
 
 ## 安装
 
@@ -15,7 +15,7 @@ node dist/cli.js devices
 
 # 方式二：链接成全局命令
 npm link
-android-ui devices
+android-layout devices
 ```
 
 也可以不构建，直接开发模式运行：`npx tsx src/cli.ts dump`。
@@ -24,49 +24,49 @@ android-ui devices
 
 ```bash
 # 设备与前台 App
-android-ui devices
-android-ui state
+android-layout devices
+android-layout state
 
 # 当前界面（默认 auto，Compose 会走 semantics）
-android-ui dump
+android-layout dump
 
 # 指定数据源与深度；JSON 输出可直接交给 agent
-android-ui dump --source view --depth 8 --props
-android-ui dump --source both --json --out ui.json
+android-layout dump --source view --depth 8 --props
+android-layout dump --source both --json --out ui.json
 
 # 按文本 / id / class / ref 查找
-android-ui find "开拍" --both
-android-ui find "com.example:id/submit" --by id
-android-ui find "Button" --by class --match exact --clickable
+android-layout find "开拍" --both
+android-layout find "com.example:id/submit" --by id
+android-layout find "Button" --by class --match exact --clickable
 
 # 屏幕坐标命中测试（最小面积优先，重叠时 --index 切换）
-android-ui hit 540 2239 --both
+android-layout hit 540 2239 --both
 
 # 截图（可降分辨率），附带节点框的 SVG 叠加层
-android-ui shot --out screenshot.png --annotate
-android-ui shot --out small.png --max-width 540
-android-ui shot --out small.png --scale 0.5
+android-layout shot --out screenshot.png --annotate
+android-layout shot --out small.png --max-width 540
+android-layout shot --out small.png --scale 0.5
 
 # 布局 / 无障碍问题检查
-android-ui analyze
+android-layout analyze
 
 # 交互式 HTML 查看器（显式可视化请求，会打开浏览器）
-android-ui view
-android-ui view --no-open --out .aui/viewer.html
+android-layout view
+android-layout view --no-open --out .aui/viewer.html
 
 # 点击元素中心（自动先定位再 tap）
-android-ui tap --text "关注"
-android-ui tap 540 2239
+android-layout tap --text "关注"
+android-layout tap 540 2239
 
 # 两次快照对比：改代码 / 切换页面前后
-android-ui dump --json --out before.json
+android-layout dump --json --out before.json
 # ... 修改、重新运行、刷新页面 ...
-android-ui dump --json --out after.json
-android-ui diff before.json after.json
+android-layout dump --json --out after.json
+android-layout diff before.json after.json
 
 # 查看某个节点的全部属性
-android-ui inspect v4
-android-ui inspect 0.0.0
+android-layout inspect v4
+android-layout inspect 0.0.0
 ```
 
 `dump` 的人类可读输出示例：
@@ -87,22 +87,22 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 | 命令 | 说明 |
 |---|---|
-| `android-ui devices` | 列出设备、型号、Android/SDK 版本；`--json` |
-| `android-ui state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口；`--json` |
-| `android-ui windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现）；`--package`、`--pid`、`--json` |
-| `android-ui dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--max-nodes`（文本，默认 2000）、`--visible-only`、`--props`、`--package`、`--pid`、`--window`（view 源）、`--json`、`--out` |
-| `android-ui find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both`、`--source`、`--limit`（默认 50）、`--json` |
-| `android-ui hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先；`--source`、`--index`（默认 0）、`--json` |
-| `android-ui inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性）；`--source`、`--json` |
-| `android-ui analyze` | 布局/无障碍检查；`--rules`、`--min-touch-dp`（48）、`--max-depth`（14）、`--paths`、`--json` |
-| `android-ui shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg`；`--json`、`--json --base64` |
-| `android-ui view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
-| `android-ui diff <a> <b>` | 对比两个 dump JSON；`--source`、`--tolerance`（默认 1px）、`--json` |
-| `android-ui tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或用 `--text/--id/--ref` 配合 `--by`/`--match`/`--index`/`--source` 选择元素后点击其中心 |
-| `android-ui swipe` / `input` / `key` | 滑动（`--duration`，默认 300ms）、输入 ASCII 文本、发送 keyevent |
-| `android-ui studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
-| `android-ui mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
-| `android-ui compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
+| `android-layout devices` | 列出设备、型号、Android/SDK 版本；`--json` |
+| `android-layout state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口；`--json` |
+| `android-layout windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现）；`--package`、`--pid`、`--json` |
+| `android-layout dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--max-nodes`（文本，默认 2000）、`--visible-only`、`--props`、`--package`、`--pid`、`--window`（view 源）、`--json`、`--out` |
+| `android-layout find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both`、`--source`、`--limit`（默认 50）、`--json` |
+| `android-layout hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先；`--source`、`--index`（默认 0）、`--json` |
+| `android-layout inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性）；`--source`、`--json` |
+| `android-layout analyze` | 布局/无障碍检查；`--rules`、`--min-touch-dp`（48）、`--max-depth`（14）、`--paths`、`--json` |
+| `android-layout shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg`；`--json`、`--json --base64` |
+| `android-layout view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
+| `android-layout diff <a> <b>` | 对比两个 dump JSON；`--source`、`--tolerance`（默认 1px）、`--json` |
+| `android-layout tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或用 `--text/--id/--ref` 配合 `--by`/`--match`/`--index`/`--source` 选择元素后点击其中心 |
+| `android-layout swipe` / `input` / `key` | 滑动（`--duration`，默认 300ms）、输入 ASCII 文本、发送 keyevent |
+| `android-layout studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
+| `android-layout mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
+| `android-layout compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
 
 全局选项：`-s, --serial`、`--adb <path>`、`--timeout <ms>`、`-v, --verbose`。
 Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
@@ -137,19 +137,19 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 | `duplicate_id` | 同一个 resource-id 出现在多个可见节点 |
 | `deep_nesting` | 嵌套深度超过阈值（默认 14）；`compose` 数据源不评估该规则 |
 
-规则可按需开启：`android-ui analyze --rules small_touch_target,overlap`。
+规则可按需开启：`android-layout analyze --rules small_touch_target,overlap`。
 
 ## 交互式查看器
 
-`android-ui view`（别名 `open`）会抓取一次当前界面，写入一个自包含的 HTML 文件，并在默认浏览器中打开。仅在用户显式要求可视化界面时使用；`dump`、`find`、`analyze`、`shot` 与验证流程都不会顺带打开浏览器。
+`android-layout view`（别名 `open`）会抓取一次当前界面，写入一个自包含的 HTML 文件，并在默认浏览器中打开。仅在用户显式要求可视化界面时使用；`dump`、`find`、`analyze`、`shot` 与验证流程都不会顺带打开浏览器。
 
 ```bash
-android-ui view                                    # 生成 .aui/viewer.html 并打开浏览器
-android-ui view --no-open                          # 只写文件
-android-ui view --out .tmp-view/v.html             # 自定义路径
-android-ui view --source semantics --max-width 720
-android-ui view --rules small_touch_target,overlap --no-issues
-android-ui view --json                             # path、opened、bytes、截图元数据
+android-layout view                                    # 生成 .aui/viewer.html 并打开浏览器
+android-layout view --no-open                          # 只写文件
+android-layout view --out .tmp-view/v.html             # 自定义路径
+android-layout view --source semantics --max-width 720
+android-layout view --rules small_touch_target,overlap --no-issues
+android-layout view --json                             # path、opened、bytes、截图元数据
 ```
 
 | 参数 | 默认值 | 说明 |
@@ -170,10 +170,10 @@ android-ui view --json                             # path、opened、bytes、截
 ## 截图与兜底
 
 ```bash
-android-ui shot --out screenshot.png                  # 原始分辨率
-android-ui shot --out small.png --max-width 540       # 540x1200，约 180KB
-android-ui shot --out small.png --scale 0.5
-android-ui shot --out ui.png --annotate --source compose
+android-layout shot --out screenshot.png                  # 原始分辨率
+android-layout shot --out small.png --max-width 540       # 540x1200，约 180KB
+android-layout shot --out small.png --scale 0.5
+android-layout shot --out ui.png --annotate --source compose
 ```
 
 - 截图始终使用 `adb exec-out screencap -p`，然后可用纯 JS（`pngjs`）做面积平均降采样；
@@ -210,7 +210,7 @@ android-ui shot --out ui.png --annotate --source compose
 
 ```bash
 # 图片上读到的 (360, 800)，图片尺寸 720x1600
-android-ui tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
+android-layout tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
 # -> image (360, 800) in 720x1600 -> device (540, 1200) on 1080x2400
 ```
 

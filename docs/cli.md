@@ -2,7 +2,7 @@
 
 [English](cli.md) | [简体中文](cli.zh.md)
 
-The `android-ui` CLI drives the same core as the MCP server. Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `AUI_ADB` / `ADB_PATH`).
+The `android-layout` CLI drives the same core as the MCP server. Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `AUI_ADB` / `ADB_PATH`).
 
 ## Installation
 
@@ -15,7 +15,7 @@ node dist/cli.js devices
 
 # Option 2: link a global command
 npm link
-android-ui devices
+android-layout devices
 ```
 
 You can also run from source without building: `npx tsx src/cli.ts dump`.
@@ -24,49 +24,49 @@ You can also run from source without building: `npx tsx src/cli.ts dump`.
 
 ```bash
 # Devices and foreground app
-android-ui devices
-android-ui state
+android-layout devices
+android-layout state
 
 # Current screen (auto by default; Compose goes to semantics)
-android-ui dump
+android-layout dump
 
 # Pick a source and depth; JSON output can go straight to an agent
-android-ui dump --source view --depth 8 --props
-android-ui dump --source both --json --out ui.json
+android-layout dump --source view --depth 8 --props
+android-layout dump --source both --json --out ui.json
 
 # Search by text / id / class / ref
-android-ui find "开拍" --both
-android-ui find "com.example:id/submit" --by id
-android-ui find "Button" --by class --match exact --clickable
+android-layout find "开拍" --both
+android-layout find "com.example:id/submit" --by id
+android-layout find "Button" --by class --match exact --clickable
 
 # Hit test by screen coordinates (smallest area first; --index to switch when overlapping)
-android-ui hit 540 2239 --both
+android-layout hit 540 2239 --both
 
 # Screenshot (downscalable) with an SVG node overlay
-android-ui shot --out screenshot.png --annotate
-android-ui shot --out small.png --max-width 540
-android-ui shot --out small.png --scale 0.5
+android-layout shot --out screenshot.png --annotate
+android-layout shot --out small.png --max-width 540
+android-layout shot --out small.png --scale 0.5
 
 # Layout / accessibility checks
-android-ui analyze
+android-layout analyze
 
 # Interactive HTML viewer (explicit visual request; opens the browser)
-android-ui view
-android-ui view --no-open --out .aui/viewer.html
+android-layout view
+android-layout view --no-open --out .aui/viewer.html
 
 # Tap the center of an element (locates first, then taps)
-android-ui tap --text "关注"
-android-ui tap 540 2239
+android-layout tap --text "关注"
+android-layout tap 540 2239
 
 # Two-snapshot diff: before/after a code change or page switch
-android-ui dump --json --out before.json
+android-layout dump --json --out before.json
 # ... modify, rerun, refresh the page ...
-android-ui dump --json --out after.json
-android-ui diff before.json after.json
+android-layout dump --json --out after.json
+android-layout diff before.json after.json
 
 # Full properties of a single node
-android-ui inspect v4
-android-ui inspect 0.0.0
+android-layout inspect v4
+android-layout inspect 0.0.0
 ```
 
 Example of `dump` human-readable output:
@@ -87,22 +87,22 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 | Command | Description |
 |---|---|
-| `android-ui devices` | List devices, models, Android/SDK versions; `--json` |
-| `android-ui state` | Device, screen, foreground app, pid, ViewRootImpl windows; `--json` |
-| `android-ui windows` | List JDWP windows only (popups/dialogs included); `--package`, `--pid`, `--json` |
-| `android-ui dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--max-nodes` (text, default 2000), `--visible-only`, `--props`, `--package`, `--pid`, `--window` (view source), `--json`, `--out` |
-| `android-ui find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both`, `--source`, `--limit` (default 50), `--json` |
-| `android-ui hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first; `--source`, `--index` (default 0), `--json` |
-| `android-ui inspect <ref>` | Full JSON of a single node (including View properties); `--source`, `--json` |
-| `android-ui analyze` | Layout/accessibility checks; `--rules`, `--min-touch-dp` (48), `--max-depth` (14), `--paths`, `--json` |
-| `android-ui shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg`; `--json`, `--json --base64` |
-| `android-ui view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
-| `android-ui diff <a> <b>` | Compare two dump JSON files; `--source`, `--tolerance` (default 1 px), `--json` |
-| `android-ui tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` with `--by`/`--match`/`--index`/`--source` and tap the center |
-| `android-ui swipe` / `input` / `key` | Swipe (`--duration`, default 300ms), input ASCII text, send keyevent |
-| `android-ui studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
-| `android-ui mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
-| `android-ui compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
+| `android-layout devices` | List devices, models, Android/SDK versions; `--json` |
+| `android-layout state` | Device, screen, foreground app, pid, ViewRootImpl windows; `--json` |
+| `android-layout windows` | List JDWP windows only (popups/dialogs included); `--package`, `--pid`, `--json` |
+| `android-layout dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--max-nodes` (text, default 2000), `--visible-only`, `--props`, `--package`, `--pid`, `--window` (view source), `--json`, `--out` |
+| `android-layout find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both`, `--source`, `--limit` (default 50), `--json` |
+| `android-layout hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first; `--source`, `--index` (default 0), `--json` |
+| `android-layout inspect <ref>` | Full JSON of a single node (including View properties); `--source`, `--json` |
+| `android-layout analyze` | Layout/accessibility checks; `--rules`, `--min-touch-dp` (48), `--max-depth` (14), `--paths`, `--json` |
+| `android-layout shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg`; `--json`, `--json --base64` |
+| `android-layout view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
+| `android-layout diff <a> <b>` | Compare two dump JSON files; `--source`, `--tolerance` (default 1 px), `--json` |
+| `android-layout tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` with `--by`/`--match`/`--index`/`--source` and tap the center |
+| `android-layout swipe` / `input` / `key` | Swipe (`--duration`, default 300ms), input ASCII text, send keyevent |
+| `android-layout studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
+| `android-layout mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
+| `android-layout compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
 
 Global options: `-s, --serial`, `--adb <path>`, `--timeout <ms>`, `-v, --verbose`.
 Compose JVMTI options: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
@@ -136,19 +136,19 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 | `duplicate_id` | The same resource-id on multiple visible nodes |
 | `deep_nesting` | Nesting deeper than the threshold (default 14); skipped for the `compose` source |
 
-Enable only the rules you need: `android-ui analyze --rules small_touch_target,overlap`.
+Enable only the rules you need: `android-layout analyze --rules small_touch_target,overlap`.
 
 ## Interactive viewer
 
-`android-ui view` (alias `open`) captures the current UI once, writes one self-contained HTML file, and opens it in the default browser. Use it only when the user explicitly asks to visualize the screen; `dump`, `find`, `analyze`, `shot`, and verification never open a browser as a side effect.
+`android-layout view` (alias `open`) captures the current UI once, writes one self-contained HTML file, and opens it in the default browser. Use it only when the user explicitly asks to visualize the screen; `dump`, `find`, `analyze`, `shot`, and verification never open a browser as a side effect.
 
 ```bash
-android-ui view                                    # .aui/viewer.html + browser
-android-ui view --no-open                          # write the file only
-android-ui view --out .tmp-view/v.html             # custom path
-android-ui view --source semantics --max-width 720
-android-ui view --rules small_touch_target,overlap --no-issues
-android-ui view --json                             # path, opened, bytes, screenshot metadata
+android-layout view                                    # .aui/viewer.html + browser
+android-layout view --no-open                          # write the file only
+android-layout view --out .tmp-view/v.html             # custom path
+android-layout view --source semantics --max-width 720
+android-layout view --rules small_touch_target,overlap --no-issues
+android-layout view --json                             # path, opened, bytes, screenshot metadata
 ```
 
 | Flag | Default | Meaning |
@@ -169,10 +169,10 @@ The page embeds the tree, a base64 screenshot, node details, and issues; it make
 ## Screenshots and fallback
 
 ```bash
-android-ui shot --out screenshot.png                  # original resolution
-android-ui shot --out small.png --max-width 540       # 540x1200, about 180KB
-android-ui shot --out small.png --scale 0.5
-android-ui shot --out ui.png --annotate --source compose
+android-layout shot --out screenshot.png                  # original resolution
+android-layout shot --out small.png --max-width 540       # 540x1200, about 180KB
+android-layout shot --out small.png --scale 0.5
+android-layout shot --out ui.png --annotate --source compose
 ```
 
 - Screenshots always use `adb exec-out screencap -p`, optionally downscaled with pure JS (`pngjs`) box filtering; no ImageMagick/Sharp required.
@@ -205,7 +205,7 @@ Prefer the **image-aware tap** to avoid manual conversion:
 
 ```bash
 # (360, 800) read from a 720x1600 image
-android-ui tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
+android-layout tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
 # -> image (360, 800) in 720x1600 -> device (540, 1200) on 1080x2400
 ```
 

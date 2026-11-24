@@ -14,9 +14,9 @@ Claude Code（项目根目录 `.mcp.json`）：
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
-      "args": ["E:/repo/android-ui-inspector/dist/mcp.js"]
+      "args": ["E:/repo/android-layout-mcp/dist/mcp.js"]
     }
   }
 }
@@ -25,10 +25,10 @@ Claude Code（项目根目录 `.mcp.json`）：
 或使用 CLI 命令：
 
 ```bash
-claude mcp add android-ui -- node E:/repo/android-ui-inspector/dist/mcp.js
+claude mcp add android-layout -- node E:/repo/android-layout-mcp/dist/mcp.js
 ```
 
-（示例按仓库名 `android-ui-inspector` 写路径；本地目录不同时用实际目录替换。）
+（示例按仓库名 `android-layout` 写路径；本地目录不同时用实际目录替换。）
 
 MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
 
@@ -37,10 +37,10 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
       "args": [
-        "E:/repo/android-ui-inspector/dist/mcp.js",
+        "E:/repo/android-layout-mcp/dist/mcp.js",
         "--serial", "<serial>",
         "--adb", "D:/Android/Sdk/platform-tools/adb.exe",
         "--timeout", "30000"
@@ -66,7 +66,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 |---|---|---|
 | `claude`（默认）、`claude-desktop`、`codebuddy`、`workbuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
 | `vscode` | `.vscode/mcp.json` | `servers`，带 `type: "stdio"` |
-| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
+| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-layout]` |
 | `zed` | `settings.json` | `context_servers`，命令放在 `command.path` |
 | `opencode` | `opencode.json` | `mcp`，本地命令用数组 |
 | `goose` | `~/.config/goose/config.yaml` | YAML `extensions` |
@@ -106,7 +106,7 @@ node scripts/sync-agent-skills.mjs --global                             # ~/.age
 node scripts/sync-agent-skills.mjs --dest . --check                      # 副本过期时退出码 1
 ```
 
-在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-ui` 放进 `PATH`），CLI 兜底才能生效。
+在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-layout` 放进 `PATH`），CLI 兜底才能生效。
 斜杠命令（`/screen`、`/locate` 等）与 `ui-code-locator` 子代理是 Claude Code 专属；其他客户端通过技能与
 工具描述走同样的流程。`PreToolUse` 门禁 hook 同样是 Claude Code 专属，其他环境里 Android 工程门禁
 只是技能正文中的软约束。
@@ -188,7 +188,7 @@ get_state → dump_ui(source="auto", format="tree") → (独立弹窗窗口) dum
 
 适用于“分析当前界面/弹窗的代码和业务逻辑”：先判断是页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
 再追 1–3 跳状态与数据。全程只读，不修改代码。`analyze-screen-logic` skill 与
-`/android-ui:analyze-screen` 命令就是这条流程。
+`/android-layout:analyze-screen` 命令就是这条流程。
 
 ## 环境变量
 

@@ -49,7 +49,7 @@ interface CaptureCommandOptions {
 
 const program = new Command();
 program
-  .name("android-ui")
+  .name("android-layout")
   .description(
     "Inspect Android UI from a terminal.\n\n" +
       "Captures the ViewDebug hierarchy over JDWP (like LayoutInspectorV2-Pro) and the\n" +
@@ -797,7 +797,7 @@ async function captureFor(command: Command, options: CaptureCommandOptions): Pro
     studioPath: globals.studio,
     javaPath: globals.java,
     composeVersion: globals.composeVersion,
-    onProgress: globals.verbose || options.verbose ? (message) => console.error(`[android-ui] ${message}`) : undefined,
+    onProgress: globals.verbose || options.verbose ? (message) => console.error(`[android-layout] ${message}`) : undefined,
   };
   try {
     return await capture(captureOptions);

@@ -138,7 +138,7 @@ export class Adb {
             return match;
         }
         if (ready.length === 0) {
-            throw new AuiError("NO_DEVICE", "No ready Android device or emulator found.", "Connect a device, start an emulator, or run `android-ui devices` to see available devices.");
+            throw new AuiError("NO_DEVICE", "No ready Android device or emulator found.", "Connect a device, start an emulator, or run `android-layout devices` to see available devices.");
         }
         if (ready.length > 1) {
             throw new AuiError("MULTIPLE_DEVICES", `Multiple devices are connected: ${ready.map((d) => d.serial).join(", ")}.`, "Pass --serial <serial> or set ANDROID_SERIAL.");

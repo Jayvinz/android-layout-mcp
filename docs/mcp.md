@@ -11,9 +11,9 @@ Claude Code (`.mcp.json` at the project root):
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
-      "args": ["E:/repo/android-ui-inspector/dist/mcp.js"]
+      "args": ["E:/repo/android-layout-mcp/dist/mcp.js"]
     }
   }
 }
@@ -22,10 +22,10 @@ Claude Code (`.mcp.json` at the project root):
 Or with the CLI:
 
 ```bash
-claude mcp add android-ui -- node E:/repo/android-ui-inspector/dist/mcp.js
+claude mcp add android-layout -- node E:/repo/android-layout-mcp/dist/mcp.js
 ```
 
-(Examples use the repository name `android-ui-inspector` in the path; substitute your actual directory if different.)
+(Examples use the repository name `android-layout` in the path; substitute your actual directory if different.)
 
 The MCP server also accepts the Compose-related flags: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
 
@@ -34,10 +34,10 @@ Multiple devices / custom adb:
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
       "args": [
-        "E:/repo/android-ui-inspector/dist/mcp.js",
+        "E:/repo/android-layout-mcp/dist/mcp.js",
         "--serial", "<serial>",
         "--adb", "D:/Android/Sdk/platform-tools/adb.exe",
         "--timeout", "30000"
@@ -61,7 +61,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 |---|---|---|
 | `claude` (default), `claude-desktop`, `codebuddy`, `workbuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
 | `vscode` | `.vscode/mcp.json` | `servers` with `type: "stdio"` |
-| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
+| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-layout]` |
 | `zed` | `settings.json` | `context_servers` with `command.path` |
 | `opencode` | `opencode.json` | `mcp` with a local command array |
 | `goose` | `~/.config/goose/config.yaml` | YAML `extensions` |
@@ -96,7 +96,7 @@ node scripts/sync-agent-skills.mjs --global                            # ~/.agen
 node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale
 ```
 
-Set `AUI_ROOT` to the plugin checkout (or put `android-ui` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/screen`, `/locate`, …) and the `ui-code-locator` subagent are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
+Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/screen`, `/locate`, …) and the `ui-code-locator` subagent are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
 
 ## Tools
 
@@ -169,7 +169,7 @@ get_state → dump_ui(source="auto", format="tree") → (separate dialog window)
 → locate_code → read candidate files → ViewModel/state → Repository/API/cache → state/data chain with confirmed|inferred hops
 ```
 
-Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `analyze-screen-logic` skill and `/android-ui:analyze-screen` command encode this workflow.
+Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `analyze-screen-logic` skill and `/android-layout:analyze-screen` command encode this workflow.
 
 ## Environment variables
 

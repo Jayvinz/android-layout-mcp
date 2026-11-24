@@ -535,7 +535,7 @@ async function resolveHelperJar(
       .update(`${buildId}|${sourceHash}|${compilerVersion}`)
       .digest("hex")
       .slice(0, 16);
-    const cacheDir = join(homedir(), ".cache", "android-ui", "helper", key);
+    const cacheDir = join(homedir(), ".cache", "android-layout", "helper", key);
     const jarPath = join(cacheDir, "aui-compose-helper.jar");
     try {
       await access(jarPath);
@@ -585,7 +585,7 @@ async function resolveComposeInspectorJar(options: {
     await ensureFile(cached, "The cached Compose inspector jar is missing");
     return cached;
   }
-  const cacheDir = join(homedir(), ".cache", "android-ui");
+  const cacheDir = join(homedir(), ".cache", "android-layout");
   const cachePath = join(cacheDir, `compose-inspector-${options.version}.jar`);
   try {
     const info = await stat(cachePath);
@@ -823,7 +823,7 @@ function extractJson(output: string): string | null {
 
 function composeFailureHint(message: string, version: string): string {
   if (/UnsupportedClassVersionError|class file version/i.test(message)) {
-    return "The Compose helper runs on a different JDK than it was compiled for. Use Android Studio's JBR (default) or ensure javac/jar are available next to the selected Java so android-ui can compile a matching helper.";
+    return "The Compose helper runs on a different JDK than it was compiled for. Use Android Studio's JBR (default) or ensure javac/jar are available next to the selected Java so android-layout can compile a matching helper.";
   }
   if (/VERSION|version|library|proguard/i.test(message)) {
     return `The app's Compose version may not be ${version}. Set AUI_COMPOSE_VERSION or AUI_COMPOSE_INSPECTOR_JAR.`;

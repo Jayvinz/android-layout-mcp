@@ -1,7 +1,7 @@
 ---
 type: tool_used
 arm: both
-tool: mcp__plugin_android-ui_android-ui__dump_ui
+tool: mcp__plugin_android-layout_android-layout__dump_ui
 min: 0
 max: 0
 ---

@@ -1,19 +1,19 @@
 {
-  "name": "android-ui-inspector",
-  "version": "1.0.0",
+  "name": "android-layout-mcp",
+  "version": "0.1.0",
   "description": "CLI + MCP server for inspecting Android UI: view hierarchy, Compose tree, and accessibility semantics over ADB",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/Jayvinz/android-ui-inspector#readme",
+  "homepage": "https://github.com/Jayvinz/android-layout-mcp#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jayvinz/android-ui-inspector.git"
+    "url": "git+https://github.com/Jayvinz/android-layout-mcp.git"
   },
   "engines": {
     "node": ">=20"
   },
   "bin": {
-    "android-ui": "dist/cli.js"
+    "android-layout": "dist/cli.js"
   },
   "main": "dist/core/index.js",
   "files": [
@@ -46,7 +46,7 @@
   "keywords": [
     "android",
     "layout-inspector",
-    "android-ui",
+    "android-layout",
     "ui-inspector",
     "uiautomator",
     "adb",

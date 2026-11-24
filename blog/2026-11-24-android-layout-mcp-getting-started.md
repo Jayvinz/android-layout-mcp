@@ -1,12 +1,12 @@
 # Inspect a Live Android Screen from Your Coding Agent
 
-*Part 1 of two: connect a client, read the screen, trace a control to source. [Part 2](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-under-the-hood.md) opens the implementation.*
+*Part 1 of two: connect a client, read the screen, trace a control to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md) opens the implementation.*
 
 *[Figure 1: the self-contained HTML viewer showing the node tree, screenshot overlay, and layout issues]*
 
 Coding agents read repositories well. Ask why a button is disabled and the agent will open the ViewModel, the state holder, the theme, and the click handler. What it cannot do on its own is look at the phone.
 
-[Android UI Inspector](https://github.com/Jayvinz/android-ui-inspector) gives it that view. It is a CLI and an [MCP](https://modelcontextprotocol.io/) server that captures the live screen of a connected device or emulator over [ADB](https://developer.android.com/tools/adb), then answers questions about the screen with structured data instead of pixels. It ships as a Claude Code plugin and connects to Codex CLI, Cursor, Gemini CLI, CodeBuddy, WorkBuddy, OpenCode, and other MCP clients through generated config.
+[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) gives it that view. It is a CLI and an [MCP](https://modelcontextprotocol.io/) server that captures the live screen of a connected device or emulator over [ADB](https://developer.android.com/tools/adb), then answers questions about the screen with structured data instead of pixels. It ships as a Claude Code plugin and connects to Codex CLI, Cursor, Gemini CLI, CodeBuddy, WorkBuddy, OpenCode, and other MCP clients through generated config.
 
 By the end of this post you will have a client connected, a first inspection running, and a visible control traced back to its Compose or XML source. You will also know which screens it cannot read, before you build a workflow on top of it.
 
@@ -34,11 +34,11 @@ Pick the path for the agent you use.
 **Claude Code** has the fullest install: skills, slash commands, the subagent, and the gate hook come with the plugin. Add the marketplace and install:
 
 ```text
-/plugin marketplace add Jayvinz/android-ui-inspector
-/plugin install android-ui@jayvinz-tools
+/plugin marketplace add Jayvinz/android-layout-mcp
+/plugin install android-layout@jayvinz-tools
 ```
 
-The repository is both the marketplace (`jayvinz-tools`) and its first plugin (`android-ui`); the [plugin reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/plugin.md) lists every component. Claude Code copies the plugin into its cache and installs the Node dependencies from the lockfile, so `dist/` ships prebuilt and there is no compile step. After installing, run `/mcp` to confirm the server is loaded and `/help` to see the commands. Restart Claude Code once, because the gate hook is read at session start.
+The repository is both the marketplace (`jayvinz-tools`) and its first plugin (`android-layout`); the [plugin reference](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/plugin.md) lists every component. Claude Code copies the plugin into its cache and installs the Node dependencies from the lockfile, so `dist/` ships prebuilt and there is no compile step. After installing, run `/mcp` to confirm the server is loaded and `/help` to see the commands. Restart Claude Code once, because the gate hook is read at session start.
 
 **Other agents** connect to the same MCP server through a generated config. Clone the repository, build once, then print the snippet for your client:
 
@@ -49,12 +49,12 @@ node dist/cli.js mcp --print-config --client cursor > .cursor/mcp.json
 
 The [connect section below](#connect-another-mcp-client) covers all 20 client ids and the four verified locally. Codex CLI, Cursor, Gemini CLI, CodeBuddy, and WorkBuddy get the tools; in Claude Code you also get the skills, commands, and hook unless you copy the skills with the sync script.
 
-**The CLI** works with no agent at all. `npm link` after the build gives you the global `android-ui` command used in the terminal examples throughout this post.
+**The CLI** works with no agent at all. `npm link` after the build gives you the global `android-layout` command used in the terminal examples throughout this post.
 
 If you prefer not to add a marketplace, each release also attaches a self-contained zip of about 6 MB with the built server and its production dependencies. Claude Code can load it directly:
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-1.0.0.zip
+claude --plugin-dir ./android-layout-mcp-0.1.0.zip
 ```
 
 **Note**: all activation paths first check that the workspace is an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin only activates when you explicitly ask about a connected device screen or mention Android.
@@ -64,8 +64,8 @@ claude --plugin-dir ./android-ui-inspector-1.0.0.zip
 Start with the device list and the foreground app. These are the same data the MCP server uses to resolve a target:
 
 ```bash
-android-ui devices
-android-ui state
+android-layout devices
+android-layout state
 ```
 
 `state` reports the device model and API level, the screen size and density, the foreground package, the Activity, the pid, and the JDWP windows, including dialogs and popups. Every later claim about bounds or clickability is anchored to that target.
@@ -79,9 +79,9 @@ In Claude Code you can ask in plain language: "capture the current screen layout
 From a terminal, the same path looks like this:
 
 ```bash
-android-ui dump
-android-ui find "Sign in" --both
-android-ui hit 540 2239 --index 0
+android-layout dump
+android-layout find "Sign in" --both
+android-layout hit 540 2239 --index 0
 ```
 
 `find` matches text, content descriptions, resource ids, class names, and refs. `hit` returns every node under a coordinate, sorted by visible area, with `--index` to step through overlapping candidates. Search is case-insensitive for `contains`, and `/pattern/flags` is accepted as a regular expression.
@@ -98,7 +98,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
   v1 FrameLayout ...
 ```
 
-JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and the parent path for every node. On a Compose screen `uiKind` is `compose` and refs start with `s`; on a mixed screen both trees appear, and search, hit testing, and taps query both. The [data source guide](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/data-sources.md) explains which tree wins on each screen type.
+JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and the parent path for every node. On a Compose screen `uiKind` is `compose` and refs start with `s`; on a mixed screen both trees appear, and search, hit testing, and taps query both. The [data source guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md) explains which tree wins on each screen type.
 
 *[Figure 2: a `find` result in Claude Code, showing bounds, center, and clickable state]*
 
@@ -109,7 +109,7 @@ JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and th
 This is the part a coding agent cannot do from a screenshot. The `locate-ui-code` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
 
 ```text
-/android-ui:locate "Sign in"
+/android-layout:locate "Sign in"
 ```
 
 The scan returns string resources, layout definitions, Compose definitions and call sites, ViewBinding usage, and click handlers, each with a score, a reason, and a code snippet. A ranking of 100 marks a `@Composable` definition matched by name or line; 78 marks a layout that defines the resource id; 45 marks a call site. Test sources, `build/`, `.gradle/`, and generated code are excluded by default.
@@ -123,11 +123,11 @@ The tool is read-only. It ranks files; you or the agent still open them and foll
 Before and after a UI change, capture the same page twice and compare:
 
 ```bash
-android-ui dump --json --out .aui/before.json
+android-layout dump --json --out .aui/before.json
 # rebuild, install, return to the same page and scroll position
-android-ui dump --json --out .aui/after.json
-android-ui diff .aui/before.json .aui/after.json
-android-ui analyze
+android-layout dump --json --out .aui/after.json
+android-layout diff .aui/before.json .aui/after.json
+android-layout analyze
 ```
 
 The diff matches nodes by identity (source, resource id, class, text, and path), because refs change between captures. It reports added, removed, and moved or resized nodes, and `--tolerance` (1 px by default) ignores small bound changes. `analyze` runs the rule set: small touch targets, overlapping clickables, clipped nodes, invisible clickables, duplicate ids, deep nesting, and four more.
@@ -151,23 +151,23 @@ Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cli
 ```json
 {
   "mcpServers": {
-    "android-ui": {
+    "android-layout": {
       "command": "node",
-      "args": ["/absolute/path/to/android-ui-inspector/dist/mcp.js"]
+      "args": ["/absolute/path/to/android-layout/dist/mcp.js"]
     }
   }
 }
 ```
 
-`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 14 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
+`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 14 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
 
-The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands, the subagent, and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
+The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands, the subagent, and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
 
 ### Where it stops
 
 - `view` and `compose` need a debuggable app; release builds can only use semantics.
 - JDWP usually allows one debugger at a time. Attaching may fail while Android Studio is debugging.
-- `compose` needs a local Android Studio, Java 17+, API 29+, and 8 to 12 seconds per capture. It leaves a resident transport daemon on the device; `android-ui compose-clean` removes it.
+- `compose` needs a local Android Studio, Java 17+, API 29+, and 8 to 12 seconds per capture. It leaves a resident transport daemon on the device; `android-layout compose-clean` removes it.
 - The semantics tree only sees what the app exposes to accessibility. Text drawn directly to a canvas, a `SurfaceView`, or a `WebView` has no text or children to find.
 - `input text` reliably supports ASCII only. Chinese input needs an extra IME such as ADBKeyboard.
 - There is no live monitoring. Every command captures a fresh snapshot.
@@ -175,17 +175,17 @@ The four skills travel as well. Their frontmatter uses only `name` and `descript
 
 ### What's next
 
-Version 1.0.0 is the first stable release, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
+Version 0.1.0 is the current release, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
 
-The interesting part, at least for me, is how three unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-under-the-hood.md).
+The interesting part, at least for me, is how three unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md).
 
 **Resources**
 
-- [Repository and release notes](https://github.com/Jayvinz/android-ui-inspector)
-- [CLI reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cli.md)
-- [MCP tools and limits](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/mcp.md)
-- [Cross-agent compatibility](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cross-agent.md)
-- [Data sources](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/data-sources.md)
+- [Repository and release notes](https://github.com/Jayvinz/android-layout-mcp)
+- [CLI reference](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cli.md)
+- [MCP tools and limits](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md)
+- [Cross-agent compatibility](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md)
+- [Data sources](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md)
 - [Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 

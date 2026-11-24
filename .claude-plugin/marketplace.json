@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "android-ui",
+      "name": "android-layout",
       "source": "./",
       "description": "Summarize and inspect a live Android UI, audit layout and accessibility, and trace controls to Compose/XML source files, event handlers, state and business logic.",
       "license": "MIT",

@@ -6,7 +6,7 @@ dist-plugin/
 *.tmp
 .tmp-*
 /screenshot*.png
-/android-ui-inspector-*.tgz
+/android-layout-mcp-*.tgz
 *.annotated.svg
 .idea/
 .vscode/

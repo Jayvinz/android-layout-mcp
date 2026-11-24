@@ -1,5 +1,5 @@
 ---
-name: manual-gate-nonandroid-ui
+name: manual-gate-nonandroid-layout
 runs: 1
 allowed_tools: [Skill]
 max_turns: 8
