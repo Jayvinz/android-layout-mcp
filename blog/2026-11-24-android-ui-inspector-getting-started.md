@@ -21,7 +21,7 @@ On top of that tree it exposes 14 MCP tools:
 - verification (`analyze_ui` with 10 layout and accessibility rules, `diff_ui`, `screenshot`, `open_viewer`)
 - source tracing (`locate_code`)
 
-There is also a self-contained HTML viewer, a suite of 81 fixture-based tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
+There is also a self-contained HTML viewer, a suite of 94 tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
 
 Why not let the model read a screenshot instead? Pixels give labels and positions but no resource ids, clickable bounds, or source lines. A tree gives the agent values it can query, compare, and diff between captures.
 
@@ -129,11 +129,15 @@ Keep `.aui/` in your `.gitignore`. Dumps contain the device serial, the package 
 
 ### Connect another MCP client
 
-The plugin wires the server for Claude Code. Any other MCP client can start it directly:
+The plugin wires the server for Claude Code. Every other client starts the same stdio server; only the config shape changes. The CLI writes the right envelope for 20 clients:
 
 ```bash
-node dist/cli.js mcp --print-config
+node dist/cli.js mcp --print-config --client codex      # TOML for ~/.codex/config.toml
+node dist/cli.js mcp --print-config --client vscode     # servers object for .vscode/mcp.json
+node dist/cli.js mcp --print-config --client cursor     # mcpServers object for .cursor/mcp.json
 ```
+
+Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cline, Windsurf, Gemini CLI, CodeBuddy, WorkBuddy, and several others read. The snippet goes to stdout and its destination path goes to stderr, so redirecting the output into a config file gives a clean result:
 
 ```json
 {
@@ -146,7 +150,9 @@ node dist/cli.js mcp --print-config
 }
 ```
 
-The server speaks MCP over stdio and exposes the same core capabilities as the CLI. Add `--serial`, `--adb`, or `--studio` to the args if you need to pin a device or an Android Studio installation.
+`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 14 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
+
+The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories. Slash commands, the subagent, and the gate hook stay Claude Code specific.
 
 ### Where it stops
 

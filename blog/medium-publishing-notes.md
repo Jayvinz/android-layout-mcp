@@ -24,7 +24,8 @@ Internal notes for the two Medium drafts. Not part of the articles.
 
 ## Facts used (checked against the repository at v1.0.0)
 
-- 14 MCP tools, 18 CLI subcommands, 10 analysis rules, 81 tests.
+- 14 MCP tools, 18 CLI subcommands, 10 analysis rules, 94 tests.
+- 20 MCP client configs via `--client`; four clients verified locally (OpenCode, CodeBuddy Code, Codex CLI, WorkBuddy).
 - Compose inspector default 1.8.3, API 29+, 8 to 12 seconds per capture.
 - Text output truncated at 2000 nodes; MCP JSON default 800, max 5000.
 - Viewer budget 8 MB, minimum 200 nodes.

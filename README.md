@@ -117,9 +117,9 @@ object:
 
 Clients with skill support can also load the four bundled skills: `node scripts/sync-agent-skills.mjs
 --dest ../my-android-app` writes them to `.agents/skills/`; add `--codebuddy` for CodeBuddy's
-`.codebuddy/skills/`, `--workbuddy` for WorkBuddy's `.workbuddy/skills/`, or `--both` for both
-(Cursor and VS Code read `.claude/skills/` directly). Slash commands, the subagent, and the gate
-hook stay Claude Code only.
+`.codebuddy/skills/`, `--workbuddy` for WorkBuddy's `.workbuddy/skills/`, or `--both` for the first two
+(`.agents/skills` + `.codebuddy/skills`); add `--workbuddy` too to write all three (Cursor and VS Code
+read `.claude/skills/` directly). Slash commands, the subagent, and the gate hook stay Claude Code only.
 
 See [docs/mcp.md](docs/mcp.md) for the tool list, parameters, recommended call order, and the
 [locally verified client matrix](docs/mcp.md#verified-locally) (OpenCode, CodeBuddy Code, Codex CLI,

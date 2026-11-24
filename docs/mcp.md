@@ -90,7 +90,8 @@ The four skills are written to run outside Claude Code too: their frontmatter us
 node scripts/sync-agent-skills.mjs --dest ../my-android-app           # .agents/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy  # .codebuddy/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --workbuddy   # .workbuddy/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --both     # both layouts
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both       # .agents + .codebuddy
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both --workbuddy  # all three
 node scripts/sync-agent-skills.mjs --global                            # ~/.agents/skills
 node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale
 ```

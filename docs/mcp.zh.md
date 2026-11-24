@@ -98,7 +98,8 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 node scripts/sync-agent-skills.mjs --dest ../my-android-app            # .agents/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy # .codebuddy/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --workbuddy  # .workbuddy/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --both      # 两种目录都写
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both      # .agents + .codebuddy 两处
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both --workbuddy # 三处都写
 node scripts/sync-agent-skills.mjs --global                             # ~/.agents/skills
 node scripts/sync-agent-skills.mjs --dest . --check                      # 副本过期时退出码 1
 ```

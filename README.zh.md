@@ -109,8 +109,9 @@ node dist/cli.js mcp --print-config --client cursor
 
 支持技能加载的客户端还能复用这 4 个技能：`node scripts/sync-agent-skills.mjs --dest ../my-android-app`
 会把它们写入 `.agents/skills/`；CodeBuddy 要加 `--codebuddy` 写入 `.codebuddy/skills/`，WorkBuddy 加
-`--workbuddy` 写入 `.workbuddy/skills/`，`--both` 则写前两处（Cursor 与 VS Code 直接读
-`.claude/skills/`）。斜杠命令、子代理与门禁 hook 仍然只在 Claude Code 中可用。
+`--workbuddy` 写入 `.workbuddy/skills/`，`--both` 写 `.agents/skills/` 与 `.codebuddy/skills/` 两处，
+再叠加 `--workbuddy` 则三处都写（Cursor 与 VS Code 直接读 `.claude/skills/`）。斜杠命令、子代理与
+门禁 hook 仍然只在 Claude Code 中可用。
 
 工具清单、参数、推荐调用顺序与[本机实测的客户端矩阵](docs/mcp.zh.md#本机实测)见
 [docs/mcp.zh.md](docs/mcp.zh.md)（OpenCode、CodeBuddy Code、Codex CLI、WorkBuddy；WorkBuddy 需要
