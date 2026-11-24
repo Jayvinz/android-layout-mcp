@@ -3,7 +3,9 @@
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
 仓库根目录同时是一个 Claude Code marketplace（`jayvinz-tools`）和 plugin（`android-ui`），
-把 CLI、MCP Server、UI→代码定位脚本和一套 skill/command/agent 打包在一起。它面向的典型任务是：
+把 CLI、MCP Server、UI→代码定位脚本和一套 skill/command/agent 打包在一起。本页讲的是 Claude Code
+的打包形态；MCP Server 与技能在其他 agent 中同样可用，见[跨 agent 指南](cross-agent.zh.md)。
+它面向的典型任务是：
 
 > “定位当前页面中的 **个人页** 按钮，以及其相关代码逻辑。”
 

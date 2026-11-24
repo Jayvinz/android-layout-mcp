@@ -2,10 +2,10 @@
 
 Internal notes for the two Medium drafts. Not part of the articles.
 
-## Post 1: "Inspect a Live Android Screen from Claude Code"
+## Post 1: "Inspect a Live Android Screen from Your Coding Agent"
 
-- Subtitle: Part 1 of two: install the plugin, read the screen, trace a control to source.
-- Tags: Android, Claude Code, AI Coding Agents, Developer Tools, Mobile Development.
+- Subtitle: Part 1 of two: connect a client, read the screen, trace a control to source.
+- Tags: Android, AI Coding Agents, MCP, Developer Tools, Mobile Development.
 - Figures to capture (replace the italic placeholders):
   1. `.aui/viewer.html` open in a browser, with the node tree and screenshot overlay visible.
   2. A Claude Code session showing a `find_elements` result with bounds, center, and clickable state.
@@ -24,8 +24,9 @@ Internal notes for the two Medium drafts. Not part of the articles.
 
 ## Facts used (checked against the repository at v1.0.0)
 
-- 14 MCP tools, 18 CLI subcommands, 10 analysis rules, 94 tests.
-- 20 MCP client configs via `--client`; four clients verified locally (OpenCode, CodeBuddy Code, Codex CLI, WorkBuddy).
+- 14 MCP tools, 18 CLI subcommands, 10 analysis rules, 104 tests.
+- 20 MCP client configs via `--client` across seven shapes; four clients verified locally (OpenCode, CodeBuddy Code, Codex CLI, WorkBuddy).
+- Four tests in `test/cross-agent-compat.test.ts` derive expectations from `MCP_CLIENT_IDS`; details in `docs/cross-agent.md`.
 - Compose inspector default 1.8.3, API 29+, 8 to 12 seconds per capture.
 - Text output truncated at 2000 nodes; MCP JSON default 800, max 5000.
 - Viewer budget 8 MB, minimum 200 nodes.

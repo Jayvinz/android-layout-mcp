@@ -2,8 +2,10 @@
 
 [English](mcp.md) | [简体中文](mcp.zh.md)
 
-MCP Server 通过 stdio 通信，与 CLI 驱动同一套 core。构建后直接用 `node dist/mcp.js` 启动，
-或让 CLI 打印配置：`node dist/cli.js mcp --print-config`。
+MCP Server 通过 stdio 通信，与 CLI 驱动同一套 core，因此任何 MCP 客户端都能驱动它。构建后用
+`node dist/mcp.js` 启动，或用 `node dist/cli.js mcp --print-config --client <id>` 打印适配 20 个客户端的
+配置（下面默认的 `mcpServers` 形状适用于 Claude Code 等多个客户端）。完整客户端矩阵与实测记录见
+[跨 agent 指南](cross-agent.zh.md)。
 
 ## 配置
 

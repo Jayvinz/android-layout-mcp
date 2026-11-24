@@ -1,14 +1,14 @@
-# Inspect a Live Android Screen from Claude Code
+# Inspect a Live Android Screen from Your Coding Agent
 
-*Part 1 of two: install the plugin, read the screen, trace a control to source. [Part 2](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-under-the-hood.md) opens the implementation.*
+*Part 1 of two: connect a client, read the screen, trace a control to source. [Part 2](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-under-the-hood.md) opens the implementation.*
 
-*[Figure 1: the plugin's HTML viewer showing the node tree, screenshot overlay, and layout issues]*
+*[Figure 1: the self-contained HTML viewer showing the node tree, screenshot overlay, and layout issues]*
 
 Coding agents read repositories well. Ask why a button is disabled and the agent will open the ViewModel, the state holder, the theme, and the click handler. What it cannot do on its own is look at the phone.
 
-[Android UI Inspector](https://github.com/Jayvinz/android-ui-inspector) gives it that view. It is a CLI and an [MCP](https://modelcontextprotocol.io/) server, packaged as a Claude Code plugin, that captures the live screen of a connected device or emulator over [ADB](https://developer.android.com/tools/adb), then answers questions about the screen with structured data instead of pixels.
+[Android UI Inspector](https://github.com/Jayvinz/android-ui-inspector) gives it that view. It is a CLI and an [MCP](https://modelcontextprotocol.io/) server that captures the live screen of a connected device or emulator over [ADB](https://developer.android.com/tools/adb), then answers questions about the screen with structured data instead of pixels. It ships as a Claude Code plugin and connects to Codex CLI, Cursor, Gemini CLI, CodeBuddy, WorkBuddy, OpenCode, and other MCP clients through generated config.
 
-By the end of this post you will have the plugin installed, a first inspection running, and a visible control traced back to its Compose or XML source. You will also know which screens it cannot read, before you build a workflow on top of it.
+By the end of this post you will have a client connected, a first inspection running, and a visible control traced back to its Compose or XML source. You will also know which screens it cannot read, before you build a workflow on top of it.
 
 ### What it does
 
@@ -21,32 +21,41 @@ On top of that tree it exposes 14 MCP tools:
 - verification (`analyze_ui` with 10 layout and accessibility rules, `diff_ui`, `screenshot`, `open_viewer`)
 - source tracing (`locate_code`)
 
-There is also a self-contained HTML viewer, a suite of 94 tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
+There is also a self-contained HTML viewer, a suite of 104 tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
 
 Why not let the model read a screenshot instead? Pixels give labels and positions but no resource ids, clickable bounds, or source lines. A tree gives the agent values it can query, compare, and diff between captures.
 
-### Install the plugin
+### Connect a client
 
 You need Node.js 20 or newer, `adb` on your `PATH` (or `AUI_ADB` set to its path), a device or emulator with USB debugging enabled, and the target app in the foreground. The `view` and `compose` sources also require a debuggable build (`android:debuggable="true"`); the semantics source works on any app.
 
-From Claude Code, add the marketplace and install the plugin:
+Pick the path for the agent you use.
+
+**Claude Code** has the fullest install: skills, slash commands, the subagent, and the gate hook come with the plugin. Add the marketplace and install:
 
 ```text
 /plugin marketplace add Jayvinz/android-ui-inspector
 /plugin install android-ui@jayvinz-tools
 ```
 
-The repository is both the marketplace (`jayvinz-tools`) and its first plugin (`android-ui`); the [plugin reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/plugin.md) lists every component. Claude Code copies the plugin into its cache and installs the Node dependencies from the lockfile, so `dist/` ships prebuilt and there is no compile step. The [Claude Code plugin documentation](https://code.claude.com/docs/en/plugins-reference) covers the install flow on other machines.
+The repository is both the marketplace (`jayvinz-tools`) and its first plugin (`android-ui`); the [plugin reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/plugin.md) lists every component. Claude Code copies the plugin into its cache and installs the Node dependencies from the lockfile, so `dist/` ships prebuilt and there is no compile step. After installing, run `/mcp` to confirm the server is loaded and `/help` to see the commands. Restart Claude Code once, because the gate hook is read at session start.
 
-The terminal examples in this post use the CLI. The plugin exposes the same capabilities through MCP inside Claude Code; to get the `android-ui` command as well, clone the repository and run `npm install && npm run build && npm link`.
+**Other agents** connect to the same MCP server through a generated config. Clone the repository, build once, then print the snippet for your client:
 
-If you would rather not add a marketplace, each release also attaches a self-contained zip of about 6 MB. It includes the built server and its production dependencies, which matters because Claude Code does not install dependencies for a zip loaded in session scope:
+```bash
+npm install && npm run build
+node dist/cli.js mcp --print-config --client cursor > .cursor/mcp.json
+```
+
+The [connect section below](#connect-another-mcp-client) covers all 20 client ids and the four verified locally. Codex CLI, Cursor, Gemini CLI, CodeBuddy, and WorkBuddy get the tools; in Claude Code you also get the skills, commands, and hook unless you copy the skills with the sync script.
+
+**The CLI** works with no agent at all. `npm link` after the build gives you the global `android-ui` command used in the terminal examples throughout this post.
+
+If you prefer not to add a marketplace, each release also attaches a self-contained zip of about 6 MB with the built server and its production dependencies. Claude Code can load it directly:
 
 ```bash
 claude --plugin-dir ./android-ui-inspector-1.0.0.zip
 ```
-
-After either installation, run `/mcp` to confirm the `android-ui` server is loaded and `/help` to see the commands. Restart Claude Code once after installing or updating, because the plugin's gate hook is read at session start.
 
 **Note**: all activation paths first check that the workspace is an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin only activates when you explicitly ask about a connected device screen or mention Android.
 
@@ -65,13 +74,13 @@ If the app is a release build, only the semantics source will work. That is enou
 
 ### Ask for the screen
 
-In Claude Code you can ask in plain language: "抓取当前页面布局", "summarize the current screen", or "这个按钮为什么是灰的". The `inspect-current-screen` skill maps those requests to `get_state`, `dump_ui`, and the query tools, and it stops at device evidence without opening the repository.
+In Claude Code you can ask in plain language: "capture the current screen layout", "summarize the current screen", or "why is this button grayed out". The `inspect-current-screen` skill maps those requests to `get_state`, `dump_ui`, and the query tools, and it stops at device evidence without opening the repository.
 
 From a terminal, the same path looks like this:
 
 ```bash
 android-ui dump
-android-ui find "登录" --both
+android-ui find "Sign in" --both
 android-ui hit 540 2239 --index 0
 ```
 
@@ -100,7 +109,7 @@ JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and th
 This is the part a coding agent cannot do from a screenshot. The `locate-ui-code` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
 
 ```text
-/android-ui:locate 登录
+/android-ui:locate "Sign in"
 ```
 
 The scan returns string resources, layout definitions, Compose definitions and call sites, ViewBinding usage, and click handlers, each with a score, a reason, and a code snippet. A ranking of 100 marks a `@Composable` definition matched by name or line; 78 marks a layout that defines the resource id; 45 marks a call site. Test sources, `build/`, `.gradle/`, and generated code are excluded by default.
@@ -152,7 +161,7 @@ Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cli
 
 `--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 14 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
 
-The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories. Slash commands, the subagent, and the gate hook stay Claude Code specific.
+The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands, the subagent, and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
 
 ### Where it stops
 
@@ -166,7 +175,7 @@ The four skills travel as well. Their frontmatter uses only `name` and `descript
 
 ### What's next
 
-Version 1.0.0 is the first stable release, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Install the plugin, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
+Version 1.0.0 is the first stable release, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
 
 The interesting part, at least for me, is how three unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-ui-inspector/blob/main/blog/2026-11-24-android-ui-inspector-under-the-hood.md).
 
@@ -175,6 +184,7 @@ The interesting part, at least for me, is how three unrelated Android interfaces
 - [Repository and release notes](https://github.com/Jayvinz/android-ui-inspector)
 - [CLI reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cli.md)
 - [MCP tools and limits](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/mcp.md)
+- [Cross-agent compatibility](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cross-agent.md)
 - [Data sources](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/data-sources.md)
 - [Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)
 - [Model Context Protocol](https://modelcontextprotocol.io/)

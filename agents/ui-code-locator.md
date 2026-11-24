@@ -57,7 +57,7 @@ Do not use this agent for code review, unit-test authoring, layout redesign, or 
 
 **Output Format:**
 Return a short Markdown report:
-- **结论** — entry + `file:line` in one or two sentences.
+- **Conclusion** — entry + `file:line` in one or two sentences.
 - **UI evidence** — package/page, uiKind, node ref/class/text/id/bounds, capture time.
 - **Anchors** — string resource, layout/Compose definition, event handler.
 - **Chain** — numbered `file:line` steps with `confirmed`/`inferred`.

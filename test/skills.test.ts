@@ -85,6 +85,34 @@ test("component descriptions are valid and within the 1024-character limit", () 
   }
 });
 
+test("every skill description carries at least one English trigger phrase", () => {
+  // Quoted English trigger phrases let English-only users activate each skill.
+  // The Chinese trigger lists alone leave two skills routed only by the prose
+  // "Use when ..." sentence, which is weaker for a model choosing a skill.
+  const quoted = /"([^"]*)"/g;
+  for (const [name, source] of Object.entries(skills)) {
+    const description = scalarField(source, "description");
+    const englishPhrases = [...description.matchAll(quoted)]
+      .map((match) => match[1])
+      .filter((phrase) => /[A-Za-z]{3}/.test(phrase) && !/[\u4e00-\u9fff]/.test(phrase));
+    assert.ok(
+      englishPhrases.length > 0,
+      `${name} description needs at least one quoted English trigger phrase`,
+    );
+  }
+});
+
+test("agent output format uses English section headings", () => {
+  const agent = components.agent;
+  const outputSection = /\*\*Output Format:\*\*([\s\S]*?)(?=\*\*Edge Cases:\*\*)/.exec(agent);
+  assert.ok(outputSection, "expected an Output Format section in the agent");
+  assert.doesNotMatch(
+    outputSection[1],
+    /[\u4e00-\u9fff]/,
+    "agent output headings must be English so English-only users can read the report structure",
+  );
+});
+
 test("inspect-current-screen description owns screen and control observation", () => {
   assertContains(
     scalarField(components.inspect, "description"),

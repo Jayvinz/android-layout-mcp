@@ -137,11 +137,19 @@ Source tracing is a separate pass. `locate_code` reads the repository, extracts 
 
 ### Keeping the agent honest
 
-The tool is packaged as a Claude Code plugin, and plugins activate easily in the wrong repository. Two mechanisms prevent that.
+An agent can activate a device tool in the wrong repository. The plugin uses two mechanisms to prevent that in Claude Code, and a portable version of the same rule in every other client.
 
 Every skill and command body starts with a hard gate on Android project markers. A [`PreToolUse` hook](https://code.claude.com/docs/en/hooks) enforces the same rule at the tool layer: it walks up to ten directories looking for `settings.gradle(.kts)`, `gradlew`, an `AndroidManifest.xml`, or a module build file that applies `com.android.*`. If none exists, it denies `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer` unless the latest user message explicitly asks about a device screen or mentions Android.
 
 The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The skills divide work as well: `inspect-current-screen` answers what is on screen and never calls `locate_code`; `locate-ui-code` traces one control; `analyze-screen-logic` maps a whole screen or dialog to code and data flow; `verify-ui-change` owns before and after. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
+
+### When the agent is not Claude Code
+
+The hook is a Claude Code feature. Move the same skills into Codex CLI, CodeBuddy, or WorkBuddy and the hard gate disappears; the Android-project rule is left as prose in each skill body. That text stays effective because the files are copied unchanged. Their frontmatter carries only `name` and `description`, the portable subset of the Agent Skills standard, and executable paths resolve through `$AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. A sync script writes the same files into `.agents/skills`, `.codebuddy/skills`, or `.workbuddy/skills`, so every agent reads the same gate text without a plugin cache.
+
+The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 14 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
+
+Keeping that matrix honest needs a test that reads the docs. `test/cross-agent-compat.test.ts` takes `MCP_CLIENT_IDS` as its source of truth and checks that all six client tables, the CLI choices, and the config shapes agree with it. Add an id in code without updating the docs and the suite fails. The three other suites cover the config envelopes, the portable skill frontmatter, and byte-identical sync copies. All 104 tests run without a device.
 
 ### What the design costs
 
@@ -156,6 +164,7 @@ If you want to try it, [Part 1](https://github.com/Jayvinz/android-ui-inspector/
 - [Repository](https://github.com/Jayvinz/android-ui-inspector)
 - [Data sources and measured results](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/data-sources.md)
 - [CLI reference](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cli.md)
+- [Cross-agent compatibility](https://github.com/Jayvinz/android-ui-inspector/blob/main/docs/cross-agent.md)
 - [JDWP specification](https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/jdwp-spec.html)
 - [JVMTI specification](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html)
 - [UI Automator](https://developer.android.com/training/testing/other-components/ui-automator)

@@ -29,14 +29,17 @@ Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-l
 | Layer | Name |
 | --- | --- |
 | GitHub repository | `Jayvinz/android-ui-inspector` |
+| MCP server key (all clients) | `android-ui` |
+| CLI command | `android-ui` |
 | Claude Code plugin and marketplace entry | `android-ui` |
 | Plugin display name | Android UI Inspector |
-| CLI command | `android-ui` |
-| MCP server key | `android-ui` |
+
+The MCP server and CLI work with any MCP client; Claude Code is one supported front end, not the
+only one. See the [cross-agent guide](docs/cross-agent.md) for the client matrix and per-client setup.
 
 Version 1.0.0 is the first stable release (2026-11-24); the earlier name was never published, so
-there is nothing to migrate: install the plugin and run `android-ui`. The gate hook is read at
-session start, so restart Claude Code once after installing.
+there is nothing to migrate: connect a client and run `android-ui`. In Claude Code the gate hook is
+read at session start, so restart once after installing or updating the plugin.
 
 ## Architecture
 
@@ -55,9 +58,9 @@ MCP Server ────────┘          ├── adb uiautomator → se
 - Android platform-tools: `adb` on `PATH`, or set `AUI_ADB` / `ADB_PATH`
 - A device or emulator with USB debugging enabled; the target app running in the foreground
 - The `view` / `compose` sources require a debuggable build (`android:debuggable=true`); `semantics` has no such requirement
-- For the Claude Code plugin, Claude Code must be able to invoke `node` / `npm` from `PATH`
+- The client must be able to invoke `node` (Claude Code also needs `npm` to install the plugin)
 
-### 1. Install the Claude Code plugin (recommended)
+### 1. Install the Claude Code plugin
 
 ```text
 /plugin marketplace add Jayvinz/android-ui-inspector

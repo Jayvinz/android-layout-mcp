@@ -2,7 +2,7 @@
 
 [English](mcp.md) | [简体中文](mcp.zh.md)
 
-The MCP server speaks MCP over stdio and exposes the same core as the CLI. Start the built server with `node dist/mcp.js`, or print a client config with `node dist/cli.js mcp --print-config`.
+The MCP server speaks MCP over stdio and exposes the same core as the CLI, so any MCP client can drive it. Start the built server with `node dist/mcp.js`, or print a config shaped for 20 clients with `node dist/cli.js mcp --print-config --client <id>` (the default `mcpServers` shape shown below works for Claude Code and several others). The [cross-agent guide](cross-agent.md) records the full client matrix and verified runs.
 
 ## Configuration
 

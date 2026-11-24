@@ -2,7 +2,7 @@
 
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
-The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-ui`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. The typical task it targets:
+The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-ui`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. This page covers the Claude Code packaging; the MCP server and skills also work in other agents, described in the [cross-agent guide](cross-agent.md). The typical task it targets:
 
 > "Locate the **Me** button on the current screen and trace it to its related code logic."
 

@@ -25,13 +25,17 @@
 | 层级 | 名字 |
 | --- | --- |
 | GitHub 仓库 | `Jayvinz/android-ui-inspector` |
+| MCP server key（所有客户端） | `android-ui` |
+| CLI 命令 | `android-ui` |
 | Claude Code 插件与 marketplace 条目 | `android-ui` |
 | 插件显示名 | Android UI Inspector |
-| CLI 命令 | `android-ui` |
-| MCP server key | `android-ui` |
 
-1.0.0 是首个正式版本（2026-11-24），旧名字从未发布过，因此没有需要迁移的内容：安装插件后
-直接使用 `android-ui` 即可。门禁 hook 只在会话启动时读取，安装后重启一次 Claude Code。
+MCP server 与 CLI 适用于任何 MCP 客户端；Claude Code 只是受支持的前端之一，并非唯一选择。
+客户端矩阵与各客户端的接入方式见[跨 agent 指南](docs/cross-agent.zh.md)。
+
+1.0.0 是首个正式版本（2026-11-24），旧名字从未发布过，因此没有需要迁移的内容：接入客户端后
+直接使用 `android-ui` 即可。在 Claude Code 中门禁 hook 只在会话启动时读取，安装或更新插件后
+重启一次。
 
 ## 架构
 
@@ -50,9 +54,9 @@ MCP Server ────────┘          ├── adb uiautomator → Se
 - Android platform-tools：`adb` 在 PATH 中，或设置 `AUI_ADB` / `ADB_PATH`
 - 已开启 USB 调试的设备或模拟器，目标 App 运行在前台
 - `view` / `compose` 数据源要求 App 为可调试构建（`android:debuggable=true`）；`semantics` 无此要求
-- 使用 Claude Code 插件时，Claude Code 需能从 PATH 调用 `node` / `npm`
+- 客户端需能调用 `node`（Claude Code 还需 `npm` 来安装插件）
 
-### 1. 接入 Claude Code 插件（推荐）
+### 1. 接入 Claude Code 插件
 
 ```text
 /plugin marketplace add Jayvinz/android-ui-inspector
