@@ -15,9 +15,14 @@ export async function captureComposeTree(options) {
     const started = Date.now();
     const progress = options.onProgress ?? (() => undefined);
     const adb = options.adb;
+    const warnings = [];
+    const warn = (message) => {
+        warnings.push(message);
+        progress(message);
+    };
     const studio = await locateAndroidStudio(options.studioPath);
     progress(`Android Studio ${studio.root} (${studio.source})`);
-    const java = await resolveJava(options.javaPath, studio);
+    const java = await resolveJava(options.javaPath, studio, warn);
     const helperJar = await resolveHelperJar(studio, java, progress);
     const composeVersion = options.composeVersion || process.env.AUI_COMPOSE_VERSION || DEFAULT_COMPOSE_VERSION;
     const composeJar = await resolveComposeInspectorJar({
@@ -47,7 +52,6 @@ export async function captureComposeTree(options) {
     const viewDexPath = `/data/data/${options.packageName}/code_cache/${viewJarName}`;
     const localTemp = join(tmpdir(), `aui-compose-${id}`);
     let forwardPort = null;
-    const warnings = [];
     try {
         await mkdir(localTemp, { recursive: true });
         await writeFile(join(localTemp, "daemon.config"), buildDaemonConfig(socketName));
@@ -327,27 +331,39 @@ function defaultStudioCandidates() {
     }
     return ["/opt/android-studio", join(home, "android-studio"), join(home, ".local", "share", "JetBrains", "Toolbox", "apps", "AndroidStudio")];
 }
-async function resolveJava(explicit, studio) {
+/** Exported for tests; the search order is user-visible via `docs/data-sources.md`. */
+export async function resolveJava(explicit, studio, warn = () => undefined) {
+    // Only the two user-controlled entries are worth warning about; a missing
+    // JAVA_HOME or Studio JBR is an expected part of the search order.
     const candidates = [
-        explicit,
-        process.env.AUI_JAVA,
-        process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java") : undefined,
-        studio.java ?? undefined,
-        process.platform === "win32" ? "java.exe" : "java",
-    ].filter((value) => Boolean(value));
+        { path: explicit ?? "", label: "--java" },
+        { path: process.env.AUI_JAVA ?? "", label: "AUI_JAVA" },
+        {
+            path: process.env.JAVA_HOME
+                ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java")
+                : "",
+            label: null,
+        },
+        { path: studio.java ?? "", label: null },
+        { path: process.platform === "win32" ? "java.exe" : "java", label: null },
+    ];
     for (const candidate of candidates) {
-        if (candidate.includes("/") || candidate.includes("\\")) {
+        if (candidate.path.length === 0)
+            continue;
+        if (candidate.path.includes("/") || candidate.path.includes("\\")) {
             try {
-                await access(candidate);
-                return candidate;
+                await access(candidate.path);
+                return candidate.path;
             }
             catch {
+                if (candidate.label) {
+                    warn(`Ignoring ${candidate.label}: ${candidate.path} does not exist. Falling back to the next Java in the search order.`);
+                }
                 continue;
             }
         }
-        else {
-            return candidate;
-        }
+        // A bare name such as `--java java` means "use PATH"; the OS resolves it.
+        return candidate.path;
     }
     throw new AuiError("COMPOSE_FAILED", "No Java runtime found for the Compose inspector helper.", "Set AUI_JAVA or install a JDK.");
 }

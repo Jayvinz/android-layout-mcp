@@ -601,8 +601,11 @@ program
     .option("--package <package>", "package whose code_cache should be cleaned (defaults to foreground app)")
     .action(async (options, command) => {
     const adb = makeAdb(command);
+    // The bracket in `[a]ui-compose` keeps the pattern from matching this very
+    // shell, whose own command line contains the path. A literal path would make
+    // pkill kill its own shell, so the shell dies before it can report success.
     await adb
-        .shell("pkill -f /data/local/tmp/aui-compose/daemon.config 2>/dev/null", {
+        .shell("pkill -f '[a]ui-compose/daemon.config' 2>/dev/null", {
         timeoutMs: 10_000,
         allowFailure: true,
     })

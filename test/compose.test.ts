@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
-import { buildComposeRoots, type HelperRoot } from "../src/core/compose.js";
+import { buildComposeRoots, resolveJava, type HelperRoot } from "../src/core/compose.js";
 import { flattenNodes } from "../src/core/viewdump.js";
 import { findNodes, hitTest } from "../src/core/query.js";
 import { renderCapture } from "../src/core/render.js";
@@ -130,4 +130,50 @@ test("analysis and serialisation include Compose nodes", () => {
   assert.ok(dump.compose);
   assert.equal(dump.compose!.rootViewId, 13);
   assert.equal(dump.sources[0], "compose");
+});
+test("resolveJava warns about an explicit override that does not exist, then falls back", async () => {
+  const previous = process.env.AUI_JAVA;
+  delete process.env.AUI_JAVA;
+  const warnings: string[] = [];
+  const studio = { java: null } as unknown as Parameters<typeof resolveJava>[1];
+  try {
+    const resolved = await resolveJava("C:/definitely/not/here/java.exe", studio, (message) =>
+      warnings.push(message),
+    );
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0]!, /Ignoring --java: .*java\.exe does not exist/);
+    assert.match(warnings[0]!, /Falling back/);
+    // The last candidate is the bare binary name, resolved through PATH at exec time.
+    assert.equal(resolved, process.platform === "win32" ? "java.exe" : "java");
+  } finally {
+    if (previous !== undefined) process.env.AUI_JAVA = previous;
+  }
+});
+
+test("resolveJava stays silent when no override is configured", async () => {
+  const previous = process.env.AUI_JAVA;
+  delete process.env.AUI_JAVA;
+  const warnings: string[] = [];
+  const studio = { java: process.execPath } as unknown as Parameters<typeof resolveJava>[1];
+  try {
+    assert.equal(await resolveJava(undefined, studio, (message) => warnings.push(message)), process.execPath);
+    assert.deepEqual(warnings, []);
+  } finally {
+    if (previous !== undefined) process.env.AUI_JAVA = previous;
+  }
+});
+
+test("resolveJava labels the AUI_JAVA override and keeps searching", async () => {
+  const previous = process.env.AUI_JAVA;
+  process.env.AUI_JAVA = "C:/also/not/here/java.exe";
+  const warnings: string[] = [];
+  const studio = { java: process.execPath } as unknown as Parameters<typeof resolveJava>[1];
+  try {
+    assert.equal(await resolveJava(undefined, studio, (message) => warnings.push(message)), process.execPath);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0]!, /Ignoring AUI_JAVA: .*does not exist/);
+  } finally {
+    if (previous === undefined) delete process.env.AUI_JAVA;
+    else process.env.AUI_JAVA = previous;
+  }
 });

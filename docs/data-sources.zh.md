@@ -90,6 +90,7 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
   `Studio build + helper 源码 hash + 编译器版本` 缓存到
   `~/.cache/android-ui/helper/<key>/`。
 - **JDK 版本**：Java 选择顺序为 `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → PATH。
+  显式指定的 `--java` 或 `AUI_JAVA` 若不存在，会跳过并给出 warning（继续尝试下一个候选），而不是直接失败，因此失效的覆盖配置不会让检查静默中断。
   helper 编译优先使用**与运行时 Java 同一目录下的 `javac`/`jar`**，避免 class file version
   不匹配；没有编译器时回退到仓库中已提交的 helper jar `helper/aui-compose-helper.jar`。实测：
   - Studio JBR 25 → helper class 69，可运行；

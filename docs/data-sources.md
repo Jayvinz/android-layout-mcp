@@ -75,7 +75,7 @@ s43 TextView "开拍" / s44 Button ...          ← the semantics source has rea
 ## Studio / JDK compatibility
 
 - **Studio version**: no fixed install path is assumed; the version is read from `product-info.json` / `build.txt`, and `android-ui studio` shows the build. Protobuf/gRPC class names and inspector protos may differ across versions, so the helper no longer relies only on a prebuilt jar: on first use with a given Studio build, the helper is recompiled with that Studio's own JBR `javac`/`jar` against its `plugins/android/lib/*.jar`, and cached under `~/.cache/android-ui/helper/<key>/` keyed by `Studio build + helper source hash + compiler version`.
-- **JDK version**: the Java selection order is `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → `PATH`. Helper compilation prefers the `javac`/`jar` in the **same directory as the runtime Java** to avoid class file version mismatches; without a compiler it falls back to the committed helper jar `helper/aui-compose-helper.jar`. Measured:
+- **JDK version**: the Java selection order is `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → `PATH`. An explicit `--java` or `AUI_JAVA` that does not exist is skipped with a warning (the run continues with the next candidate) rather than failing, so a stale override never blocks inspection silently. Helper compilation prefers the `javac`/`jar` in the **same directory as the runtime Java** to avoid class file version mismatches; without a compiler it falls back to the committed helper jar `helper/aui-compose-helper.jar`. Measured:
   - Studio JBR 25 → helper class 69, runs;
   - Microsoft OpenJDK 17 (via `--java`) → compiles class 61 with its own `javac`, runs.
 - With other JBR/JDK builds:
