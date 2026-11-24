@@ -73,7 +73,9 @@ Client config formats move; the paths and shapes above are what these clients ac
 
 Verified locally with OpenCode 1.19.5: the generated `opencode.json` connects (`opencode mcp list` reports `android-ui connected`), the client sends `tools/list` and receives all 14 tools, and `opencode debug skill` discovers the four skills installed in `.agents/skills/`.
 
-CodeBuddy Code 2.186.0 was also verified: the default `mcpServers` config connects and `mcp__android-ui__list_devices` returns a real device. Project-scoped servers need approval, so headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (and `-y` when tool calls are gated). Its skills live in `.codebuddy/skills/`, not `.agents/skills/`. The other clients in the table were not exercised on this machine.
+CodeBuddy Code 2.186.0 was also verified: the default `mcpServers` config connects and `mcp__android-ui__list_devices` returns a real device. Project-scoped servers need approval, so headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (and `-y` when tool calls are gated). Its skills live in `.codebuddy/skills/`, not `.agents/skills/`.
+
+Codex CLI 0.172.0 was verified with the generated TOML: `codex mcp list` parses the server entry and `codex exec` called `list_devices` to get a real device. The four skills copied into `.agents/skills/` were discovered as well. The remaining clients in the table were not exercised on this machine.
 
 ### Skills in other agents
 

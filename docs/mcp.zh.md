@@ -83,7 +83,11 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 CodeBuddy Code 2.186.0 也已实测：默认的 `mcpServers` 配置可连接，`mcp__android-ui__list_devices`
 返回了真实设备。项目级 MCP 需要审批，所以无交互运行要加 `--settings
 '{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`）。CodeBuddy 的技能目录是
-`.codebuddy/skills/`，不是 `.agents/skills/`。表中其他客户端未在本机实测。
+`.codebuddy/skills/`，不是 `.agents/skills/`。
+
+Codex CLI 0.172.0 也已实测：生成的 TOML 能被 `codex mcp list` 解析，`codex exec` 调用
+`list_devices` 返回了真实设备；复制到 `.agents/skills/` 的 4 个技能也能被发现。表中其余客户端
+未在本机实测。
 
 ### 在其他 agent 中使用技能
 
