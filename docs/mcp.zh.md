@@ -76,23 +76,16 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 客户端配置格式会变；上表的路径与形状是这些客户端在 2026 年 11 月接受的写法。Windows 上
 表中 `~` 对应 `%USERPROFILE%`。
 
-已在本机用 OpenCode 1.19.5 实测：生成的 `opencode.json` 可连接（`opencode mcp list` 显示
-`android-ui connected`），客户端发出的 `tools/list` 能收到全部 14 个工具，`opencode debug skill`
-也能发现装在 `.agents/skills/` 下的 4 个技能。
+### 本机实测
 
-CodeBuddy Code 2.186.0 也已实测：默认的 `mcpServers` 配置可连接，`mcp__android-ui__list_devices`
-返回了真实设备。项目级 MCP 需要审批，所以无交互运行要加 `--settings
-'{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`）。CodeBuddy 的技能目录是
-`.codebuddy/skills/`，不是 `.agents/skills/`。
+| 客户端 | 版本 | 实测内容 |
+|---|---|---|
+| OpenCode | 1.19.5 | 生成的 `opencode.json` 可连接；`tools/list` 收到全部 14 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 |
+| CodeBuddy Code | 2.186.0 | `mcpServers` 可连接、`list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载。无交互运行需加 `--settings '{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`） |
+| Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 |
+| WorkBuddy | 内置 | 重启并在 GUI 中一次性启用/信任自定义 server 后，`list_devices` 返回真实设备，`inspect-current-screen` 从 `.workbuddy/skills/` 加载；只写 `mcp.json` 不会暴露工具 |
 
-Codex CLI 0.172.0 也已实测：生成的 TOML 能被 `codex mcp list` 解析，`codex exec` 调用
-`list_devices` 返回了真实设备；复制到 `.agents/skills/` 的 4 个技能也能被发现。表中其余客户端
-未在本机实测。
-
-WorkBuddy 读 `~/.workbuddy/mcp.json`，同样是 `mcpServers` 对象；技能目录是项目根的
-`.workbuddy/skills/`（装到 `~/.workbuddy/skills/` 的用户级副本同样有效）。重启并在 GUI 中一次性
-启用/信任这个自定义 MCP server 后已完成实测：`list_devices` 返回真实设备，`inspect-current-screen`
-技能也能从项目目录加载。只写配置文件不会自动暴露工具，GUI 的启用步骤不能省。
+表中其余客户端按各自官方文档的 schema 配置，但未在本机实测。
 
 ### 在其他 agent 中使用技能
 

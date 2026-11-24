@@ -121,7 +121,9 @@ Clients with skill support can also load the four bundled skills: `node scripts/
 (Cursor and VS Code read `.claude/skills/` directly). Slash commands, the subagent, and the gate
 hook stay Claude Code only.
 
-See [docs/mcp.md](docs/mcp.md) for the tool list, parameters, and the recommended call order.
+See [docs/mcp.md](docs/mcp.md) for the tool list, parameters, recommended call order, and the
+[locally verified client matrix](docs/mcp.md#verified-locally) (OpenCode, CodeBuddy Code, Codex CLI,
+and WorkBuddy; WorkBuddy needs a one-time GUI approval for the custom server).
 
 ### 3. Use the CLI
 

@@ -71,13 +71,16 @@ The global flags (`--serial`, `--adb`, `--timeout`, `--studio`, `--java`, `--com
 
 Client config formats move; the paths and shapes above are what these clients accepted in November 2026. Windows uses `%USERPROFILE%` where the table says `~`.
 
-Verified locally with OpenCode 1.19.5: the generated `opencode.json` connects (`opencode mcp list` reports `android-ui connected`), the client sends `tools/list` and receives all 14 tools, and `opencode debug skill` discovers the four skills installed in `.agents/skills/`.
+### Verified locally
 
-CodeBuddy Code 2.186.0 was also verified: the default `mcpServers` config connects and `mcp__android-ui__list_devices` returns a real device. Project-scoped servers need approval, so headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (and `-y` when tool calls are gated). Its skills live in `.codebuddy/skills/`, not `.agents/skills/`.
+| Client | Version | What was exercised |
+|---|---|---|
+| OpenCode | 1.19.5 | `opencode.json` connects; `tools/list` returns all 14 tools; `opencode debug skill` finds the four skills in `.agents/skills/` |
+| CodeBuddy Code | 2.186.0 | `mcpServers` connects and `list_devices` returns a real device; skills load from `.codebuddy/skills/`. Headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (plus `-y` when tool calls are gated) |
+| Codex CLI | 0.172.0 | Generated TOML parses; `codex exec` calls `list_devices` and returns a real device; skills in `.agents/skills/` are discovered |
+| WorkBuddy | bundled | After a restart and one-time GUI approval of the custom server, `list_devices` returns a real device and `inspect-current-screen` loads from `.workbuddy/skills/`; writing `mcp.json` alone does not expose tools |
 
-Codex CLI 0.172.0 was verified with the generated TOML: `codex mcp list` parses the server entry and `codex exec` called `list_devices` to get a real device. The four skills copied into `.agents/skills/` were discovered as well. The remaining clients in the table were not exercised on this machine.
-
-WorkBuddy reads `~/.workbuddy/mcp.json` with the same `mcpServers` object and project skills from `.workbuddy/skills/` (a user-level copy in `~/.workbuddy/skills/` also works). The generated config and skill copies were verified after a WorkBuddy restart and GUI approval of the custom server: `list_devices` returned a real device and the `inspect-current-screen` skill loaded from the project directory. WorkBuddy requires a one-time GUI enable/trust step for a new custom MCP server; writing the file alone does not expose its tools.
+The other clients in the table follow their documented schemas but were not exercised on this machine.
 
 ### Skills in other agents
 
