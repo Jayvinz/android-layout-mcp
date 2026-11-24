@@ -46,13 +46,23 @@ Claude Code 需要能从 PATH 调用 `node` / `npm`。
 /plugin install android-ui@jayvinz-tools
 ```
 
-仓库根目录同时是 marketplace 和第一个插件：`.claude-plugin/marketplace.json` 的
-`marketplace.json` 里 `source: "./"`，插件名 `android-ui`，marketplace 名 `jayvinz-tools`。
+仓库根目录同时是 marketplace 和第一个插件：`.claude-plugin/marketplace.json` 里 `source: "./"`，
+插件名 `android-ui`，marketplace 名 `jayvinz-tools`。
 包名是 `android-ui-inspector`，但不会发布到 npm registry：请安装插件，或在本地克隆后 `npm link`。两种情况 CLI 命令都是 `android-ui`。
 
 GitHub 安装时 Claude Code 会把插件复制到缓存，并根据 `package.json` +
 `package-lock.json` 自动安装 Node 依赖（无 lifecycle scripts、60 秒超时）。因此仓库里
-必须提交 `dist/`；`node_modules/` 不提交。
+必须提交 `dist/`，`node_modules/` 不提交到仓库——发布插件包会自带一份生产依赖（见[插件包](#插件包)）。
+
+**安装 Release 插件包**（无需克隆、无需 marketplace）。每个 GitHub Release 都附带一个从 tag 对应 commit 构建的自包含插件 zip；从 Release 页面下载 `android-ui-inspector-<version>.zip` 后加载：
+
+```bash
+claude --plugin-dir ./android-ui-inspector-<version>.zip
+# 或直接指向 release 资产 URL
+claude --plugin-url <release-asset-url>
+```
+
+包内已包含构建好的 `dist/`、helper jar 和生产依赖 `node_modules/`，无需再编译或安装：离线可用，也适用于会话级的 `--plugin-dir`/`--plugin-url` 加载（这条路径 Claude Code 不会代装依赖）。加载 `.zip` 需要支持 zip 插件的 Claude Code 版本；版本过旧时请改用 marketplace 安装。完整内容清单见[插件包](#插件包)。
 
 **本地开发/调试**：
 
@@ -250,11 +260,13 @@ git push origin main v1.0.0
 
 ### 插件包
 
-release workflow 还会构建 `dist-plugin/android-ui-inspector-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`skills/`、`commands/`、`agents/`、`hooks/`、`scripts/`、`helper/`、`package.json`、README、LICENSE、NOTICE），可直接作为插件加载，无需解压：
+release workflow 还会构建 `dist-plugin/android-ui-inspector-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`agents/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`README.md`、`README.zh.md`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-1.0.0.zip
-claude --plugin-url https://github.com/Jayvinz/android-ui-inspector/releases/download/v1.0.0/android-ui-inspector-1.0.0.zip
+claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-url <release-asset-url>
 ```
 
-本地构建用 `npm run build:plugin-zip`。压缩包是可复现的（条目时间戳固定），同一 commit 总是产出同一个文件。`--root <dir>` 可以打包另一棵树，发布资产就是据此从 tag 对应的 commit 重建的。
+依赖是刻意打包进去的。Claude Code 只在把插件复制进缓存时安装 npm 依赖，且要求插件根目录同时有 `package.json` 和支持的 lockfile；通过 `--plugin-dir`/`--plugin-url` 加载的 `.zip` 只会解压到会话临时目录，不会触发安装。因此包内附带生产 `node_modules/`（压缩后约 6 MB，纯 JS、无原生模块），保证所有加载路径都可用；lockfile 则让后续的缓存安装能复现同一套依赖。
+
+本地构建用 `npm run build:plugin-zip`，它会在临时目录执行 `npm ci --omit=dev`（需要 registry 网络，约 10s）。离线构建可加 `--no-deps`：产物约 190 KB，但解压后需要自行执行 `npm ci --omit=dev`。压缩包是可复现的：条目时间戳固定为 1980-01-01，可用 `SOURCE_DATE_EPOCH` 覆盖；同一 commit 总是产出同一个文件。`--root <dir>` 可以打包另一棵树，发布资产就是据此从 tag 对应的 commit 重建的。

@@ -68,6 +68,23 @@ When installed through the Claude Code plugin no manual configuration is needed:
 
 **Android project gate.** `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer` are intended for Android projects: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository call them only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android; `locate_code` additionally needs an explicit Android/device request. A connected device does not make the repository Android.
 
+## Limits and defaults
+
+| Tool | Defaults | Caps and behavior |
+|---|---|---|
+| `dump_ui` | JSON; JSON `maxNodes=800`, tree `maxNodes=1500` | `depth` 0–100; `maxNodes` 1–5000; `includeProperties` embeds every ViewDebug property; `savePath` writes the full untrimmed dump; `visibleOnly` affects `format=tree` only; `window` selects a ViewRootImpl (view source only) |
+| `find_elements` | `limit=30`, visible nodes, primary tree | `limit` 1–200; `includeInvisible` adds hidden views; `both=true` searches view + semantics; `match=contains/exact/regex`, and `/pattern/flags` is accepted as regex |
+| `locate_code` | `limit=25` candidates | `limit` 1–200; `exclude` / `includeTests` scope the scan; read-only |
+| `analyze_ui` | all 10 rules, 48 dp, depth 14 | `minTouchTargetDp` 1–200; `maxDepth` 1–100; `deep_nesting` is skipped for the compose source |
+| `screenshot` | 720 px wide | `maxWidth` 1–4000; `scale` 0.05–1; `fullResolution=true` bypasses the 720 default; `annotate` only writes the SVG when `savePath` is also set |
+| `open_viewer` | `.aui/viewer.html`, 4000 nodes/tree, 1080 px | `maxNodes` 1–20000; `includeProperties` adds ViewDebug properties (off by default); `includeIssues` runs analysis (on by default); 8 MB embedded-JSON budget — properties are dropped first, then nodes are halved to a floor of 200 |
+| `diff_ui` | `tolerance=1` px | `tolerance` 0–100; one tree per run (`source`); both inputs must be dumps written by `dump_ui(savePath=...)` |
+| `hit_test` | candidate 0, visible nodes only | `index` selects among overlapping candidates at the same point |
+| `tap` | first visible match | image mapping needs all four `image*` arguments; a selector matches visible nodes only; `index` picks among matches (default 0) |
+| `swipe` | 300 ms | `durationMs` 1–10000 |
+
+`input_text` accepts ASCII only (spaces are sent as `%s`); `press_key` forwards the value to `adb shell input keyevent`, so use `KEYCODE_*` names or numeric codes. When a capture fails, tools return the error text plus a fallback screenshot as image content.
+
 ## Recommended call order
 
 1. `get_state` → confirm the foreground app;

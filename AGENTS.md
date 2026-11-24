@@ -16,6 +16,7 @@ node dist/mcp.js       # start the built MCP server over stdio
 node dist/cli.js mcp --print-config
 
 npm run build:helper   # rebuild helper/aui-compose-helper.jar against the local Android Studio
+npm run build:plugin-zip   # build dist-plugin/android-ui-inspector-<version>.zip (gitignored; stages npm ci --omit=dev, --no-deps to skip)
 node scripts/sync-version.mjs          # sync package.json version -> .claude-plugin/plugin.json
 node scripts/sync-version.mjs --check  # CI/release check
 npm version patch      # bumps package.json and syncs plugin.json via the "version" lifecycle script
@@ -46,7 +47,8 @@ User-facing docs come in parallel language versions that link to each other: `RE
   - `skills/`, `commands/`, `agents/` are shipped plugin components. `scripts/locate-code.mjs` is dependency-free so it works before `npm install`.
 - The module system is ESM (`"type": "module"`, TypeScript `NodeNext`): relative imports in `src/` must use the `.js` extension, even when importing a `.ts` file.
 - CI (`.github/workflows/validate.yml`) runs, in order: `sync-version --check`, typecheck, tests, build, `git diff --exit-code -- dist`, then `claude plugin validate --strict .`.
-- Pushing a `v*` tag runs `.github/workflows/release.yml`: it checks the tag against `package.json`, reruns the validate steps, builds and re-validates the Claude Code plugin bundle (`npm run build:plugin-zip` → `dist-plugin/android-ui-inspector-<version>.zip`, archive root = plugin folder), then creates the GitHub Release and attaches that bundle.
+- Pushing a `v*` tag runs `.github/workflows/release.yml`: it checks the tag against `package.json`, reruns the validate steps, builds and re-validates the Claude Code plugin bundle (`npm run build:plugin-zip` → `dist-plugin/android-ui-inspector-<version>.zip`, archive root = plugin folder), then creates the GitHub Release and attaches that bundle. `dist-plugin/` is a build output and is gitignored.
+- The bundle must stay self-contained: it ships production `node_modules/` plus `package-lock.json` because Claude Code installs plugin dependencies only when copying into its cache (and only with a lockfile), while `--plugin-dir`/`--plugin-url` archives are unpacked to a session temp folder with no install. Keep `helper/` and `scripts/locate-code.mjs` beside `dist/` for the same reason.
 - Do not commit dumps or screenshots: they contain device serials, package names, and screen text. `.aui/`, `aui-fallback-*.png`, and `*.annotated.svg` are gitignored.
 
 ## Architecture
@@ -95,4 +97,4 @@ All expected failures are `AuiError` with a stable `code` and optional user-faci
 
 ## Reference docs
 
-`README.md` (English overview + full Chinese sections) is the authoritative user-facing documentation: full command/tool tables, source trade-offs, environment variables, plugin install flow, analysis rules, and protocol implementation notes.
+`README.md` (English) and `README.zh.md` (Chinese) are the authoritative user-facing documentation: full command/tool tables, source trade-offs, environment variables, plugin install flow, analysis rules, and protocol implementation notes. Keep the two in sync; `docs/*.md` holds the per-topic deep dives.

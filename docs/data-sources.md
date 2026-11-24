@@ -37,6 +37,7 @@ The classification comes from a heuristic over the ViewDebug tree (`classifyUi`)
 - Mixed pages: `dump` prints both view + semantics trees; `find`/`hit`/`tap --text` search both trees under auto.
 - `--source both` explicitly captures view + semantics; `--source compose` uses the JVMTI Compose tree alone.
 - `hit` / MCP `hit_test` query view and semantics together by default.
+- `auto` degrades instead of failing: when one tree cannot be captured (for example a non-debuggable app, or a package that is not running), it is skipped with a warning and the other tree is used. Warnings appear in the JSON `warnings` array and in the text tree. An explicit `--source view` fails instead.
 
 ## Measured results (Android 13 / API 33 real device)
 
@@ -153,6 +154,8 @@ On mixed screens `auto` captures and shows both view + semantics and makes `find
 - JDWP usually allows one debugger at a time; attach may fail while Android Studio is debugging.
 - `compose` additionally requires a local Android Studio, Java 17+, the app in the foreground, and a matching Compose inspector jar; each capture takes about 8–12s and leaves a resident transport daemon on the device (`android-ui compose-clean` cleans it up).
 - Without Android Studio, Compose is still available via `semantics` (zero dependencies; text/click semantics work).
+- Content drawn straight to a `Canvas` (custom `View.onDraw`, `SurfaceView`, a `WebView`'s pixels) has no text or children in the `view` tree; the `semantics` tree only sees what the app exposes to accessibility, and the `compose` tree only sees composables (not canvas drawing).
+- `view` text comes from framework text widgets; a custom view that draws its own labels exposes no text property.
 - Some ROMs (e.g. MIUI) report an accessibility window shorter than the real screen through uiautomator, clipping bottom nodes; `analyze` skips touch-target measurement in that case, but `hit` still works (the center point stays inside the control).
 - `input text` reliably supports ASCII only; Chinese input needs an extra IME (e.g. ADBKeyboard).
 - No live monitoring; every command captures a fresh snapshot.

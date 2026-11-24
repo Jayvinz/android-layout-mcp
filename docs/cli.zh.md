@@ -87,27 +87,40 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 | 命令 | 说明 |
 |---|---|
-| `android-ui devices` | 列出设备、型号、Android/SDK 版本 |
-| `android-ui state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口 |
-| `android-ui windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现） |
-| `android-ui dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--props`、`--json`、`--out` |
-| `android-ui find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both` |
-| `android-ui hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先 |
-| `android-ui inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性） |
-| `android-ui analyze` | 布局/无障碍检查，见下表 |
-| `android-ui shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg` |
+| `android-ui devices` | 列出设备、型号、Android/SDK 版本；`--json` |
+| `android-ui state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口；`--json` |
+| `android-ui windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现）；`--package`、`--pid`、`--json` |
+| `android-ui dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--max-nodes`（文本，默认 2000）、`--visible-only`、`--props`、`--package`、`--pid`、`--window`（view 源）、`--json`、`--out` |
+| `android-ui find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both`、`--source`、`--limit`（默认 50）、`--json` |
+| `android-ui hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先；`--source`、`--index`（默认 0）、`--json` |
+| `android-ui inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性）；`--source`、`--json` |
+| `android-ui analyze` | 布局/无障碍检查；`--rules`、`--min-touch-dp`（48）、`--max-depth`（14）、`--paths`、`--json` |
+| `android-ui shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg`；`--json`、`--json --base64` |
 | `android-ui view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
-| `android-ui diff <a> <b>` | 对比两个 dump JSON |
-| `android-ui tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或 `--text/--id/--ref` 选择元素后点击其中心 |
-| `android-ui swipe` / `input` / `key` | 滑动、输入 ASCII 文本、发送 keyevent |
-| `android-ui studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java |
-| `android-ui mcp` | 启动 MCP Server（stdio）；`--print-config` 打印客户端配置 |
-| `android-ui compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar |
+| `android-ui diff <a> <b>` | 对比两个 dump JSON；`--source`、`--tolerance`（默认 1px）、`--json` |
+| `android-ui tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或用 `--text/--id/--ref` 配合 `--by`/`--match`/`--index`/`--source` 选择元素后点击其中心 |
+| `android-ui swipe` / `input` / `key` | 滑动（`--duration`，默认 300ms）、输入 ASCII 文本、发送 keyevent |
+| `android-ui studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
+| `android-ui mcp` | 启动 MCP Server（stdio）；`--print-config` 打印客户端配置，`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
+| `android-ui compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
 
 全局选项：`-s, --serial`、`--adb <path>`、`--timeout <ms>`、`-v, --verbose`。
 Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
 截图兜底：抓取失败时自动保存一张 `aui-fallback-<time>.png`（默认 720px 宽）；用
 `--no-fallback-screenshot` 关闭。多设备时也可用 `ANDROID_SERIAL`。
+
+## 限制与默认值
+
+- **文本树与 JSON**：`--depth`、`--max-nodes`（默认 2000）和 `--visible-only` 只影响人类可读的文本树；被截断时最后一行会说明展示到多少节点。`--json` / `--out` 写出完整 dump（`version: 1`，不裁剪），agent 端需要自己裁剪，或改用 MCP `dump_ui` 的 `depth`/`maxNodes`。
+- **搜索**：`find`、`hit` 与 `tap` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
+- **点击**：选择器只匹配可见节点，命中隐藏节点会报错而不是静默点击。截图坐标点击必须同时给出四个 `--image-*` 参数；`--index` 用于消除重叠匹配。混合页面上 `tap --text` 只搜索所选来源的第一棵树——若文本只存在于 Compose 语义树，请传 `--source semantics`（或用 `--ref` 配合 `--source both`）。
+- **截图**：CLI `shot` 默认保持原生分辨率，只有指定 `--max-width`/`--scale` 才降采样；`--base64` 仅在同时带 `--json` 时生效。MCP `screenshot` 默认 720px 宽。
+- **查看器预算**：内嵌 JSON 上限 8 MB。超限时先丢弃 `--props`，再把 `--max-nodes` 折半（下限 200）；`view --json` 会返回 `truncated`，内嵌 payload 中带 `limits.budgetExceeded`。页面始终是静态快照。
+- **Diff**：每次只比较一棵树，按节点身份而非像素对比。`--tolerance`（默认 1px）忽略更小的边界变化；两个 dump 的主来源不一致时用 `--source` 指定。
+- **Analyze**：`compose` 数据源不评估 `deep_nesting`；未知规则名会被忽略；在低报窗口高度的 ROM（如 MIUI）上，`small_touch_target` 会跳过底部被裁的语义节点。
+- **兜底行为**：`auto` 下某棵树抓取失败会跳过并给出 warning，改用另一棵树；目标包未运行时跳过 view 抓取。warning 会出现在文本树、JSON 的 `warnings` 字段，`analyze` 还会输出到 stderr。`--window` 接受 0 起始索引或名称子串，仅对 view 源生效。
+- **输入与按键**：`input` 仅支持 ASCII（空格发送为 `%s`）；`key` 原样转发给 `adb shell input keyevent`，请使用 `KEYCODE_*` 名称或数字码，其他值会在设备侧失败。
+- **`mcp --register-view-attributes`**：启动 server 前写入全局 `debug_view_attributes 1`（会重启 App），用于获得更丰富的 ViewDebug 属性，日常使用不需要。
 
 ## 分析规则
 
@@ -122,7 +135,7 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 | `zero_size` | 零尺寸 View / 可点击语义节点 |
 | `unlabeled_clickable` | 可点击且自身与后代都没有 text/desc/id |
 | `duplicate_id` | 同一个 resource-id 出现在多个可见节点 |
-| `deep_nesting` | 嵌套深度超过阈值（默认 14） |
+| `deep_nesting` | 嵌套深度超过阈值（默认 14）；`compose` 数据源不评估该规则 |
 
 规则可按需开启：`android-ui analyze --rules small_touch_target,overlap`。
 
@@ -152,7 +165,7 @@ android-ui view --json                             # path、opened、bytes、截
 | `--package`、`--pid`、`--window` | 前台 App | 目标选择与 `dump` 相同 |
 | `--json` | 关闭 | 输出 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
 
-页面内嵌树、base64 截图、节点详情和问题列表；不发起任何网络请求，可直接从 `file://` 打开。它是静态快照，ref 只在本次抓取内有效。HTML 中包含设备序列号、包名与屏幕文本，请放在已 gitignore 的 `.aui/` 下，不要提交。设置 `AUI_NO_OPEN=1` 可全局禁止打开浏览器。
+页面内嵌树、base64 截图、节点详情和问题列表；不发起任何网络请求，可直接从 `file://` 打开。它是静态快照，ref 只在本次抓取内有效。内嵌 JSON 上限 8 MB——超限时先丢弃属性，再把节点预算折半至 200，并置 `truncated` / `limits.budgetExceeded`。HTML 中包含设备序列号、包名与屏幕文本，请放在已 gitignore 的 `.aui/` 下，不要提交。设置 `AUI_NO_OPEN=1` 可全局禁止打开浏览器。
 
 ## 截图与兜底
 
@@ -224,7 +237,7 @@ MCP：
 |---|---|
 | `AUI_ADB` / `ADB_PATH` / `--adb` | adb 路径 |
 | `ANDROID_SERIAL` / `--serial` | 多设备时的目标序列号 |
-| `AUI_ANDROID_STUDIO` / `--studio` | Android Studio 安装目录（Compose inspection） |
+| `AUI_ANDROID_STUDIO` / `ANDROID_STUDIO_PATH` / `--studio` | Android Studio 安装目录（Compose inspection） |
 | `AUI_JAVA` / `--java` | Compose helper 使用的 Java |
 | `AUI_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
 | `AUI_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |

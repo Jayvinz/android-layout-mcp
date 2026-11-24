@@ -40,6 +40,7 @@
   `find`/`hit`/`tap --text` 在 auto 下会自动同时搜索 view + semantics。
 - `--source both` 显式获取 view + semantics；`--source compose` 单独使用 JVMTI Compose 树。
 - `hit`/MCP 的 `hit_test` 默认同时查询 view 和 semantics。
+- `auto` 会降级而不是直接失败：某棵树抓不到时（例如 App 不可调试，或目标包未运行），跳过它并给出 warning，改用另一棵树。warning 会写入 JSON 的 `warnings` 数组并出现在文本树中；显式指定 `--source view` 时则直接报错。
 
 ## 实测能力对照（Android 13 / API 33 真机）
 
@@ -187,6 +188,8 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 - `compose` 额外要求：本机 Android Studio、Java 17+、App 在前台、Compose inspector jar 版本匹配；
   单次抓取约 8–12s，且会在设备上常驻一个 transport daemon（`android-ui compose-clean` 可清理）。
 - 没有 Android Studio 时，Compose 仍可用 `semantics`（零依赖、文本/点击语义可用）。
+- 直接画到 `Canvas` 上的内容（自定义 `View.onDraw`、`SurfaceView`、`WebView` 的像素）在 `view` 树中没有文本和子节点；`semantics` 树只能看到 App 暴露给无障碍的信息，`compose` 树只能看到 composable，看不到 canvas 绘制。
+- `view` 的文本来自系统文本控件；自绘文字的自定义 View 不会暴露文本属性。
 - 某些 ROM（如 MIUI）的 uiautomator 返回的无障碍窗口高度小于真实屏幕，底部节点会被裁剪；
   `analyze` 会自动跳过这类触摸区测量，但 `hit` 仍可用（中心点仍落在控件内）。
 - `input text` 只可靠支持 ASCII；中文输入需要额外输入法（如 ADBKeyboard）。

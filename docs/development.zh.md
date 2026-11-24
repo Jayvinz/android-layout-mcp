@@ -9,6 +9,7 @@ npm test          # 基于真实设备抓取 fixture 的单元测试
 npm run typecheck
 npm run build     # 重新生成 dist/（dist/ 有意提交到仓库）
 npm run build:helper   # 使用本机 Android Studio 重新编译 Compose JVMTI helper
+npm run build:plugin-zip   # 构建发布用插件包到 dist-plugin/（已 gitignore；会执行 npm ci --omit=dev，离线可加 --no-deps）
 npx tsx --test test/query.test.ts   # 运行单个测试文件
 npx tsx src/cli.ts dump             # 不构建直接从源码运行 CLI
 ```
@@ -39,6 +40,7 @@ claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --ru
   [plugin.zh.md](plugin.zh.md#版本号)。
 - 仓库同时是 npm 包（`android-ui-inspector`，二进制 `android-ui`）和
   Claude Code plugin + marketplace（`jayvinz-tools`）。
+- `npm run build:plugin-zip` 会把发布用插件包写到 `dist-plugin/android-ui-inspector-<version>.zip`；它是构建产物，已在 `.gitignore` 中。构建时会在临时目录执行 `npm ci --omit=dev`（需要 registry 网络；`--no-deps` 可跳过），使包内自带生产 `node_modules/` 与 `package-lock.json`，这样以 `--plugin-dir`/`--plugin-url` 会话级加载时也能直接运行（该路径不会自动安装依赖）。release workflow 会构建它、校验解压后的包，并附加到 GitHub Release（见 [plugin.zh.md](plugin.zh.md#插件包)）。
 - 模块系统为 ESM（TypeScript `NodeNext`）：`src/` 内相对导入必须带 `.js` 扩展名。
 - `PreToolUse` Android 工程门禁位于 `hooks/hooks.json` + `hooks/aui-android-gate.mjs`；hook 只在会话启动时加载，修改后需重启 Claude Code。
 - Compose helper 源码在 `helper/src/aui/ComposeInspectorHelper.java`，提交的构建产物是 `helper/aui-compose-helper.jar`；`npm run build:helper` 会针对本机 Android Studio 重新生成该 jar。

@@ -34,9 +34,9 @@ Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-l
 | CLI command | `android-ui` |
 | MCP server key | `android-ui` |
 
-The project is pre-1.0 and no earlier name was ever published, so there is nothing to migrate:
-install the plugin and run `android-ui`. The gate hook is read at session start, so restart Claude
-Code once after installing.
+Version 1.0.0 is the first stable release (2026-11-24); the earlier name was never published, so
+there is nothing to migrate: install the plugin and run `android-ui`. The gate hook is read at
+session start, so restart Claude Code once after installing.
 
 ## Architecture
 
@@ -75,7 +75,15 @@ After installation you get:
 
 Use `/mcp` to confirm the server is loaded; `/help` lists the commands above.
 
-**Local development/debugging**: run `npm install && npm run build` in the repository root first, then point the marketplace at your local path:
+Prefer not to add the marketplace? Each release also ships a self-contained plugin bundle (built
+`dist/`, helper jar, and production dependencies) that loads without cloning — see
+[docs/plugin.md](docs/plugin.md#plugin-bundle):
+
+```text
+claude --plugin-dir ./android-ui-inspector-<version>.zip
+```
+
+**Local development/debugging**: run `npm install && npm run build` in the repository root first, then point the marketplace at your local path (substitute your actual clone path):
 
 ```text
 /plugin marketplace add E:/repo/android-ui-inspector
@@ -147,7 +155,7 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 | Understand the current screen (foreground app, Activity, visible entries) | `/android-ui:screen` / `get_state` + `dump_ui`  |
 | Inspect a visible control's bounds, center, clickable/enabled state, and class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | Verify a UI change on a real device (diff + rules + screenshot)           | `/android-ui:verify` / `diff_ui` + `analyze_ui` |
-| Find elements / hit-test / tap, swipe, input                              | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text`   |
+| Find elements / hit-test / tap, swipe, input                              | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text`, `press_key` |
 | Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `android-ui shot`                        |
 | Visualize the current screen in a browser (explicit request only)         | `open_viewer` / `android-ui view` / `/android-ui:view` |
 | Layout and accessibility checks                                           | `analyze_ui` / `android-ui analyze`                     |
@@ -168,8 +176,8 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 | Document                                     | Content                                                                                                  |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [docs/data-sources.md](docs/data-sources.md) | The three data sources, `auto` selection policy, Compose JVMTI details                                   |
-| [docs/cli.md](docs/cli.md)                   | CLI installation, command table, analysis rules, screenshots & coordinate mapping, environment variables |
-| [docs/mcp.md](docs/mcp.md)                   | MCP server configuration, tool table, recommended call order                                             |
+| [docs/cli.md](docs/cli.md)                   | CLI installation, command table, limits and defaults, analysis rules, screenshots & coordinate mapping, environment variables |
+| [docs/mcp.md](docs/mcp.md)                   | MCP server configuration, tool table, limits and defaults, recommended call order                        |
 | [docs/plugin.md](docs/plugin.md)             | Claude Code plugin components, installation, workflow, release & versioning                              |
 | [docs/development.md](docs/development.md)   | Development, testing, and implementation notes                                                           |
 
@@ -179,6 +187,10 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 - JDWP usually allows one debugger at a time; attach may fail while Android Studio is debugging.
 - `compose` additionally needs a local Android Studio and Java 17+; each capture takes about 8–12s.
 - `input text` reliably supports ASCII only; every command captures a fresh snapshot — there is no live monitoring.
+- Text output is trimmed at 2000 nodes (`--max-nodes`/`--depth`/`--visible-only` shape the text tree only); `--json`/`--out` write the complete dump, and MCP `dump_ui` caps JSON at 800 nodes unless you raise `maxNodes`.
+- The HTML viewer embeds at most 8 MB; beyond that it drops View properties, then halves the node budget down to 200, and reports `truncated`.
+- `find`/`hit`/`tap` selectors only match visible nodes; image-coordinate taps require the screenshot metadata (`--image-*` or `imageX/Y/Width/Height`). MCP `screenshot` defaults to 720 px wide, while CLI `shot` keeps the native resolution.
+- Content drawn directly to a `Canvas` (custom views, `SurfaceView`, `WebView` pixels) has no text or child nodes; the semantics tree only shows what the app exposes to accessibility.
 - Activation targets Android projects; in other repositories it requires an explicit device/screen request or an explicit Android mention.
 
 See [docs/data-sources.md](docs/data-sources.md) for the full boundaries of each source.

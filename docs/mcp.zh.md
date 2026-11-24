@@ -73,6 +73,23 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 `AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才调用；
 `locate_code` 还要求明确提到 Android 或设备。连接了设备并不代表仓库是 Android 工程。
 
+## 限制与默认值
+
+| 工具 | 默认值 | 上限与行为 |
+|---|---|---|
+| `dump_ui` | JSON；JSON `maxNodes=800`，tree `maxNodes=1500` | `depth` 0–100；`maxNodes` 1–5000；`includeProperties` 嵌入全部 ViewDebug 属性；`savePath` 写入未裁剪的完整 dump；`visibleOnly` 只影响 `format=tree`；`window` 指定 ViewRootImpl（仅 view 源） |
+| `find_elements` | `limit=30`，仅可见节点，主树 | `limit` 1–200；`includeInvisible` 可包含隐藏 View；`both=true` 同时搜索 view + semantics；`match=contains/exact/regex`，也支持 `/模式/标志` 正则 |
+| `locate_code` | `limit=25` 条候选 | `limit` 1–200；`exclude` / `includeTests` 控制扫描范围；全程只读 |
+| `analyze_ui` | 全部 10 条规则、48dp、深度 14 | `minTouchTargetDp` 1–200；`maxDepth` 1–100；`compose` 数据源不评估 `deep_nesting` |
+| `screenshot` | 720px 宽 | `maxWidth` 1–4000；`scale` 0.05–1；`fullResolution=true` 绕过 720 默认值；`annotate` 只在同时给了 `savePath` 时才写出 SVG |
+| `open_viewer` | `.aui/viewer.html`、每棵树 4000 节点、1080px | `maxNodes` 1–20000；`includeProperties` 嵌入 ViewDebug 属性（默认关闭）；`includeIssues` 执行分析（默认开启）；内嵌 JSON 8 MB 预算——先丢属性，再把节点折半至下限 200 |
+| `diff_ui` | `tolerance=1` px | `tolerance` 0–100；每次只比较一棵树（`source`）；两个输入都必须是 `dump_ui(savePath=...)` 写出的 dump |
+| `hit_test` | 候选 0，仅可见节点 | `index` 用于在同一坐标的多个重叠候选中选择 |
+| `tap` | 第一个可见匹配 | 图片坐标映射必须同时给四个 `image*` 参数；选择器只匹配可见节点；`index` 选择第几个匹配（默认 0） |
+| `swipe` | 300ms | `durationMs` 1–10000 |
+
+`input_text` 仅支持 ASCII（空格发送为 `%s`）；`press_key` 把值原样转发给 `adb shell input keyevent`，请使用 `KEYCODE_*` 名称或数字码。抓取失败时，工具会返回错误文本和一张兜底截图（image content）。
+
 ## 推荐调用顺序
 
 1. `get_state` → 确认前台 App；

@@ -30,8 +30,8 @@
 | CLI 命令 | `android-ui` |
 | MCP server key | `android-ui` |
 
-项目尚未发布 1.0，旧名字也从未发布过，因此没有需要迁移的内容：安装插件后直接使用
-`android-ui` 即可。门禁 hook 只在会话启动时读取，安装后重启一次 Claude Code。
+1.0.0 是首个正式版本（2026-11-24），旧名字从未发布过，因此没有需要迁移的内容：安装插件后
+直接使用 `android-ui` 即可。门禁 hook 只在会话启动时读取，安装后重启一次 Claude Code。
 
 ## 架构
 
@@ -70,7 +70,13 @@ MCP Server ────────┘          ├── adb uiautomator → Se
 
 可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
 
-**本地开发/调试**：先在仓库根目录执行 `npm install && npm run build`，再把 marketplace 指向本地路径：
+不想添加 marketplace 时，每个 Release 还附带一个自包含的插件包（构建好的 `dist/`、helper jar 与生产依赖），可免克隆直接加载，详见 [docs/plugin.zh.md](docs/plugin.zh.md#插件包)：
+
+```text
+claude --plugin-dir ./android-ui-inspector-<version>.zip
+```
+
+**本地开发/调试**：先在仓库根目录执行 `npm install && npm run build`，再把 marketplace 指向本地路径（换成你自己的克隆路径）：
 
 ```text
 /plugin marketplace add E:/repo/android-ui-inspector
@@ -142,7 +148,7 @@ android-ui view          # 生成交互式 HTML 查看器并在浏览器中打�
 | 看懂当前页面（前台 App、Activity、可见入口） | `/android-ui:screen` / `get_state` + `dump_ui` |
 | 检查某个可见控件的 bounds、center、可点击/enabled 状态与 class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | 真机验证 UI 改动（diff + 规则 + 截图） | `/android-ui:verify` / `diff_ui` + `analyze_ui` |
-| 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text` |
+| 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text`、`press_key` |
 | 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-ui shot` |
 | 在浏览器中可视化当前页面（仅显式请求） | `open_viewer` / `android-ui view` / `/android-ui:view` |
 | 布局与无障碍问题检查 | `analyze_ui` / `android-ui analyze` |
@@ -163,8 +169,8 @@ android-ui view          # 生成交互式 HTML 查看器并在浏览器中打�
 | 文档 | 内容 |
 |---|---|
 | [docs/data-sources.zh.md](docs/data-sources.zh.md) | 三个数据源原理与对照、`auto` 选择策略、Compose JVMTI 细节 |
-| [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、分析规则、截图与坐标映射、环境变量 |
-| [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、推荐调用顺序 |
+| [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、限制与默认值、分析规则、截图与坐标映射、环境变量 |
+| [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、限制与默认值、推荐调用顺序 |
 | [docs/plugin.zh.md](docs/plugin.zh.md) | Claude Code 插件组件、安装、典型流程、发布与版本号 |
 | [docs/development.zh.md](docs/development.zh.md) | 开发、测试与实现说明 |
 
@@ -174,6 +180,10 @@ android-ui view          # 生成交互式 HTML 查看器并在浏览器中打�
 - JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
 - `compose` 额外需要本机 Android Studio 与 Java 17+，单次抓取约 8–12s。
 - `input text` 只可靠支持 ASCII；每次命令都是全新快照，没有实时监听。
+- 文本输出默认截断到 2000 节点（`--max-nodes`/`--depth`/`--visible-only` 只影响文本树）；`--json`/`--out` 写出完整 dump，MCP `dump_ui` 的 JSON 默认上限 800 节点，可调高 `maxNodes`。
+- HTML 查看器最多嵌入 8 MB；超限会先丢弃 View 属性，再把节点预算折半至 200，并标记 `truncated`。
+- `find`/`hit`/`tap` 的选择器只匹配可见节点；截图坐标点击需要截图元数据（`--image-*` 或 `imageX/Y/Width/Height`）。MCP `screenshot` 默认 720px 宽，CLI `shot` 保持原生分辨率。
+- 直接画到 `Canvas` 上的内容（自定义 View、`SurfaceView`、`WebView` 像素）没有文本和子节点；语义树只能看到 App 暴露给无障碍的信息。
 - 激活面向 Android 工程；在其他仓库中需要用户明确要求查看设备页面/界面，或明确提到 Android。
 
 各数据源的完整边界见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。

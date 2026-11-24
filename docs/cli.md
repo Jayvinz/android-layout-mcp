@@ -87,26 +87,39 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 | Command | Description |
 |---|---|
-| `android-ui devices` | List devices, models, Android/SDK versions |
-| `android-ui state` | Device, screen, foreground app, pid, ViewRootImpl windows |
-| `android-ui windows` | List JDWP windows only (popups/dialogs included) |
-| `android-ui dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--props`, `--json`, `--out` |
-| `android-ui find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both` |
-| `android-ui hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first |
-| `android-ui inspect <ref>` | Full JSON of a single node (including View properties) |
-| `android-ui analyze` | Layout/accessibility checks, see the table below |
-| `android-ui shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg` |
+| `android-ui devices` | List devices, models, Android/SDK versions; `--json` |
+| `android-ui state` | Device, screen, foreground app, pid, ViewRootImpl windows; `--json` |
+| `android-ui windows` | List JDWP windows only (popups/dialogs included); `--package`, `--pid`, `--json` |
+| `android-ui dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--max-nodes` (text, default 2000), `--visible-only`, `--props`, `--package`, `--pid`, `--window` (view source), `--json`, `--out` |
+| `android-ui find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both`, `--source`, `--limit` (default 50), `--json` |
+| `android-ui hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first; `--source`, `--index` (default 0), `--json` |
+| `android-ui inspect <ref>` | Full JSON of a single node (including View properties); `--source`, `--json` |
+| `android-ui analyze` | Layout/accessibility checks; `--rules`, `--min-touch-dp` (48), `--max-depth` (14), `--paths`, `--json` |
+| `android-ui shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg`; `--json`, `--json --base64` |
 | `android-ui view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
-| `android-ui diff <a> <b>` | Compare two dump JSON files |
-| `android-ui tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` and tap the center |
-| `android-ui swipe` / `input` / `key` | Swipe, input ASCII text, send keyevent |
-| `android-ui studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java |
-| `android-ui mcp` | Start the MCP server (stdio); `--print-config` prints a client config |
-| `android-ui compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache |
+| `android-ui diff <a> <b>` | Compare two dump JSON files; `--source`, `--tolerance` (default 1 px), `--json` |
+| `android-ui tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` with `--by`/`--match`/`--index`/`--source` and tap the center |
+| `android-ui swipe` / `input` / `key` | Swipe (`--duration`, default 300ms), input ASCII text, send keyevent |
+| `android-ui studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
+| `android-ui mcp` | Start the MCP server (stdio); `--print-config` prints a client config, `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
+| `android-ui compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
 
 Global options: `-s, --serial`, `--adb <path>`, `--timeout <ms>`, `-v, --verbose`.
 Compose JVMTI options: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
 Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide by default) is saved automatically; disable with `--no-fallback-screenshot`. With multiple devices `ANDROID_SERIAL` also works.
+
+## Limits and defaults
+
+- **Text tree vs JSON**: `--depth`, `--max-nodes` (default 2000) and `--visible-only` shape only the human-readable tree; when it is cut, the last line says how many nodes were shown. `--json` / `--out` write the complete dump (`version: 1`, no trimming), so an agent should trim on its side or use MCP `dump_ui` with `depth`/`maxNodes`.
+- **Search**: `find`, `hit`, and `tap` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
+- **Tap**: a selector only matches visible nodes, and a hidden match is an error rather than a silent tap. Image-coordinate taps need all four `--image-*` flags; `--index` disambiguates overlapping matches. On a mixed screen, `tap --text` searches only the first tree of the selected source — pass `--source semantics` (or use `--ref` with `--source both`) when the label exists only in the Compose semantics tree.
+- **Screenshots**: CLI `shot` keeps the native resolution unless `--max-width`/`--scale` is given; `--base64` adds data only together with `--json`. MCP `screenshot` defaults to 720px wide.
+- **Viewer budget**: the embedded JSON is capped at 8 MB. On overflow the viewer first drops `--props`, then halves `--max-nodes` (floor 200); `view --json` reports `truncated`, and the embedded payload carries `limits.budgetExceeded`. The page is a static snapshot either way.
+- **Diff**: compares one tree per run and keys nodes by identity, not pixels. `--tolerance` (default 1 px) ignores smaller bound changes; `--source` forces the tree when the two dumps disagree on the primary source.
+- **Analyze**: `deep_nesting` is skipped for the `compose` source, unknown rule names are ignored, and `small_touch_target` skips bottom-clipped accessibility nodes on ROMs that under-report the window (e.g. MIUI).
+- **Fallbacks**: with `auto`, a tree that fails to capture is skipped with a warning and the other tree is used; when the target package is not running, view capture is skipped. Warnings surface in the text tree, in JSON (`warnings`), and on stderr for `analyze`. `--window` takes a 0-based index or a name substring and applies to the view source only.
+- **Input and keys**: `input` is ASCII-only (spaces are sent as `%s`); `key` is forwarded to `adb shell input keyevent` unchanged, so use `KEYCODE_*` names or numeric codes — anything else fails on the device.
+- **`mcp --register-view-attributes`**: writes the global `debug_view_attributes 1` setting (which restarts the app) before starting the server; it enriches ViewDebug properties but is not required for normal use.
 
 ## Analysis rules
 
@@ -121,7 +134,7 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 | `zero_size` | Zero-size View / clickable semantics node |
 | `unlabeled_clickable` | Clickable with no text/desc/id on itself or descendants |
 | `duplicate_id` | The same resource-id on multiple visible nodes |
-| `deep_nesting` | Nesting deeper than the threshold (default 14) |
+| `deep_nesting` | Nesting deeper than the threshold (default 14); skipped for the `compose` source |
 
 Enable only the rules you need: `android-ui analyze --rules small_touch_target,overlap`.
 
@@ -151,7 +164,7 @@ android-ui view --json                             # path, opened, bytes, screen
 | `--package`, `--pid`, `--window` | foreground app | Same target selection as `dump` |
 | `--json` | off | Emit `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
 
-The page embeds the tree, a base64 screenshot, node details, and issues; it makes no network requests and works from `file://`. It is a static snapshot: refs are valid only for that capture. The HTML contains device serials, package names, and screen text — keep it under the gitignored `.aui/` and do not commit it. `AUI_NO_OPEN=1` disables browser launch globally.
+The page embeds the tree, a base64 screenshot, node details, and issues; it makes no network requests and works from `file://`. It is a static snapshot: refs are valid only for that capture. The embedded JSON is capped at 8 MB — on overflow the viewer drops properties first, then halves the node budget down to 200 and sets `truncated` / `limits.budgetExceeded`. The HTML contains device serials, package names, and screen text — keep it under the gitignored `.aui/` and do not commit it. `AUI_NO_OPEN=1` disables browser launch globally.
 
 ## Screenshots and fallback
 
@@ -218,7 +231,7 @@ If the agent got device coordinates from `find_elements` / `hit_test`, pass them
 |---|---|
 | `AUI_ADB` / `ADB_PATH` / `--adb` | Path to `adb` |
 | `ANDROID_SERIAL` / `--serial` | Target device when several are connected |
-| `AUI_ANDROID_STUDIO` / `--studio` | Android Studio installation (Compose inspection) |
+| `AUI_ANDROID_STUDIO` / `ANDROID_STUDIO_PATH` / `--studio` | Android Studio installation (Compose inspection) |
 | `AUI_JAVA` / `--java` | Java used by the Compose helper |
 | `AUI_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
 | `AUI_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |

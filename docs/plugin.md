@@ -46,7 +46,17 @@ Prerequisites: Node.js ≥ 20, `adb` available; Compose JVMTI additionally needs
 
 The repo root is both the marketplace and the first plugin: `.claude-plugin/marketplace.json` has `source: "./"`, the plugin is `android-ui`, the marketplace is `jayvinz-tools`. The package name is `android-ui-inspector`, but it is not published to the npm registry: install the plugin, or `npm link` from a clone. Either way the CLI command is `android-ui`.
 
-On a GitHub install, Claude Code copies the plugin into its cache and installs Node dependencies from `package.json` + `package-lock.json` (no lifecycle scripts, 60s timeout). That is why `dist/` must be committed and `node_modules/` must not.
+On a GitHub install, Claude Code copies the plugin into its cache and installs Node dependencies from `package.json` + `package-lock.json` (no lifecycle scripts, 60s timeout). That is why `dist/` must be committed and `node_modules/` must not be committed to the repository — the release bundle ships its own production copy instead (see [Plugin bundle](#plugin-bundle)).
+
+**Install a release bundle** (no clone, no marketplace). Every GitHub Release attaches a self-contained plugin zip built from the tagged commit; download `android-ui-inspector-<version>.zip` from the release page and load it:
+
+```bash
+claude --plugin-dir ./android-ui-inspector-<version>.zip
+# or point at the release asset URL directly
+claude --plugin-url <release-asset-url>
+```
+
+The bundle ships the built `dist/`, the committed helper jar, and production `node_modules/`, so there is no compile or install step: it works offline and from a session-scoped `--plugin-dir`/`--plugin-url` load, where Claude Code does not install dependencies. Loading a `.zip` needs a Claude Code build that supports zip plugins; on an older build, use the marketplace install instead. See [Plugin bundle](#plugin-bundle) for the exact contents.
 
 **Local development/debugging**:
 
@@ -195,6 +205,8 @@ CI runs this check:
 node scripts/sync-version.mjs --check
 ```
 
+A mismatch fails CI directly — there is no need to edit two files by hand.
+
 ### Releasing
 
 Pushing a `v*` tag triggers `.github/workflows/release.yml`: it verifies the tag matches the `package.json` version, reruns the validate checks (version sync, typecheck, tests, build, `dist/` diff), and then publishes the GitHub Release with generated notes.
@@ -211,13 +223,13 @@ Publishing to npm stays a separate manual step: `npm publish` (`prepublishOnly` 
 
 ### Plugin bundle
 
-The release workflow also builds `dist-plugin/android-ui-inspector-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `skills/`, `commands/`, `agents/`, `hooks/`, `scripts/`, `helper/`, `package.json`, README, LICENSE, NOTICE), so it loads as a plugin without unzipping:
+The release workflow also builds `dist-plugin/android-ui-inspector-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `agents/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `README.md`, `README.zh.md`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
 
 ```bash
-claude --plugin-dir ./android-ui-inspector-1.0.0.zip
-claude --plugin-url https://github.com/Jayvinz/android-ui-inspector/releases/download/v1.0.0/android-ui-inspector-1.0.0.zip
+claude --plugin-dir ./android-ui-inspector-<version>.zip
+claude --plugin-url <release-asset-url>
 ```
 
-Build it locally with `npm run build:plugin-zip`. The archive is reproducible (fixed entry timestamps), so the same commit always yields the same file. `--root <dir>` bundles another tree, which is how a release asset is rebuilt from exactly the tagged commit.
+Dependencies are bundled on purpose. Claude Code installs a plugin's npm packages only when it copies the plugin into its cache, and only when the plugin root has `package.json` plus a supported lockfile; a `.zip` loaded through `--plugin-dir`/`--plugin-url` is unpacked into a session temp folder and never gets that install. Shipping production `node_modules/` (about 6 MB in the archive, pure JavaScript, no native modules) keeps every load path working, and the lockfile lets a later cache install reproduce the same set.
 
-A mismatch fails CI directly — there is no need to edit two files by hand.
+Build it locally with `npm run build:plugin-zip`, which runs `npm ci --omit=dev` in a temp stage (needs registry access; ~10s). `--no-deps` skips that for an offline build: the resulting zip is ~190 KB but needs `npm ci --omit=dev` after unzipping. The archive is reproducible: entry timestamps are fixed (1980-01-01) and `SOURCE_DATE_EPOCH` overrides them, so the same commit always yields the same file. `--root <dir>` bundles another tree, which is how a release asset is rebuilt from exactly the tagged commit.
