@@ -59,7 +59,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 | `--client` | File | Shape |
 |---|---|---|
-| `claude` (default), `claude-desktop`, `codebuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
+| `claude` (default), `claude-desktop`, `codebuddy`, `workbuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
 | `vscode` | `.vscode/mcp.json` | `servers` with `type: "stdio"` |
 | `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
 | `zed` | `settings.json` | `context_servers` with `command.path` |
@@ -77,13 +77,16 @@ CodeBuddy Code 2.186.0 was also verified: the default `mcpServers` config connec
 
 Codex CLI 0.172.0 was verified with the generated TOML: `codex mcp list` parses the server entry and `codex exec` called `list_devices` to get a real device. The four skills copied into `.agents/skills/` were discovered as well. The remaining clients in the table were not exercised on this machine.
 
+WorkBuddy reads `~/.workbuddy/mcp.json` with the same `mcpServers` object and project skills from `.workbuddy/skills/`. Both files were written with the generated config and the sync script; WorkBuddy loads its MCP config and skill cache at startup, so restart it before checking the tool list. This session could not restart itself to confirm the live connection.
+
 ### Skills in other agents
 
-The four skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads `.codebuddy/skills/`:
+The four skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads `.codebuddy/skills/`; WorkBuddy reads `.workbuddy/skills/`:
 
 ```bash
 node scripts/sync-agent-skills.mjs --dest ../my-android-app           # .agents/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy # .codebuddy/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy  # .codebuddy/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --workbuddy   # .workbuddy/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --both     # both layouts
 node scripts/sync-agent-skills.mjs --global                            # ~/.agents/skills
 node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale

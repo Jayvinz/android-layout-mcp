@@ -32,7 +32,7 @@
 | Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
 | Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
-| Script | `scripts/sync-agent-skills.mjs` | 把 `skills/` 复制到 `.agents/skills/`（Codex CLI、Gemini CLI、Cline、Goose）、`.codebuddy/skills/`（CodeBuddy，`--codebuddy`）或两处都写（`--both`） |
+| Script | `scripts/sync-agent-skills.mjs` | 把 `skills/` 复制到 `.agents/skills/`（Codex CLI、Gemini CLI、Cline、Goose）、`.codebuddy/skills/`（CodeBuddy，`--codebuddy`）或 `.workbuddy/skills/`（WorkBuddy，`--workbuddy`） |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
 
 能跨 agent 复用的只有技能与 MCP Server；命令、子代理与 hook 是 Claude Code 专属。各客户端配置与技能安装方式见 [mcp.zh.md](mcp.zh.md#其他客户端)。

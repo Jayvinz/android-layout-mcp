@@ -4,7 +4,8 @@
  *
  * `skills/` at the repository root is the Claude Code plugin layout. Codex CLI,
  * Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads
- * `.codebuddy/skills/` (Cursor and VS Code read `.claude/skills/` directly,
+ * `.codebuddy/skills/` and WorkBuddy reads `.workbuddy/skills/`
+ * (Cursor and VS Code read `.claude/skills/` directly,
  * so they need no copy). This script installs the same unchanged SKILL.md files
  * into the chosen target(s), into another project with `--dest`, or once per
  * user with `--global`.
@@ -20,12 +21,13 @@ import { fileURLToPath } from "node:url";
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const skillsRoot = join(repoRoot, "skills");
 
-const usage = `usage: node scripts/sync-agent-skills.mjs [--dest <dir>] [--global] [--codebuddy | --both] [--check] [--dry-run]
+const usage = `usage: node scripts/sync-agent-skills.mjs [--dest <dir>] [--global] [--codebuddy] [--workbuddy] [--both] [--check] [--dry-run]
 
   --dest <dir>  project to install into (default: current directory)
   --global      install for the current user
-  --codebuddy   write .codebuddy/skills instead of .agents/skills
-  --both        write both .agents/skills and .codebuddy/skills
+  --codebuddy   write .codebuddy/skills as well
+  --workbuddy   write .workbuddy/skills as well
+  --both        write .agents/skills and .codebuddy/skills
   --check       report differences and exit 1 when a target is stale
   --dry-run     print what would be copied without writing`;
 
@@ -39,6 +41,7 @@ let dest = process.cwd();
 let destGiven = false;
 let global = false;
 let codebuddy = false;
+let workbuddy = false;
 let both = false;
 let check = false;
 let dryRun = false;
@@ -52,6 +55,8 @@ for (let i = 0; i < args.length; i += 1) {
     global = true;
   } else if (arg === "--codebuddy") {
     codebuddy = true;
+  } else if (arg === "--workbuddy") {
+    workbuddy = true;
   } else if (arg === "--both") {
     both = true;
   } else if (arg === "--check") {
@@ -72,7 +77,11 @@ if (global && destGiven) fail("--global and --dest are mutually exclusive");
 if (codebuddy && both) fail("--codebuddy and --both are mutually exclusive");
 if (!existsSync(skillsRoot)) fail(`no skills directory at ${skillsRoot}`);
 
-const variants = both ? ["agents", "codebuddy"] : [codebuddy ? "codebuddy" : "agents"];
+let variants;
+if (both) variants = workbuddy ? ["agents", "codebuddy", "workbuddy"] : ["agents", "codebuddy"];
+else if (codebuddy) variants = workbuddy ? ["codebuddy", "workbuddy"] : ["codebuddy"];
+else if (workbuddy) variants = ["workbuddy"];
+else variants = ["agents"];
 const targets = variants.map((variant) => ({
   variant,
   root: global ? join(homedir(), `.${variant}`, "skills") : join(resolve(dest), `.${variant}`, "skills"),
@@ -103,6 +112,7 @@ function flags() {
   return [
     global ? " --global" : "",
     codebuddy ? " --codebuddy" : "",
+    workbuddy ? " --workbuddy" : "",
     both ? " --both" : "",
     destGiven ? ` --dest ${resolve(dest)}` : "",
   ].join("");

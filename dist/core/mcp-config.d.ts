@@ -5,7 +5,7 @@
  * envelope differs. Each entry below records the file a human should merge the
  * snippet into and the shape that client expects.
  */
-export declare const MCP_CLIENT_IDS: readonly ["claude", "claude-desktop", "codebuddy", "cursor", "windsurf", "devin", "cline", "kiro", "gemini", "antigravity", "qwen", "trae", "vscode", "codex", "zed", "opencode", "goose", "amp", "generic"];
+export declare const MCP_CLIENT_IDS: readonly ["claude", "claude-desktop", "codebuddy", "workbuddy", "cursor", "windsurf", "devin", "cline", "kiro", "gemini", "antigravity", "qwen", "trae", "vscode", "codex", "zed", "opencode", "goose", "amp", "generic"];
 export type McpClientId = (typeof MCP_CLIENT_IDS)[number];
 export interface McpClientConfig {
     client: McpClientId;

@@ -62,7 +62,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 | `--client` | 文件 | 形状 |
 |---|---|---|
-| `claude`（默认）、`claude-desktop`、`codebuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
+| `claude`（默认）、`claude-desktop`、`codebuddy`、`workbuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
 | `vscode` | `.vscode/mcp.json` | `servers`，带 `type: "stdio"` |
 | `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
 | `zed` | `settings.json` | `context_servers`，命令放在 `command.path` |
@@ -89,16 +89,21 @@ Codex CLI 0.172.0 也已实测：生成的 TOML 能被 `codex mcp list` 解析�
 `list_devices` 返回了真实设备；复制到 `.agents/skills/` 的 4 个技能也能被发现。表中其余客户端
 未在本机实测。
 
+WorkBuddy 读 `~/.workbuddy/mcp.json`，同样是 `mcpServers` 对象；技能目录是项目根的
+`.workbuddy/skills/`。两处文件都已用生成配置和同步脚本写好。WorkBuddy 在启动时加载 MCP 配置与
+技能缓存，重启后再检查工具列表；当前会话无法自行重启验证运行时连接。
+
 ### 在其他 agent 中使用技能
 
 四个技能在 Claude Code 之外也能跑：frontmatter 只用了 `name` 与 `description`（Agent Skills 标准的可移植子集），
 正文里的 CLI 兜底路径用 `AUI_ROOT` 而不是 `${CLAUDE_PLUGIN_ROOT}`。Cursor 与 VS Code 会直接读
 `.claude/skills/`；Codex CLI、Gemini CLI、Cline、Goose 读 `.agents/skills/`；CodeBuddy 读
-`.codebuddy/skills/`：
+`.codebuddy/skills/`；WorkBuddy 读 `.workbuddy/skills/`：
 
 ```bash
 node scripts/sync-agent-skills.mjs --dest ../my-android-app            # .agents/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy # .codebuddy/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --workbuddy  # .workbuddy/skills
 node scripts/sync-agent-skills.mjs --dest ../my-android-app --both      # 两种目录都写
 node scripts/sync-agent-skills.mjs --global                             # ~/.agents/skills
 node scripts/sync-agent-skills.mjs --dest . --check                      # 副本过期时退出码 1

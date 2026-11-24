@@ -123,6 +123,18 @@ test("sync-agent-skills can target CodeBuddy's .codebuddy/skills", () => {
       encoding: "utf8",
     });
     assert.equal(bothCheck.status, 0, bothCheck.stderr);
+
+    const wbCopy = spawnSync(process.execPath, [script, "--dest", dest, "--workbuddy"], {
+      encoding: "utf8",
+    });
+    assert.equal(wbCopy.status, 0, wbCopy.stderr);
+    for (const name of skillNames) {
+      assert.ok(existsSync(join(dest, ".workbuddy", "skills", name, "SKILL.md")), `${name} was not copied`);
+    }
+    const wbCheck = spawnSync(process.execPath, [script, "--dest", dest, "--workbuddy", "--check"], {
+      encoding: "utf8",
+    });
+    assert.equal(wbCheck.status, 0, wbCheck.stderr);
   } finally {
     rmSync(dest, { recursive: true, force: true });
   }

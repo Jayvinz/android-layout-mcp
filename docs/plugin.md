@@ -31,7 +31,7 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 | Agent | `agents/ui-code-locator.md` | Read-only UI→code locator subagent for isolating multi-step investigation in a subcontext |
 | Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
-| Script | `scripts/sync-agent-skills.mjs` | Copies `skills/` into `.agents/skills/` (Codex CLI, Gemini CLI, Cline, Goose), `.codebuddy/skills/` (CodeBuddy, `--codebuddy`), or both (`--both`) |
+| Script | `scripts/sync-agent-skills.mjs` | Copies `skills/` into `.agents/skills/` (Codex CLI, Gemini CLI, Cline, Goose), `.codebuddy/skills/` (CodeBuddy, `--codebuddy`), or `.workbuddy/skills/` (WorkBuddy, `--workbuddy`) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
 
 Only the skills and the MCP server travel to other agents; the commands, the subagent, and the hook are Claude Code specific. See [mcp.md](mcp.md#other-clients) for the per-client configs and the skills install flow.

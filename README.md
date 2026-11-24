@@ -98,7 +98,7 @@ See [docs/plugin.md](docs/plugin.md) for the component list and versioning.
 node dist/cli.js mcp --print-config --client cursor
 ```
 
-`--client` accepts `claude`, `claude-desktop`, `codebuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`,
+`--client` accepts `claude`, `claude-desktop`, `codebuddy`, `workbuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`,
 `antigravity`, `qwen`, `trae`, `vscode`, `codex`, `zed`, `opencode`, `goose`, `amp`, and `generic`. Each
 emits the envelope that client expects (TOML for Codex, `servers` for VS Code, `context_servers` for Zed,
 `extensions` for Goose, …) and prints the destination file to stderr. The default is the `mcpServers`
@@ -117,8 +117,9 @@ object:
 
 Clients with skill support can also load the four bundled skills: `node scripts/sync-agent-skills.mjs
 --dest ../my-android-app` writes them to `.agents/skills/`; add `--codebuddy` for CodeBuddy's
-`.codebuddy/skills/`, or `--both` for both (Cursor and VS Code read `.claude/skills/` directly). Slash
-commands, the subagent, and the gate hook stay Claude Code only.
+`.codebuddy/skills/`, `--workbuddy` for WorkBuddy's `.workbuddy/skills/`, or `--both` for both
+(Cursor and VS Code read `.claude/skills/` directly). Slash commands, the subagent, and the gate
+hook stay Claude Code only.
 
 See [docs/mcp.md](docs/mcp.md) for the tool list, parameters, and the recommended call order.
 
