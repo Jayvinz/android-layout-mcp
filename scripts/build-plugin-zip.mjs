@@ -3,7 +3,7 @@
  * Builds the distributable Claude Code plugin bundle for a release.
  *
  * The archive is the plugin folder itself (`.claude-plugin/plugin.json` at the
- * archive root), so it can be loaded with `claude --plugin-dir ./android-ui.zip`
+ * archive root), so it can be loaded with `claude --plugin-dir ./android-ui-inspector.zip`
  * or `claude --plugin-url <release asset>` and is the shape the plugin directory
  * validates. Only runtime files are included: `dist/` is committed, `src/`,
  * tests, docs, evals, and CI files are development-only.
@@ -75,7 +75,7 @@ for (const file of files) {
 }
 
 const zip = zipSync(archive, { level: 9 });
-const zipPath = join(outDir, `android-ui-${version}.zip`);
+const zipPath = join(outDir, `android-ui-inspector-${version}.zip`);
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 writeFileSync(zipPath, zip);
