@@ -1,7 +1,7 @@
 ---
 name: locate-ui-code
 description: >-
-  Android-only. Use when the user asks about ONE control or page entry on the current Android screen: where it is implemented, which Activity/Fragment/Composable/route owns a page or dialog, or where a label, icon, click handler, visibility rule, or state comes from. Triggers include "where is this screen implemented", "which Activity/Fragment/Composable owns this page", "where does this button come from", "trace this click handler to source", "定位当前页面中的 X 按钮/入口/图标", "这个页面/弹窗是哪个 Activity/Fragment/Composable/route 实现的", "这个按钮在哪实现的", "这个点击事件/可见性/状态在哪个 ViewModel/Repository", "按 UI 找已有业务逻辑", "把当前界面映射到 Android 源码". Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android. For the whole screen/dialog with multiple controls, use analyze-screen-logic. For observation only (bounds/size/clickable/class), use inspect-current-screen. Not for general Android questions, code review, performance, or reading a layout file without a live screen.
+  Android-only. Use when the user asks about ONE control, or asks which Activity/Fragment/Composable/route owns a page or dialog as a single lookup: where it is implemented, or where a label, icon, click handler, visibility rule, or state comes from. Triggers include "where is this screen implemented", "which Activity/Fragment/Composable owns this page", "where does this button come from", "trace this click handler to source", "定位当前页面中的 X 按钮/入口/图标", "这个页面/弹窗是哪个 Activity/Fragment/Composable/route 实现的", "这个按钮在哪实现的", "这个点击事件/可见性/状态在哪个 ViewModel/Repository", "按 UI 找已有业务逻辑", "把当前界面映射到 Android 源码". Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android. For the whole screen/dialog with multiple controls, its state/data flow, and its business logic, use analyze-screen-logic. For observation only (bounds/size/clickable/class), use inspect-current-screen. Not for general Android questions, code review, performance, or reading a layout file without a live screen.
 ---
 
 # UI → Code Location
@@ -10,7 +10,7 @@ Turn a control on the live device screen into verifiable source anchors and a bu
 
 ## Scope boundary
 
-This skill traces UI to source. If the user only wants to see the current screen or a control's bounds, size, position, clickable/enabled state, class, or icon on screen, use `inspect-current-screen` instead and do not scan the repository. For before/after or regression checks, use `verify-ui-change`. For code and business-logic analysis of the whole current screen/dialog — implementation, ViewModel, data sources, and business chain — use `analyze-screen-logic`; this skill owns one control or the page entry only.
+This skill traces UI to source. If the user only wants to see the current screen or a control's bounds, size, position, clickable/enabled state, class, or icon on screen, use `inspect-current-screen` instead and do not scan the repository. For before/after or regression checks, use `verify-ui-change`. For code and business-logic analysis of the whole current screen/dialog — implementation, ViewModel, data sources, and business chain — use `analyze-screen-logic`; this skill owns one control, or a page/dialog owner lookup that asks only for the implementing class. Step 1.5 covers the page-level case.
 
 ## Step 0 — Android project gate
 

@@ -1,7 +1,7 @@
 ---
 name: analyze-screen-logic
 description: >-
-  Android-only. Use when the user asks to analyze how the CURRENT screen, dialog, bottom sheet, or visible page is implemented and how its business logic works: multiple controls at once, the page/dialog entry, UI implementation, ViewModel/state, data sources, navigation, conditions, and side effects. Chinese triggers include "分析当前界面的代码", "分析当前页面的代码", "分析当前界面/弹窗的代码/业务逻辑", "分析当前界面/弹窗的业务逻辑", "分析这个弹窗的业务逻辑", "这个弹窗的代码逻辑", "梳理当前页面的代码逻辑", "当前界面由哪些代码实现", "这个页面用到哪些 ViewModel/数据源", "把当前页面的交互、状态、数据流讲清楚". English triggers include "analyze the code and business logic behind this screen". Only in Android projects; in a non-Android repository use only when the user explicitly asks to analyze the device screen/page or explicitly mentions Android. For one control or one page entry, use locate-ui-code. For observation only, use inspect-current-screen. For before/after verification, use verify-ui-change. Not for general Android concept questions, code review, or performance.
+  Android-only. Use when the user asks to analyze how the CURRENT screen, dialog, bottom sheet, or visible page is implemented and how its business logic works: multiple controls at once, UI implementation, ViewModel/state, data sources, navigation, conditions, and side effects. Chinese triggers include "分析当前界面的代码", "分析当前页面的代码", "分析当前界面/弹窗的代码/业务逻辑", "分析当前界面/弹窗的业务逻辑", "分析这个弹窗的业务逻辑", "这个弹窗的代码逻辑", "梳理当前页面的代码逻辑", "当前界面由哪些代码实现", "这个页面用到哪些 ViewModel/数据源", "把当前页面的交互、状态、数据流讲清楚". English triggers include "analyze the code and business logic behind this screen". Only in Android projects; in a non-Android repository use only when the user explicitly asks to analyze the device screen/page or explicitly mentions Android. For one control, or for "which Activity/Fragment/Composable owns this page" as a single-answer lookup, use locate-ui-code. For observation only, use inspect-current-screen. For before/after verification, use verify-ui-change. Not for general Android concept questions, code review, or performance.
 ---
 
 # Analyzing the Current Screen's Logic
@@ -144,7 +144,7 @@ Answer in the user's language, compactly, without full-file pastes:
 
 ## Boundaries
 
-- One control's implementation, click chain, or state → `locate-ui-code`. This skill analyzes the whole screen/dialog.
+- One control's implementation, click chain, or state → `locate-ui-code`. A bare "which Activity/Fragment/Composable owns this page" lookup with no business-logic question → also `locate-ui-code`. This skill analyzes the whole screen/dialog.
 - Observation only ("what is on this screen", bounds, clickable, class) → `inspect-current-screen`; it never calls `locate_code`.
 - Before/after, regression, "did my change work" → `verify-ui-change`.
 - Never edit code, build, install, or tap unless explicitly asked. This skill is read-only.
