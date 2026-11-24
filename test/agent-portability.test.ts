@@ -94,3 +94,36 @@ test("sync-agent-skills installs an identical, check-clean copy", () => {
     rmSync(dest, { recursive: true, force: true });
   }
 });
+
+test("sync-agent-skills can target CodeBuddy's .codebuddy/skills", () => {
+  const dest = mkdtempSync(join(tmpdir(), "aui-codebuddy-skills-"));
+  const script = join(repoRoot, "scripts", "sync-agent-skills.mjs");
+  try {
+    const missing = spawnSync(process.execPath, [script, "--dest", dest, "--codebuddy", "--check"], {
+      encoding: "utf8",
+    });
+    assert.equal(missing.status, 1, "an empty CodeBuddy target must fail the check");
+
+    const copy = spawnSync(process.execPath, [script, "--dest", dest, "--codebuddy"], { encoding: "utf8" });
+    assert.equal(copy.status, 0, copy.stderr);
+
+    for (const name of skillNames) {
+      assert.ok(existsSync(join(dest, ".codebuddy", "skills", name, "SKILL.md")), `${name} was not copied`);
+      assert.ok(!existsSync(join(dest, ".agents", "skills", name)), `${name} should not be copied to .agents`);
+    }
+
+    const clean = spawnSync(process.execPath, [script, "--dest", dest, "--codebuddy", "--check"], {
+      encoding: "utf8",
+    });
+    assert.equal(clean.status, 0, clean.stderr);
+
+    const both = spawnSync(process.execPath, [script, "--dest", dest, "--both"], { encoding: "utf8" });
+    assert.equal(both.status, 0, both.stderr);
+    const bothCheck = spawnSync(process.execPath, [script, "--dest", dest, "--both", "--check"], {
+      encoding: "utf8",
+    });
+    assert.equal(bothCheck.status, 0, bothCheck.stderr);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});

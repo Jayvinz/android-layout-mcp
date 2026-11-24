@@ -9,6 +9,7 @@
 export const MCP_CLIENT_IDS = [
   "claude",
   "claude-desktop",
+  "codebuddy",
   "cursor",
   "windsurf",
   "devin",
@@ -40,6 +41,7 @@ interface ClientTarget {
 const CLIENTS: Record<McpClientId, ClientTarget> = {
   claude: { family: "mcpServers", target: ".mcp.json (project root) or claude mcp add" },
   "claude-desktop": { family: "mcpServers", target: "claude_desktop_config.json" },
+  codebuddy: { family: "mcpServers", target: ".mcp.json (project root) or codebuddy mcp add-json" },
   cursor: { family: "mcpServers", target: ".cursor/mcp.json or ~/.cursor/mcp.json" },
   windsurf: { family: "mcpServers", target: "~/.codeium/windsurf/mcp_config.json" },
   devin: { family: "mcpServers", target: ".devin/mcp_config.json or ~/.config/devin/mcp_config.json" },

@@ -59,7 +59,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 | `--client` | File | Shape |
 |---|---|---|
-| `claude` (default), `claude-desktop`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
+| `claude` (default), `claude-desktop`, `codebuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
 | `vscode` | `.vscode/mcp.json` | `servers` with `type: "stdio"` |
 | `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
 | `zed` | `settings.json` | `context_servers` with `command.path` |
@@ -71,14 +71,20 @@ The global flags (`--serial`, `--adb`, `--timeout`, `--studio`, `--java`, `--com
 
 Client config formats move; the paths and shapes above are what these clients accepted in November 2026. Windows uses `%USERPROFILE%` where the table says `~`.
 
+Verified locally with OpenCode 1.19.5: the generated `opencode.json` connects (`opencode mcp list` reports `android-ui connected`), the client sends `tools/list` and receives all 14 tools, and `opencode debug skill` discovers the four skills installed in `.agents/skills/`.
+
+CodeBuddy Code 2.186.0 was also verified: the default `mcpServers` config connects and `mcp__android-ui__list_devices` returns a real device. Project-scoped servers need approval, so headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (and `-y` when tool calls are gated). Its skills live in `.codebuddy/skills/`, not `.agents/skills/`. The other clients in the table were not exercised on this machine.
+
 ### Skills in other agents
 
-The four skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`:
+The four skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads `.codebuddy/skills/`:
 
 ```bash
-node scripts/sync-agent-skills.mjs --dest ../my-android-app   # install into a project
-node scripts/sync-agent-skills.mjs --global                   # ~/.agents/skills
-node scripts/sync-agent-skills.mjs --dest . --check           # exit 1 when the copy is stale
+node scripts/sync-agent-skills.mjs --dest ../my-android-app           # .agents/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy # .codebuddy/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both     # both layouts
+node scripts/sync-agent-skills.mjs --global                            # ~/.agents/skills
+node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale
 ```
 
 Set `AUI_ROOT` to the plugin checkout (or put `android-ui` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/screen`, `/locate`, …) and the `ui-code-locator` subagent are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.

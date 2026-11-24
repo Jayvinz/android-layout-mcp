@@ -62,7 +62,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 | `--client` | 文件 | 形状 |
 |---|---|---|
-| `claude`（默认）、`claude-desktop`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
+| `claude`（默认）、`claude-desktop`、`codebuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
 | `vscode` | `.vscode/mcp.json` | `servers`，带 `type: "stdio"` |
 | `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
 | `zed` | `settings.json` | `context_servers`，命令放在 `command.path` |
@@ -76,16 +76,28 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 客户端配置格式会变；上表的路径与形状是这些客户端在 2026 年 11 月接受的写法。Windows 上
 表中 `~` 对应 `%USERPROFILE%`。
 
+已在本机用 OpenCode 1.19.5 实测：生成的 `opencode.json` 可连接（`opencode mcp list` 显示
+`android-ui connected`），客户端发出的 `tools/list` 能收到全部 14 个工具，`opencode debug skill`
+也能发现装在 `.agents/skills/` 下的 4 个技能。
+
+CodeBuddy Code 2.186.0 也已实测：默认的 `mcpServers` 配置可连接，`mcp__android-ui__list_devices`
+返回了真实设备。项目级 MCP 需要审批，所以无交互运行要加 `--settings
+'{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`）。CodeBuddy 的技能目录是
+`.codebuddy/skills/`，不是 `.agents/skills/`。表中其他客户端未在本机实测。
+
 ### 在其他 agent 中使用技能
 
 四个技能在 Claude Code 之外也能跑：frontmatter 只用了 `name` 与 `description`（Agent Skills 标准的可移植子集），
 正文里的 CLI 兜底路径用 `AUI_ROOT` 而不是 `${CLAUDE_PLUGIN_ROOT}`。Cursor 与 VS Code 会直接读
-`.claude/skills/`；Codex CLI、Gemini CLI、Cline、Goose 读 `.agents/skills/`：
+`.claude/skills/`；Codex CLI、Gemini CLI、Cline、Goose 读 `.agents/skills/`；CodeBuddy 读
+`.codebuddy/skills/`：
 
 ```bash
-node scripts/sync-agent-skills.mjs --dest ../my-android-app   # 装进某个工程
-node scripts/sync-agent-skills.mjs --global                   # 装到 ~/.agents/skills
-node scripts/sync-agent-skills.mjs --dest . --check           # 副本过期时退出码 1
+node scripts/sync-agent-skills.mjs --dest ../my-android-app            # .agents/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy # .codebuddy/skills
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both      # 两种目录都写
+node scripts/sync-agent-skills.mjs --global                             # ~/.agents/skills
+node scripts/sync-agent-skills.mjs --dest . --check                      # 副本过期时退出码 1
 ```
 
 在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-ui` 放进 `PATH`），CLI 兜底才能生效。

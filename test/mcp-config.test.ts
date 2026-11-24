@@ -16,7 +16,7 @@ test("every client produces a non-empty snippet with a destination", () => {
 });
 
 test("mcpServers clients keep the portable object shape", () => {
-  for (const client of ["claude", "claude-desktop", "cursor", "gemini", "cline", "generic"] as const) {
+  for (const client of ["claude", "claude-desktop", "codebuddy", "cursor", "gemini", "cline", "generic"] as const) {
     const config = mcpClientConfig(client, "node", ARGS);
     assert.equal(config.format, "json");
     const parsed = JSON.parse(config.content) as {

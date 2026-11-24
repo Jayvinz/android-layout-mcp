@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * Copy the plugin's skills into the cross-agent skill directory.
+ * Copy the plugin's skills into the skill directory used by other agents.
  *
  * `skills/` at the repository root is the Claude Code plugin layout. Codex CLI,
- * Gemini CLI, Cline, Goose, and others read `.agents/skills/` instead, so this
- * script installs the same SKILL.md files there: into another project with
- * `--dest`, or once per user with `--global`.
+ * Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads
+ * `.codebuddy/skills/` (Cursor and VS Code read `.claude/skills/` directly,
+ * so they need no copy). This script installs the same unchanged SKILL.md files
+ * into the chosen target(s), into another project with `--dest`, or once per
+ * user with `--global`.
  *
  * The skills use only `name` + `description` frontmatter, which is the portable
  * part of the Agent Skills standard, so nothing is rewritten.
@@ -18,11 +20,13 @@ import { fileURLToPath } from "node:url";
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const skillsRoot = join(repoRoot, "skills");
 
-const usage = `usage: node scripts/sync-agent-skills.mjs [--dest <dir>] [--global] [--check] [--dry-run]
+const usage = `usage: node scripts/sync-agent-skills.mjs [--dest <dir>] [--global] [--codebuddy | --both] [--check] [--dry-run]
 
   --dest <dir>  project to install into (default: current directory)
-  --global      install for the current user (~/.agents/skills)
-  --check       report differences and exit 1 when the target is stale
+  --global      install for the current user
+  --codebuddy   write .codebuddy/skills instead of .agents/skills
+  --both        write both .agents/skills and .codebuddy/skills
+  --check       report differences and exit 1 when a target is stale
   --dry-run     print what would be copied without writing`;
 
 function fail(message) {
@@ -34,6 +38,8 @@ const args = process.argv.slice(2);
 let dest = process.cwd();
 let destGiven = false;
 let global = false;
+let codebuddy = false;
+let both = false;
 let check = false;
 let dryRun = false;
 
@@ -44,6 +50,10 @@ for (let i = 0; i < args.length; i += 1) {
     process.exit(0);
   } else if (arg === "--global") {
     global = true;
+  } else if (arg === "--codebuddy") {
+    codebuddy = true;
+  } else if (arg === "--both") {
+    both = true;
   } else if (arg === "--check") {
     check = true;
   } else if (arg === "--dry-run") {
@@ -59,9 +69,14 @@ for (let i = 0; i < args.length; i += 1) {
 }
 
 if (global && destGiven) fail("--global and --dest are mutually exclusive");
+if (codebuddy && both) fail("--codebuddy and --both are mutually exclusive");
 if (!existsSync(skillsRoot)) fail(`no skills directory at ${skillsRoot}`);
 
-const targetRoot = global ? join(homedir(), ".agents", "skills") : join(resolve(dest), ".agents", "skills");
+const variants = both ? ["agents", "codebuddy"] : [codebuddy ? "codebuddy" : "agents"];
+const targets = variants.map((variant) => ({
+  variant,
+  root: global ? join(homedir(), `.${variant}`, "skills") : join(resolve(dest), `.${variant}`, "skills"),
+}));
 
 const skills = readdirSync(skillsRoot, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && existsSync(join(skillsRoot, entry.name, "SKILL.md")))
@@ -84,47 +99,63 @@ function filesOf(skill) {
   return out;
 }
 
+function flags() {
+  return [
+    global ? " --global" : "",
+    codebuddy ? " --codebuddy" : "",
+    both ? " --both" : "",
+    destGiven ? ` --dest ${resolve(dest)}` : "",
+  ].join("");
+}
+
 if (check) {
   const stale = [];
-  for (const skill of skills) {
-    for (const relative of filesOf(skill)) {
-      const source = join(skillsRoot, relative);
-      const target = join(targetRoot, relative);
-      if (!existsSync(target) || !statSync(target).isFile()) {
-        stale.push(`missing  ${relative}`);
-      } else if (!readFileSync(source).equals(readFileSync(target))) {
-        stale.push(`differs  ${relative}`);
+  for (const { variant, root } of targets) {
+    for (const skill of skills) {
+      for (const relative of filesOf(skill)) {
+        const source = join(skillsRoot, relative);
+        const target = join(root, relative);
+        if (!existsSync(target) || !statSync(target).isFile()) {
+          stale.push(`${variant}: missing  ${relative}`);
+        } else if (!readFileSync(source).equals(readFileSync(target))) {
+          stale.push(`${variant}: differs  ${relative}`);
+        }
       }
     }
   }
   if (stale.length > 0) {
-    console.error(`${targetRoot} is out of date:`);
+    console.error("skill copies are out of date:");
     for (const line of stale) console.error(`  ${line}`);
-    console.error(`\nRun: node scripts/sync-agent-skills.mjs${global ? " --global" : ` --dest ${resolve(dest)}`}`);
+    console.error(`\nRun: node scripts/sync-agent-skills.mjs${flags()}`);
     process.exit(1);
   }
-  console.log(`${targetRoot} is up to date (${skills.length} skills)`);
+  console.log(`${targets.map((target) => target.root).join(" and ")} are up to date (${skills.length} skills)`);
   process.exit(0);
 }
 
 if (dryRun) {
-  console.log(`would copy ${skills.length} skills to ${targetRoot}:`);
-  for (const skill of skills) console.log(`  ${skill}/ (${filesOf(skill).length} files)`);
+  for (const { root } of targets) {
+    console.log(`would copy ${skills.length} skills to ${root}:`);
+    for (const skill of skills) console.log(`  ${skill}/ (${filesOf(skill).length} files)`);
+  }
   process.exit(0);
 }
 
-mkdirSync(targetRoot, { recursive: true });
-let count = 0;
-for (const skill of skills) {
-  cpSync(join(skillsRoot, skill), join(targetRoot, skill), { recursive: true, force: true });
-  count += filesOf(skill).length;
+for (const { root } of targets) {
+  mkdirSync(root, { recursive: true });
+  let count = 0;
+  for (const skill of skills) {
+    cpSync(join(skillsRoot, skill), join(root, skill), { recursive: true, force: true });
+    count += filesOf(skill).length;
+  }
+  console.log(`copied ${skills.length} skills (${count} files) to ${root}`);
 }
-
-console.log(`copied ${skills.length} skills (${count} files) to ${targetRoot}`);
 console.log(`  ${skills.join(", ")}`);
+
 if (!global) {
+  const dirs = targets.map((target) => `.${target.variant}/skills`).join(" and ");
   console.log(
-    `\nCommit .agents/skills in that project, and point AUI_ROOT at this checkout ` +
+    `\nCommit ${dirs} in that project, and point AUI_ROOT at this checkout ` +
       `(or put the android-ui CLI on PATH) so the skills' CLI fallback resolves.`,
   );
 }
