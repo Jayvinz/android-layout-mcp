@@ -247,3 +247,14 @@ git push origin main v1.0.0
 ```
 
 发布到 npm 仍是独立的手动步骤：`npm publish`（`prepublishOnly` 会先跑版本检查、typecheck、测试和 build）。
+
+### 插件包
+
+release workflow 还会构建 `dist-plugin/android-ui-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`skills/`、`commands/`、`agents/`、`hooks/`、`scripts/`、`helper/`、`package.json`、README、LICENSE、NOTICE），可直接作为插件加载，无需解压：
+
+```bash
+claude --plugin-dir ./android-ui-1.0.0.zip
+claude --plugin-url https://github.com/Jayvinz/android-ui-inspector/releases/download/v1.0.0/android-ui-1.0.0.zip
+```
+
+本地构建用 `npm run build:plugin-zip`。压缩包是可复现的（条目时间戳固定），同一 commit 总是产出同一个文件。`--root <dir>` 可以打包另一棵树，发布资产就是据此从 tag 对应的 commit 重建的。

@@ -44,6 +44,19 @@ jobs:
         run: npm run build
       - name: Verify dist is committed
         run: git diff --exit-code -- dist
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.318
+      - name: Validate marketplace and plugin
+        run: claude plugin validate --strict .
+      - name: Build the plugin bundle
+        run: npm run build:plugin-zip
+      - name: Verify the plugin bundle
+        run: |
+          rm -rf "$RUNNER_TEMP/plugin-bundle"
+          unzip -q dist-plugin/android-ui-*.zip -d "$RUNNER_TEMP/plugin-bundle"
+          # The archive root is the plugin folder, so the same checks that run on
+          # the repository must pass on the extracted bundle.
+          claude plugin validate --strict "$RUNNER_TEMP/plugin-bundle"
       - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,3 +69,7 @@ jobs:
               --generate-notes \
               --verify-tag
           fi
+      - name: Attach the plugin bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist-plugin/android-ui-*.zip --clobber

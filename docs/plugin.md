@@ -209,4 +209,15 @@ git push origin main v1.0.0
 
 Publishing to npm stays a separate manual step: `npm publish` (`prepublishOnly` runs the version check, typecheck, tests, and build first).
 
+### Plugin bundle
+
+The release workflow also builds `dist-plugin/android-ui-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `skills/`, `commands/`, `agents/`, `hooks/`, `scripts/`, `helper/`, `package.json`, README, LICENSE, NOTICE), so it loads as a plugin without unzipping:
+
+```bash
+claude --plugin-dir ./android-ui-1.0.0.zip
+claude --plugin-url https://github.com/Jayvinz/android-ui-inspector/releases/download/v1.0.0/android-ui-1.0.0.zip
+```
+
+Build it locally with `npm run build:plugin-zip`. The archive is reproducible (fixed entry timestamps), so the same commit always yields the same file. `--root <dir>` bundles another tree, which is how a release asset is rebuilt from exactly the tagged commit.
+
 A mismatch fails CI directly — there is no need to edit two files by hand.

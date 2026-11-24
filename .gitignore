@@ -1,5 +1,7 @@
 node_modules/
 # dist/ is committed: marketplace installs start the MCP server from it.
+# dist-plugin/ holds the release bundle built from dist/ by scripts/build-plugin-zip.mjs.
+dist-plugin/
 *.log
 *.tmp
 .tmp-*
