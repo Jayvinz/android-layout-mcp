@@ -10,7 +10,7 @@
 
 ![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)
 
-**Android UI inspection for coding agents.** Read the live screen of a real device or emulator over ADB, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, diff before/after layouts, and trace any control back to its Compose/XML source and business logic.
+**Android Layout MCP for coding agents.** Layout capture and UI-to-code location over ADB: read the live screen of a real device or emulator, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, diff before/after layouts, and trace any control back to its Compose/XML source and business logic.
 
 Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro).
 

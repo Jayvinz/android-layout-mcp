@@ -713,7 +713,7 @@ program
 
 program
   .command("mcp")
-  .description("start an MCP server (stdio) exposing Android UI inspection tools")
+  .description("start an MCP server (stdio) exposing Android Layout MCP tools")
   .option("--print-config", "print an MCP client config snippet and exit")
   .addOption(
     new Option("--client <id>", "client the printed config is shaped for").choices([

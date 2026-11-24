@@ -6,7 +6,7 @@
 [![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org/)
 [![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml)
 
-**面向 coding agent 的 Android UI 检查工具。** 通过 ADB 读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍检查、改码前后布局对比，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
+**Android Layout MCP，面向 coding agent。** 基于 ADB 的布局抓取与 UI 代码定位：读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍问题排查、改码前后布局对比，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
 
 参考 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
 

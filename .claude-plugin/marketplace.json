@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "jayvinz-tools",
-  "description": "Claude Code plugins for Android UI inspection, UI debugging, and UI-to-code navigation.",
+  "description": "Claude Code plugins for Android Layout MCP: layout capture, UI debugging, and UI-to-code navigation.",
   "owner": {
     "name": "Jayvinz",
     "url": "https://github.com/Jayvinz"
@@ -10,7 +10,7 @@
     {
       "name": "android-layout",
       "source": "./",
-      "description": "Summarize and inspect a live Android UI, audit layout and accessibility, and trace controls to Compose/XML source files, event handlers, state and business logic.",
+      "description": "Layout capture and UI-to-code location on Android: summarize the current page, audit layout and accessibility, and trace controls to Compose/XML source files, event handlers, state and business logic.",
       "license": "MIT",
       "category": "development",
       "keywords": [
