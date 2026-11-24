@@ -39,7 +39,7 @@ shorter `android-layout`. The MCP server and CLI work with any MCP client; Claud
 supported front end, not the only one. See the [cross-agent guide](docs/cross-agent.md) for the
 client matrix and per-client setup.
 
-Version 0.1.0 is the first release under this name. Earlier names were never published, so there is
+Version 1.0.0 is the first stable release under this name. Earlier names were never published, so there is
 nothing to migrate: connect a client and run `android-layout`. In Claude Code the gate hook is
 read at session start, so restart once after installing or updating the plugin.
 

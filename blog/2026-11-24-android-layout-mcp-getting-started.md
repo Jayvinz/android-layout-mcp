@@ -54,7 +54,7 @@ The [connect section below](#connect-another-mcp-client) covers all 20 client id
 If you prefer not to add a marketplace, each release also attaches a self-contained zip of about 6 MB with the built server and its production dependencies. Claude Code can load it directly:
 
 ```bash
-claude --plugin-dir ./android-layout-mcp-0.1.0.zip
+claude --plugin-dir ./android-layout-mcp-1.0.0.zip
 ```
 
 **Note**: all activation paths first check that the workspace is an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin only activates when you explicitly ask about a connected device screen or mention Android.
@@ -175,7 +175,7 @@ The four skills travel as well. Their frontmatter uses only `name` and `descript
 
 ### What's next
 
-Version 0.1.0 is the current release, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
+Version 1.0.0 is the first stable release under this name, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
 
 The interesting part, at least for me, is how three unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md).
 
