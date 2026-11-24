@@ -1,5 +1,5 @@
 {
-  "description": "Android-project gate for the layout-inspector MCP tools. In a non-Android workspace, denies get_state/dump_ui/find_elements/locate_code/open_viewer unless the user explicitly asks about a connected device screen/page or mentions Android; locate_code always requires an Android project.",
+  "description": "Android-project gate for the android-ui MCP tools. In a non-Android workspace, denies get_state/dump_ui/find_elements/locate_code/open_viewer unless the user explicitly asks about a connected device screen/page or mentions Android; locate_code always requires an Android project.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dli-android-gate.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/aui-android-gate.mjs\"",
             "timeout": 10
           }
         ]

@@ -6,7 +6,7 @@ import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { unzipSync } from "fflate";
-import { DliError, errorMessage } from "./errors.js";
+import { AuiError, errorMessage } from "./errors.js";
 import { assignRefs, flattenNodes } from "./viewdump.js";
 const execFileAsync = promisify(execFile);
 const DEFAULT_COMPOSE_VERSION = "1.8.3";
@@ -19,9 +19,9 @@ export async function captureComposeTree(options) {
     progress(`Android Studio ${studio.root} (${studio.source})`);
     const java = await resolveJava(options.javaPath, studio);
     const helperJar = await resolveHelperJar(studio, java, progress);
-    const composeVersion = options.composeVersion || process.env.DLI_COMPOSE_VERSION || DEFAULT_COMPOSE_VERSION;
+    const composeVersion = options.composeVersion || process.env.AUI_COMPOSE_VERSION || DEFAULT_COMPOSE_VERSION;
     const composeJar = await resolveComposeInspectorJar({
-        explicitPath: options.composeInspectorJar || process.env.DLI_COMPOSE_INSPECTOR_JAR,
+        explicitPath: options.composeInspectorJar || process.env.AUI_COMPOSE_INSPECTOR_JAR,
         version: composeVersion,
         progress,
     });
@@ -38,14 +38,14 @@ export async function captureComposeTree(options) {
     // Keep the daemon and staged artifacts between invocations. The JVMTI agent is
     // resident in the app process and connects to this daemon; recreating the daemon
     // (or using a new socket per run) would orphan the resident agent.
-    const staging = "/data/local/tmp/dli-compose";
-    const socketName = "DliTransport";
+    const staging = "/data/local/tmp/aui-compose";
+    const socketName = "AuiTransport";
     const agentLibName = `libjvmtiagent_${abi}.so`;
-    const viewJarName = "dli-view-inspector.jar";
-    const composeJarName = `dli-compose-inspector-${composeVersion.replace(/[^A-Za-z0-9._-]/g, "_")}.jar`;
+    const viewJarName = "aui-view-inspector.jar";
+    const composeJarName = `aui-compose-inspector-${composeVersion.replace(/[^A-Za-z0-9._-]/g, "_")}.jar`;
     const composeDexPath = `/data/data/${options.packageName}/code_cache/${composeJarName}`;
     const viewDexPath = `/data/data/${options.packageName}/code_cache/${viewJarName}`;
-    const localTemp = join(tmpdir(), `dli-compose-${id}`);
+    const localTemp = join(tmpdir(), `aui-compose-${id}`);
     let forwardPort = null;
     const warnings = [];
     try {
@@ -82,7 +82,7 @@ export async function captureComposeTree(options) {
         const args = [
             "-cp",
             classpath,
-            "dli.ComposeInspectorHelper",
+            "aui.ComposeInspectorHelper",
             "--port",
             String(forwardPort),
             "--stream-id",
@@ -118,7 +118,7 @@ export async function captureComposeTree(options) {
             stdout = err.stdout ?? "";
             stderr = err.stderr ?? "";
             if (err.code === "ENOENT") {
-                throw new DliError("COMPOSE_FAILED", `Could not run Java (${java}).`, "Install a JDK or set DLI_JAVA. Android Studio's bundled JBR can also be used.");
+                throw new AuiError("COMPOSE_FAILED", `Could not run Java (${java}).`, "Install a JDK or set AUI_JAVA. Android Studio's bundled JBR can also be used.");
             }
         }
         if (stderr) {
@@ -130,11 +130,11 @@ export async function captureComposeTree(options) {
         }
         const jsonText = extractJson(stdout);
         if (!jsonText) {
-            throw new DliError("COMPOSE_FAILED", "The Compose inspector helper did not return JSON.", stderr.slice(-2000) || "Run with -v to see helper logs.");
+            throw new AuiError("COMPOSE_FAILED", "The Compose inspector helper did not return JSON.", stderr.slice(-2000) || "Run with -v to see helper logs.");
         }
         const output = JSON.parse(jsonText);
         if (!output.ok) {
-            throw new DliError("COMPOSE_FAILED", output.error || "Compose inspector failed.", composeFailureHint(output.error || "", composeVersion));
+            throw new AuiError("COMPOSE_FAILED", output.error || "Compose inspector failed.", composeFailureHint(output.error || "", composeVersion));
         }
         if (output.warnings)
             warnings.push(...output.warnings);
@@ -160,7 +160,7 @@ export async function captureComposeTree(options) {
  * Resolves an Android Studio installation.
  *
  * Order:
- *   1. --studio / DLI_ANDROID_STUDIO / ANDROID_STUDIO_PATH
+ *   1. --studio / AUI_ANDROID_STUDIO / ANDROID_STUDIO_PATH
  *   2. the running studio64/studio process (the install the developer is actually
  *      using; also catches custom and Toolbox installs)
  *   3. standard install locations
@@ -172,7 +172,7 @@ export async function captureComposeTree(options) {
 export async function locateAndroidStudio(explicit) {
     const configured = [
         { root: explicit ?? "", source: "explicit" },
-        { root: process.env.DLI_ANDROID_STUDIO ?? "", source: "env" },
+        { root: process.env.AUI_ANDROID_STUDIO ?? "", source: "env" },
         { root: process.env.ANDROID_STUDIO_PATH ?? "", source: "env" },
     ].filter((entry) => entry.root.length > 0);
     const seen = new Set();
@@ -200,7 +200,7 @@ export async function locateAndroidStudio(explicit) {
         if (studio)
             return { ...studio, source: "default" };
     }
-    throw new DliError("COMPOSE_FAILED", "Android Studio was not found.", "Install Android Studio, start it once, or set DLI_ANDROID_STUDIO to its installation directory.");
+    throw new AuiError("COMPOSE_FAILED", "Android Studio was not found.", "Install Android Studio, start it once, or set AUI_ANDROID_STUDIO to its installation directory.");
 }
 async function validateStudioRoot(root) {
     const resources = join(root, "plugins", "android", "resources");
@@ -330,7 +330,7 @@ function defaultStudioCandidates() {
 async function resolveJava(explicit, studio) {
     const candidates = [
         explicit,
-        process.env.DLI_JAVA,
+        process.env.AUI_JAVA,
         process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java") : undefined,
         studio.java ?? undefined,
         process.platform === "win32" ? "java.exe" : "java",
@@ -349,10 +349,10 @@ async function resolveJava(explicit, studio) {
             return candidate;
         }
     }
-    throw new DliError("COMPOSE_FAILED", "No Java runtime found for the Compose inspector helper.", "Set DLI_JAVA or install a JDK.");
+    throw new AuiError("COMPOSE_FAILED", "No Java runtime found for the Compose inspector helper.", "Set AUI_JAVA or install a JDK.");
 }
-const PACKAGED_HELPER_JAR = fileURLToPath(new URL("../../helper/dli-compose-helper.jar", import.meta.url));
-const HELPER_SOURCE = fileURLToPath(new URL("../../helper/src/dli/ComposeInspectorHelper.java", import.meta.url));
+const PACKAGED_HELPER_JAR = fileURLToPath(new URL("../../helper/aui-compose-helper.jar", import.meta.url));
+const HELPER_SOURCE = fileURLToPath(new URL("../../helper/src/aui/ComposeInspectorHelper.java", import.meta.url));
 function studioJars(studio) {
     return [
         join(studio.lib, "studio-proto.jar"),
@@ -374,7 +374,7 @@ function studioJars(studio) {
  * compiler is available.
  */
 async function resolveHelperJar(studio, java, progress) {
-    const explicit = process.env.DLI_COMPOSE_HELPER_JAR;
+    const explicit = process.env.AUI_COMPOSE_HELPER_JAR;
     if (explicit) {
         await ensureFile(explicit, "The configured Compose helper jar does not exist");
         return explicit;
@@ -420,8 +420,8 @@ async function resolveHelperJar(studio, java, progress) {
             .update(`${buildId}|${sourceHash}|${compilerVersion}`)
             .digest("hex")
             .slice(0, 16);
-        const cacheDir = join(homedir(), ".cache", "layout-inspector-android", "helper", key);
-        const jarPath = join(cacheDir, "dli-compose-helper.jar");
+        const cacheDir = join(homedir(), ".cache", "android-ui", "helper", key);
+        const jarPath = join(cacheDir, "aui-compose-helper.jar");
         try {
             await access(jarPath);
             return jarPath;
@@ -463,7 +463,7 @@ async function resolveComposeInspectorJar(options) {
         await ensureFile(cached, "The cached Compose inspector jar is missing");
         return cached;
     }
-    const cacheDir = join(homedir(), ".cache", "layout-inspector-android");
+    const cacheDir = join(homedir(), ".cache", "android-ui");
     const cachePath = join(cacheDir, `compose-inspector-${options.version}.jar`);
     try {
         const info = await stat(cachePath);
@@ -502,7 +502,7 @@ async function resolveComposeInspectorJar(options) {
             lastError = error;
         }
     }
-    throw new DliError("COMPOSE_FAILED", `Could not obtain the Compose inspector jar for version ${options.version}: ${errorMessage(lastError)}`, "Set DLI_COMPOSE_INSPECTOR_JAR to a local inspector.jar, or DLI_COMPOSE_VERSION to the app's Compose version.");
+    throw new AuiError("COMPOSE_FAILED", `Could not obtain the Compose inspector jar for version ${options.version}: ${errorMessage(lastError)}`, "Set AUI_COMPOSE_INSPECTOR_JAR to a local inspector.jar, or AUI_COMPOSE_VERSION to the app's Compose version.");
 }
 function composeArtifactId(version) {
     const [majorText, minorText] = version.split(".");
@@ -518,7 +518,7 @@ async function resolveAbi(adb) {
     const abi = (await adb.shell("getprop ro.product.cpu.abi", { timeoutMs: 10_000 })).trim();
     const supported = new Set(["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]);
     if (!supported.has(abi)) {
-        throw new DliError("COMPOSE_FAILED", `Unsupported device ABI: ${abi || "unknown"}`);
+        throw new AuiError("COMPOSE_FAILED", `Unsupported device ABI: ${abi || "unknown"}`);
     }
     return abi;
 }
@@ -538,7 +538,7 @@ async function waitForAbstractSocket(adb, socketName, timeoutMs) {
     const log = await adb
         .shell("cat /data/local/tmp/*/transport.log 2>/dev/null | tail -20", { timeoutMs: 10_000, allowFailure: true })
         .catch(() => "");
-    throw new DliError("COMPOSE_FAILED", `Transport daemon did not start (${socketName}).`, log.trim() || "Check the device log.");
+    throw new AuiError("COMPOSE_FAILED", `Transport daemon did not start (${socketName}).`, log.trim() || "Check the device log.");
 }
 function commonConfig(socketName) {
     return Buffer.concat([
@@ -689,10 +689,10 @@ function extractJson(output) {
 }
 function composeFailureHint(message, version) {
     if (/UnsupportedClassVersionError|class file version/i.test(message)) {
-        return "The Compose helper runs on a different JDK than it was compiled for. Use Android Studio's JBR (default) or ensure javac/jar are available next to the selected Java so dli can compile a matching helper.";
+        return "The Compose helper runs on a different JDK than it was compiled for. Use Android Studio's JBR (default) or ensure javac/jar are available next to the selected Java so android-ui can compile a matching helper.";
     }
     if (/VERSION|version|library|proguard/i.test(message)) {
-        return `The app's Compose version may not be ${version}. Set DLI_COMPOSE_VERSION or DLI_COMPOSE_INSPECTOR_JAR.`;
+        return `The app's Compose version may not be ${version}. Set AUI_COMPOSE_VERSION or AUI_COMPOSE_INSPECTOR_JAR.`;
     }
     if (/debuggable|Permission|run-as/i.test(message)) {
         return "Compose inspection requires a debuggable build (android:debuggable=true).";
@@ -707,7 +707,7 @@ async function ensureFile(path, message) {
         await access(path);
     }
     catch {
-        throw new DliError("COMPOSE_FAILED", `${message}: ${path}`);
+        throw new AuiError("COMPOSE_FAILED", `${message}: ${path}`);
     }
 }
 async function firstExisting(paths) {

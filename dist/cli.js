@@ -8,7 +8,7 @@ import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
 import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js";
 import { diffSnapshots, renderDiff } from "./core/diff.js";
-import { DliError, errorMessage } from "./core/errors.js";
+import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderIssues, renderSource } from "./core/render.js";
@@ -19,18 +19,18 @@ import { openInBrowser, renderViewerHtmlFromPayload, viewerPayload } from "./cor
 import { PACKAGE_VERSION } from "./core/version.js";
 const program = new Command();
 program
-    .name("layout-inspector")
-    .description("Inspect Android layouts from a terminal.\n\n" +
+    .name("android-ui")
+    .description("Inspect Android UI from a terminal.\n\n" +
     "Captures the ViewDebug hierarchy over JDWP (like LayoutInspectorV2-Pro) and the\n" +
     "accessibility/semantics tree via uiautomator, then offers hit-testing, search,\n" +
     "screenshot and layout analysis.")
     .version(PACKAGE_VERSION)
     .option("-s, --serial <serial>", "device serial (defaults to ANDROID_SERIAL or the only device)")
-    .option("--adb <path>", "path to adb (defaults to DLI_ADB, ADB_PATH, or adb on PATH)")
+    .option("--adb <path>", "path to adb (defaults to AUI_ADB, ADB_PATH, or adb on PATH)")
     .option("--timeout <ms>", "adb/JDWP timeout in milliseconds", parsePositiveInt, 30_000)
     .option("--studio <path>", "Android Studio installation directory (Compose inspection)")
     .option("--java <path>", "Java executable for the Compose inspector helper")
-    .option("--compose-version <version>", "Compose version used to fetch inspector.jar (defaults to DLI_COMPOSE_VERSION or 1.8.3)")
+    .option("--compose-version <version>", "Compose version used to fetch inspector.jar (defaults to AUI_COMPOSE_VERSION or 1.8.3)")
     .option("-v, --verbose", "print capture progress on stderr")
     .option("--no-fallback-screenshot", "do not save a device screenshot when UI capture fails");
 program
@@ -141,7 +141,7 @@ program
     const adb = makeAdb(command);
     const target = await resolvePackage(adb, options.package, options.pid);
     if (target.pid === null)
-        throw new DliError("NO_PID", `No running process for ${target.packageName}.`);
+        throw new AuiError("NO_PID", `No running process for ${target.packageName}.`);
     const client = await JdwpClient.open(adb, target.pid, { requestTimeoutMs: 10_000 });
     try {
         const windows = await client.listWindows();
@@ -329,7 +329,7 @@ program
             return;
         }
     }
-    throw new DliError("BAD_INPUT", `No node with ref/id "${ref}" in the current UI.`);
+    throw new AuiError("BAD_INPUT", `No node with ref/id "${ref}" in the current UI.`);
 });
 program
     .command("shot")
@@ -392,7 +392,7 @@ program
     .option("--package <package>", "package name (defaults to foreground app)")
     .option("--pid <pid>", "process id")
     .option("--window <name-or-index>", "ViewRootImpl window to capture (view source)")
-    .option("--out <file>", "HTML output path", ".dli/viewer.html")
+    .option("--out <file>", "HTML output path", ".aui/viewer.html")
     .option("--no-open", "write the HTML file without opening a browser")
     .option("--max-width <px>", "downscale the embedded screenshot to at most this width", parsePositiveInt, 1080)
     .option("--max-nodes <n>", "limit serialized nodes per tree", parsePositiveInt, 4000)
@@ -437,7 +437,7 @@ program
             scale: screenshot.scale,
         }
         : null;
-    if (!options.json && !isInsideDli(outPath)) {
+    if (!options.json && !isInsideAui(outPath)) {
         console.error("warning: the viewer contains device/screen data; do not commit it.");
     }
     if (options.json) {
@@ -525,11 +525,11 @@ program
     ];
     if (imageOptions.some((value) => value !== undefined)) {
         if (imageOptions.some((value) => value === undefined)) {
-            throw new DliError("BAD_INPUT", "Image-coordinate tap needs --image-x, --image-y, --image-width, and --image-height.");
+            throw new AuiError("BAD_INPUT", "Image-coordinate tap needs --image-x, --image-y, --image-width, and --image-height.");
         }
         const screen = await adb.screenInfo();
         if (!screen.width || !screen.height) {
-            throw new DliError("BAD_INPUT", "Could not determine the device screen size for image-coordinate mapping.");
+            throw new AuiError("BAD_INPUT", "Could not determine the device screen size for image-coordinate mapping.");
         }
         point = imageToDevicePoint(parseImageCoordinate(options.imageX, "image-x"), parseImageCoordinate(options.imageY, "image-y"), parseNonNegativeInt(options.imageWidth), parseNonNegativeInt(options.imageHeight), screen.width, screen.height);
         console.log(`image (${options.imageX}, ${options.imageY}) in ${options.imageWidth}x${options.imageHeight} ` +
@@ -537,7 +537,7 @@ program
     }
     else if (xArg !== undefined || yArg !== undefined) {
         if (xArg === undefined || yArg === undefined) {
-            throw new DliError("BAD_INPUT", "tap needs both x and y, or a selector (--text/--id/--ref).");
+            throw new AuiError("BAD_INPUT", "tap needs both x and y, or a selector (--text/--id/--ref).");
         }
         point = { x: parseCoordinate(xArg, "x"), y: parseCoordinate(yArg, "y") };
     }
@@ -550,7 +550,7 @@ program
         const [treeSource, roots] = trees[0];
         const query = options.ref || options.text || options.id;
         if (!query) {
-            throw new DliError("BAD_INPUT", "tap needs coordinates or --text/--id/--ref.");
+            throw new AuiError("BAD_INPUT", "tap needs coordinates or --text/--id/--ref.");
         }
         const by = options.ref ? "ref" : options.id ? "id" : options.text ? options.by : options.by;
         const matches = findNodes(roots, {
@@ -561,7 +561,7 @@ program
         });
         node = matches[options.index]?.node ?? null;
         if (!node) {
-            throw new DliError("BAD_INPUT", `No visible ${treeSource} node matches "${query}" (--by ${by}).`);
+            throw new AuiError("BAD_INPUT", `No visible ${treeSource} node matches "${query}" (--by ${by}).`);
         }
         point = node.center;
     }
@@ -602,17 +602,17 @@ program
     .action(async (options, command) => {
     const adb = makeAdb(command);
     await adb
-        .shell("pkill -f /data/local/tmp/dli-compose/daemon.config 2>/dev/null", {
+        .shell("pkill -f /data/local/tmp/aui-compose/daemon.config 2>/dev/null", {
         timeoutMs: 10_000,
         allowFailure: true,
     })
         .catch(() => undefined);
-    await adb.shell("rm -rf /data/local/tmp/dli-compose", { timeoutMs: 15_000, allowFailure: true });
+    await adb.shell("rm -rf /data/local/tmp/aui-compose", { timeoutMs: 15_000, allowFailure: true });
     const foreground = await adb.foregroundApp();
     const packageName = options.package || foreground.packageName;
     if (packageName) {
         await adb
-            .shell(`run-as ${packageName} sh -c 'cd code_cache && rm -f dli-view-inspector.jar dli-compose-inspector-*.jar libjvmtiagent_*.so perfa.jar transport'`, { timeoutMs: 20_000, allowFailure: true })
+            .shell(`run-as ${packageName} sh -c 'cd code_cache && rm -f aui-view-inspector.jar aui-compose-inspector-*.jar libjvmtiagent_*.so perfa.jar transport'`, { timeoutMs: 20_000, allowFailure: true })
             .catch(() => undefined);
         console.log(`cleaned Compose inspector artifacts for ${packageName}`);
     }
@@ -622,7 +622,7 @@ program
 });
 program
     .command("mcp")
-    .description("start an MCP server (stdio) exposing layout-inspection tools")
+    .description("start an MCP server (stdio) exposing Android UI inspection tools")
     .option("--print-config", "print an MCP client config snippet and exit")
     .option("--register-view-attributes", "set the debug_view_attributes global setting (restarts the app)")
     .action(async (options, command) => {
@@ -631,7 +631,7 @@ program
         const serverPath = fileURLToPath(new URL("./mcp.js", import.meta.url));
         const config = {
             mcpServers: {
-                "layout-inspector-android": {
+                "android-ui": {
                     command: "node",
                     args: [
                         serverPath,
@@ -694,7 +694,7 @@ async function captureFor(command, options) {
         studioPath: globals.studio,
         javaPath: globals.java,
         composeVersion: globals.composeVersion,
-        onProgress: globals.verbose || options.verbose ? (message) => console.error(`[layout-inspector] ${message}`) : undefined,
+        onProgress: globals.verbose || options.verbose ? (message) => console.error(`[android-ui] ${message}`) : undefined,
     };
     try {
         return await capture(captureOptions);
@@ -704,18 +704,18 @@ async function captureFor(command, options) {
             try {
                 const shot = await takeScreenshot(adb, { maxWidth: 720 });
                 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-                const path = join(process.cwd(), `dli-fallback-${stamp}.png`);
+                const path = join(process.cwd(), `aui-fallback-${stamp}.png`);
                 await saveScreenshot(shot, path);
                 const metadata = screenshotMetadata(shot);
-                const code = error instanceof DliError ? error.code : "VIEW_DUMP_FAILED";
-                const hint = error instanceof DliError ? error.hint : undefined;
-                throw new DliError(code, `${errorMessage(error)}
+                const code = error instanceof AuiError ? error.code : "VIEW_DUMP_FAILED";
+                const hint = error instanceof AuiError ? error.hint : undefined;
+                throw new AuiError(code, `${errorMessage(error)}
 Fallback screenshot: ${path} ` +
                     `(${shot.width}x${shot.height} from ${shot.originalWidth}x${shot.originalHeight}; ` +
                     `image→device ×${metadata.coordinateMapping.imageToDevice.x}/${metadata.coordinateMapping.imageToDevice.y})`, hint);
             }
             catch (fallbackError) {
-                if (fallbackError instanceof DliError && fallbackError.message.includes("Fallback screenshot:")) {
+                if (fallbackError instanceof AuiError && fallbackError.message.includes("Fallback screenshot:")) {
                     throw fallbackError;
                 }
             }
@@ -728,13 +728,13 @@ function parseSource(value) {
         return "auto";
     if (value === "view" || value === "semantics" || value === "compose" || value === "both")
         return value;
-    throw new DliError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, compose, or both).`);
+    throw new AuiError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, compose, or both).`);
 }
 async function resolvePackage(adb, packageOption, pidOption) {
     const foreground = await adb.foregroundApp();
     const packageName = packageOption || foreground.packageName;
     if (!packageName)
-        throw new DliError("BAD_INPUT", "No package specified and no foreground app detected.");
+        throw new AuiError("BAD_INPUT", "No package specified and no foreground app detected.");
     const pid = pidOption ? parsePositiveInt(pidOption) : (await adb.packagePids(packageName))[0] ?? null;
     return { packageName, pid };
 }
@@ -752,8 +752,8 @@ function formatMatch(match) {
 function printJson(value) {
     console.log(JSON.stringify(value, null, 2));
 }
-function isInsideDli(path) {
-    const root = join(process.cwd(), ".dli");
+function isInsideAui(path) {
+    const root = join(process.cwd(), ".aui");
     return path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}\\`);
 }
 function viewerTreeSummary(payload) {
@@ -780,14 +780,14 @@ function asString(value) {
 function parseImageCoordinate(value, name) {
     const parsed = typeof value === "number" ? value : Number.parseFloat(value);
     if (!Number.isFinite(parsed) || parsed < 0) {
-        throw new DliError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
+        throw new AuiError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
     }
     return parsed;
 }
 function parseCoordinate(value, name) {
     const parsed = typeof value === "number" ? value : Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || parsed < 0) {
-        throw new DliError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
+        throw new AuiError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
     }
     return parsed;
 }

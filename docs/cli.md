@@ -2,7 +2,7 @@
 
 [English](cli.md) | [简体中文](cli.zh.md)
 
-The `layout-inspector` CLI drives the same core as the MCP server. Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `DLI_ADB` / `ADB_PATH`).
+The `android-ui` CLI drives the same core as the MCP server. Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `AUI_ADB` / `ADB_PATH`).
 
 ## Installation
 
@@ -15,7 +15,7 @@ node dist/cli.js devices
 
 # Option 2: link a global command
 npm link
-layout-inspector devices
+android-ui devices
 ```
 
 You can also run from source without building: `npx tsx src/cli.ts dump`.
@@ -24,49 +24,49 @@ You can also run from source without building: `npx tsx src/cli.ts dump`.
 
 ```bash
 # Devices and foreground app
-layout-inspector devices
-layout-inspector state
+android-ui devices
+android-ui state
 
 # Current screen (auto by default; Compose goes to semantics)
-layout-inspector dump
+android-ui dump
 
 # Pick a source and depth; JSON output can go straight to an agent
-layout-inspector dump --source view --depth 8 --props
-layout-inspector dump --source both --json --out ui.json
+android-ui dump --source view --depth 8 --props
+android-ui dump --source both --json --out ui.json
 
 # Search by text / id / class / ref
-layout-inspector find "开拍" --both
-layout-inspector find "com.example:id/submit" --by id
-layout-inspector find "Button" --by class --match exact --clickable
+android-ui find "开拍" --both
+android-ui find "com.example:id/submit" --by id
+android-ui find "Button" --by class --match exact --clickable
 
 # Hit test by screen coordinates (smallest area first; --index to switch when overlapping)
-layout-inspector hit 540 2239 --both
+android-ui hit 540 2239 --both
 
 # Screenshot (downscalable) with an SVG node overlay
-layout-inspector shot --out screenshot.png --annotate
-layout-inspector shot --out small.png --max-width 540
-layout-inspector shot --out small.png --scale 0.5
+android-ui shot --out screenshot.png --annotate
+android-ui shot --out small.png --max-width 540
+android-ui shot --out small.png --scale 0.5
 
 # Layout / accessibility checks
-layout-inspector analyze
+android-ui analyze
 
 # Interactive HTML viewer (explicit visual request; opens the browser)
-layout-inspector view
-layout-inspector view --no-open --out .dli/viewer.html
+android-ui view
+android-ui view --no-open --out .aui/viewer.html
 
 # Tap the center of an element (locates first, then taps)
-layout-inspector tap --text "关注"
-layout-inspector tap 540 2239
+android-ui tap --text "关注"
+android-ui tap 540 2239
 
 # Two-snapshot diff: before/after a code change or page switch
-layout-inspector dump --json --out before.json
+android-ui dump --json --out before.json
 # ... modify, rerun, refresh the page ...
-layout-inspector dump --json --out after.json
-layout-inspector diff before.json after.json
+android-ui dump --json --out after.json
+android-ui diff before.json after.json
 
 # Full properties of a single node
-layout-inspector inspect v4
-layout-inspector inspect 0.0.0
+android-ui inspect v4
+android-ui inspect 0.0.0
 ```
 
 Example of `dump` human-readable output:
@@ -87,26 +87,26 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 | Command | Description |
 |---|---|
-| `layout-inspector devices` | List devices, models, Android/SDK versions |
-| `layout-inspector state` | Device, screen, foreground app, pid, ViewRootImpl windows |
-| `layout-inspector windows` | List JDWP windows only (popups/dialogs included) |
-| `layout-inspector dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--props`, `--json`, `--out` |
-| `layout-inspector find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both` |
-| `layout-inspector hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first |
-| `layout-inspector inspect <ref>` | Full JSON of a single node (including View properties) |
-| `layout-inspector analyze` | Layout/accessibility checks, see the table below |
-| `layout-inspector shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg` |
-| `layout-inspector view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
-| `layout-inspector diff <a> <b>` | Compare two dump JSON files |
-| `layout-inspector tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` and tap the center |
-| `layout-inspector swipe` / `input` / `key` | Swipe, input ASCII text, send keyevent |
-| `layout-inspector studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java |
-| `layout-inspector mcp` | Start the MCP server (stdio); `--print-config` prints a client config |
-| `layout-inspector compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/dli-compose` and the inspector jar in app code_cache |
+| `android-ui devices` | List devices, models, Android/SDK versions |
+| `android-ui state` | Device, screen, foreground app, pid, ViewRootImpl windows |
+| `android-ui windows` | List JDWP windows only (popups/dialogs included) |
+| `android-ui dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--props`, `--json`, `--out` |
+| `android-ui find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both` |
+| `android-ui hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first |
+| `android-ui inspect <ref>` | Full JSON of a single node (including View properties) |
+| `android-ui analyze` | Layout/accessibility checks, see the table below |
+| `android-ui shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg` |
+| `android-ui view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
+| `android-ui diff <a> <b>` | Compare two dump JSON files |
+| `android-ui tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` and tap the center |
+| `android-ui swipe` / `input` / `key` | Swipe, input ASCII text, send keyevent |
+| `android-ui studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java |
+| `android-ui mcp` | Start the MCP server (stdio); `--print-config` prints a client config |
+| `android-ui compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache |
 
 Global options: `-s, --serial`, `--adb <path>`, `--timeout <ms>`, `-v, --verbose`.
 Compose JVMTI options: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
-Screenshot fallback: on capture failure a `dli-fallback-<time>.png` (720px wide by default) is saved automatically; disable with `--no-fallback-screenshot`. With multiple devices `ANDROID_SERIAL` also works.
+Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide by default) is saved automatically; disable with `--no-fallback-screenshot`. With multiple devices `ANDROID_SERIAL` also works.
 
 ## Analysis rules
 
@@ -123,25 +123,25 @@ Screenshot fallback: on capture failure a `dli-fallback-<time>.png` (720px wide 
 | `duplicate_id` | The same resource-id on multiple visible nodes |
 | `deep_nesting` | Nesting deeper than the threshold (default 14) |
 
-Enable only the rules you need: `layout-inspector analyze --rules small_touch_target,overlap`.
+Enable only the rules you need: `android-ui analyze --rules small_touch_target,overlap`.
 
 ## Interactive viewer
 
-`layout-inspector view` (alias `open`) captures the current UI once, writes one self-contained HTML file, and opens it in the default browser. Use it only when the user explicitly asks to visualize the screen; `dump`, `find`, `analyze`, `shot`, and verification never open a browser as a side effect.
+`android-ui view` (alias `open`) captures the current UI once, writes one self-contained HTML file, and opens it in the default browser. Use it only when the user explicitly asks to visualize the screen; `dump`, `find`, `analyze`, `shot`, and verification never open a browser as a side effect.
 
 ```bash
-layout-inspector view                                    # .dli/viewer.html + browser
-layout-inspector view --no-open                          # write the file only
-layout-inspector view --out .tmp-view/v.html             # custom path
-layout-inspector view --source semantics --max-width 720
-layout-inspector view --rules small_touch_target,overlap --no-issues
-layout-inspector view --json                             # path, opened, bytes, screenshot metadata
+android-ui view                                    # .aui/viewer.html + browser
+android-ui view --no-open                          # write the file only
+android-ui view --out .tmp-view/v.html             # custom path
+android-ui view --source semantics --max-width 720
+android-ui view --rules small_touch_target,overlap --no-issues
+android-ui view --json                             # path, opened, bytes, screenshot metadata
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--source` | `auto` | `auto`, `view`, `semantics`, `compose`, or `both` |
-| `--out` | `.dli/viewer.html` | HTML output path; parent directories are created |
+| `--out` | `.aui/viewer.html` | HTML output path; parent directories are created |
 | `--no-open` | off | Write the file without launching a browser |
 | `--max-width` | `1080` | Downscale the embedded screenshot to at most this width |
 | `--max-nodes` | `4000` | Maximum serialized nodes per tree |
@@ -151,19 +151,19 @@ layout-inspector view --json                             # path, opened, bytes, 
 | `--package`, `--pid`, `--window` | foreground app | Same target selection as `dump` |
 | `--json` | off | Emit `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
 
-The page embeds the tree, a base64 screenshot, node details, and issues; it makes no network requests and works from `file://`. It is a static snapshot: refs are valid only for that capture. The HTML contains device serials, package names, and screen text — keep it under the gitignored `.dli/` and do not commit it. `DLI_NO_OPEN=1` disables browser launch globally.
+The page embeds the tree, a base64 screenshot, node details, and issues; it makes no network requests and works from `file://`. It is a static snapshot: refs are valid only for that capture. The HTML contains device serials, package names, and screen text — keep it under the gitignored `.aui/` and do not commit it. `AUI_NO_OPEN=1` disables browser launch globally.
 
 ## Screenshots and fallback
 
 ```bash
-layout-inspector shot --out screenshot.png                  # original resolution
-layout-inspector shot --out small.png --max-width 540       # 540x1200, about 180KB
-layout-inspector shot --out small.png --scale 0.5
-layout-inspector shot --out ui.png --annotate --source compose
+android-ui shot --out screenshot.png                  # original resolution
+android-ui shot --out small.png --max-width 540       # 540x1200, about 180KB
+android-ui shot --out small.png --scale 0.5
+android-ui shot --out ui.png --annotate --source compose
 ```
 
 - Screenshots always use `adb exec-out screencap -p`, optionally downscaled with pure JS (`pngjs`) box filtering; no ImageMagick/Sharp required.
-- **Automatic fallback on structured capture failure**: `dump`/`find`/`hit`/`analyze` and friends also save a `dli-fallback-<time>.png` and give the path in the error message; MCP tools return the screenshot as image content alongside the error text. Disable with `--no-fallback-screenshot` or `DLI_NO_FALLBACK_SCREENSHOT=1`.
+- **Automatic fallback on structured capture failure**: `dump`/`find`/`hit`/`analyze` and friends also save an `aui-fallback-<time>.png` and give the path in the error message; MCP tools return the screenshot as image content alongside the error text. Disable with `--no-fallback-screenshot` or `AUI_NO_FALLBACK_SCREENSHOT=1`.
 - MCP `screenshot` defaults to 720px wide to keep the payload small; pass `fullResolution=true` for native resolution.
 - The SVG from `--annotate` maps node boxes by the screenshot scale factor automatically.
 
@@ -192,7 +192,7 @@ Prefer the **image-aware tap** to avoid manual conversion:
 
 ```bash
 # (360, 800) read from a 720x1600 image
-layout-inspector tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
+android-ui tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
 # -> image (360, 800) in 720x1600 -> device (540, 1200) on 1080x2400
 ```
 
@@ -216,12 +216,14 @@ If the agent got device coordinates from `find_elements` / `hit_test`, pass them
 
 | Variable | Purpose |
 |---|---|
-| `DLI_ADB` / `ADB_PATH` / `--adb` | Path to `adb` |
+| `AUI_ADB` / `ADB_PATH` / `--adb` | Path to `adb` |
 | `ANDROID_SERIAL` / `--serial` | Target device when several are connected |
-| `DLI_ANDROID_STUDIO` / `--studio` | Android Studio installation (Compose inspection) |
-| `DLI_JAVA` / `--java` | Java used by the Compose helper |
-| `DLI_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
-| `DLI_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |
-| `DLI_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
-| `DLI_NO_OPEN=1` | Never launch a browser from `view` / `open_viewer` (still writes the HTML) |
-| `DLI_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |
+| `AUI_ANDROID_STUDIO` / `--studio` | Android Studio installation (Compose inspection) |
+| `AUI_JAVA` / `--java` | Java used by the Compose helper |
+| `AUI_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
+| `AUI_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |
+| `AUI_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
+| `AUI_NO_OPEN=1` | Never launch a browser from `view` / `open_viewer` (still writes the HTML) |
+| `AUI_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |
+| `AUI_JAVAC` / `AUI_JAR` | Compiler and jar tool used by `npm run build:helper` |
+| `AUI_GATE_DEBUG=1` | Append `PreToolUse` hook decisions to `aui-android-gate.log` in the temp directory |

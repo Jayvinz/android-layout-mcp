@@ -7,7 +7,7 @@ Routing regression suite for the four skills. It checks that a prompt activates 
 ```text
 evals/
 ├── README.md
-├── mocks/layout-inspector-android/   # fixed JSON result per MCP tool (<tool>.md, no frontmatter)
+├── mocks/android-ui/   # fixed JSON result per MCP tool (<tool>.md, no frontmatter)
 ├── fixtures/android-project/         # fake Android repo for scaffolded cases
 ├── trigger-*/                        # one case per routing scenario
 │   ├── prompt.md                     # user prompt + case frontmatter
@@ -18,7 +18,7 @@ evals/
 
 Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180`, and `tags: [trigger]`. The MCP server is mocked, so no device, adb, or Android Studio is needed.
 
-`mocks/layout-inspector-android/_tools.json` is a saved `tools/list` snapshot; it gives the mocked server the real tool names, descriptions, and schemas. Regenerate it after any `src/mcp.ts` change (rebuild `dist/` first) so the eval sees the shipped descriptions. If the file is absent, mocked tools fall back to a permissive schema with no description.
+`mocks/android-ui/_tools.json` is a saved `tools/list` snapshot; it gives the mocked server the real tool names, descriptions, and schemas. Regenerate it after any `src/mcp.ts` change (rebuild `dist/` first) so the eval sees the shipped descriptions. If the file is absent, mocked tools fall back to a permissive schema with no description.
 
 ## Running
 
@@ -44,7 +44,7 @@ The eval workspace is empty, so it is not an Android project. Existing positive 
 
 ## Runtime gate
 
-`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/dli-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/aui-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
 
 ## Scaffolded Android workspace
 

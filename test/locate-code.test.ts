@@ -27,7 +27,7 @@ interface LocatorResult {
 }
 
 async function fixtureRepo(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "dli-locate-"));
+  const root = await mkdtemp(join(tmpdir(), "aui-locate-"));
   const res = join(root, "app/src/main/res");
   const src = join(root, "app/src/main/java/demo/profile");
   await mkdir(join(res, "values"), { recursive: true });

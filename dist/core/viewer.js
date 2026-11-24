@@ -7,9 +7,9 @@ import { flattenNodes, serializeNode } from "./viewdump.js";
 export const VIEWER_BUDGET_BYTES = 8 * 1024 * 1024;
 export const DEFAULT_MAX_NODES = 4000;
 const MIN_NODES = 200;
-/** `<baseDir or cwd>/.dli/viewer.html`, using the platform separator. */
+/** `<baseDir or cwd>/.aui/viewer.html`, using the platform separator. */
 export function defaultViewerPath(baseDir) {
-    return join(baseDir ?? process.cwd(), ".dli", "viewer.html");
+    return join(baseDir ?? process.cwd(), ".aui", "viewer.html");
 }
 /** Builds the embedded JSON payload, enforcing the 8 MB budget. */
 export function viewerPayload(result, options = {}) {
@@ -61,13 +61,13 @@ export function renderViewerHtmlFromPayload(payload) {
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         `<meta http-equiv="Content-Security-Policy" content="${CSP}">`,
-        "<title>UI viewer</title>",
+        "<title>Android UI Inspector</title>",
         `<style>${VIEWER_CSS}</style>`,
         "</head>",
         "<body>",
         '<header id="app-header">',
         '  <div class="header-top">',
-        '    <h1 id="app-title">UI viewer</h1>',
+        '    <h1 id="app-title">Android UI Inspector</h1>',
         '    <div class="legend" aria-label="Overlay legend">',
         '      <span class="legend-item"><span class="swatch click"></span>clickable</span>',
         '      <span class="legend-item"><span class="swatch label"></span>labelled</span>',
@@ -121,7 +121,7 @@ export function renderViewerHtmlFromPayload(payload) {
         '    <div id="issues" class="issues" role="tabpanel" hidden></div>',
         "  </section>",
         "</main>",
-        `<script id="dli-data" type="application/json">${json}</script>`,
+        `<script id="aui-data" type="application/json">${json}</script>`,
         `<script>${VIEWER_SCRIPT}</script>`,
         "</body>",
         "</html>",
@@ -132,8 +132,8 @@ export function renderViewerHtmlFromPayload(payload) {
  * Never throws: failures come back as `{ opened: false, error }`.
  */
 export async function openInBrowser(filePath, options = {}) {
-    if (process.env.DLI_NO_OPEN === "1") {
-        return { opened: false, error: "disabled by DLI_NO_OPEN=1" };
+    if (process.env.AUI_NO_OPEN === "1") {
+        return { opened: false, error: "disabled by AUI_NO_OPEN=1" };
     }
     if (options.launcher) {
         try {
@@ -264,7 +264,7 @@ function payloadBytes(payload) {
 }
 function defaultTitle(result) {
     const packageName = result.target.packageName;
-    return packageName ? `${packageName} UI viewer` : "UI viewer";
+    return packageName ? `${packageName} Android UI Inspector` : "Android UI Inspector";
 }
 /**
  * Embedding JSON in a `<script>` block: `<` must not appear, or captured text
@@ -490,7 +490,7 @@ main {
 const VIEWER_SCRIPT = String.raw `
 (function () {
   "use strict";
-  var dataEl = document.getElementById("dli-data");
+  var dataEl = document.getElementById("aui-data");
   var payload = JSON.parse(dataEl.textContent);
   var meta = payload.meta || {};
   var trees = payload.trees || {};
@@ -563,7 +563,7 @@ const VIEWER_SCRIPT = String.raw `
 
   function initHeader() {
     if (meta.title) document.title = meta.title;
-    byId("app-title").textContent = meta.title || "UI viewer";
+    byId("app-title").textContent = meta.title || "Android UI Inspector";
     var parts = [];
     if (meta.device) {
       parts.push("device " + (meta.device.model || meta.device.serial || "?"));

@@ -28,12 +28,12 @@ If the user explicitly asks about a connected device screen/page but no Android 
 
 1. Confirm `adb` is available and the device is online: use MCP `list_devices`, or `adb devices`. If multiple devices are connected, choose a `serial` and pass the same one to `get_state` / `dump_ui` / `find_elements` / `hit_test` / `screenshot` / `tap`.
 2. Confirm the working directory is the target Android repository root; check `settings.gradle(.kts)`, `gradlew`, and `app/`. If you are not inside the repository, ask the user for the path or infer it from the nearest relevant module.
-3. The plugin MCP tools are provided by the `layout-inspector-android` server: `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `screenshot`, `analyze_ui`, `diff_ui`, `tap`, `swipe`.
+3. The plugin MCP tools are provided by the `android-ui` server: `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `screenshot`, `analyze_ui`, `diff_ui`, `tap`, `swipe`.
 4. If MCP is unavailable, fall back to the CLI:
    ```bash
-   mkdir -p .dli
+   mkdir -p .aui
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" state --json
-   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .dli/current.json
+   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .aui/current.json
    ```
    If `dist/` does not exist, the plugin has not been built. Tell the user to run `npm install && npm run build` in the plugin directory; do not fabricate results.
 5. The target app must be in the foreground. If the foreground package differs from the repository's applicationId, state the mismatch first so another app's UI is not mistaken for the target.

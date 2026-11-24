@@ -1,4 +1,4 @@
-package dli;
+package aui;
 
 import com.android.tools.idea.io.grpc.ManagedChannel;
 import com.android.tools.idea.io.grpc.ManagedChannelBuilder;
@@ -210,7 +210,7 @@ public final class ComposeInspectorHelper {
         .setCreateInspectorCommand(AppInspection.CreateInspectorCommand.newBuilder()
             .setDexPath(dexPath)
             .setLaunchMetadata(AppInspection.LaunchMetadata.newBuilder()
-                .setLaunchedByName("layout-inspector-android")
+                .setLaunchedByName("android-ui-inspector")
                 .setForce(true))
             .build())
         .build();

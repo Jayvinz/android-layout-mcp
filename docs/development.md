@@ -32,9 +32,12 @@ claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --ru
 
 - **`dist/` is intentionally committed**: GitHub marketplace installs copy the repository and start the MCP server from `dist/mcp.js` without a build step; `node_modules/` is not committed. After changing `src/`, run `npm run build` and commit the regenerated `dist/` (including `dist/*.d.ts`) together with the source; never hand-edit `dist/`.
 - **`package.json` is the only version source**: `scripts/sync-version.mjs` syncs the version into `.claude-plugin/plugin.json`; `npm version patch` triggers the sync automatically. See [plugin.md](plugin.md#versioning).
-- The repository is both an npm package (`layout-inspector-android`, binary `layout-inspector`) and a Claude Code plugin + marketplace (`jayvinz-tools`).
+- The repository is both an npm package (`android-ui-inspector`, binary `android-ui`) and a Claude Code plugin + marketplace (`jayvinz-tools`).
 - The module system is ESM (TypeScript `NodeNext`): relative imports in `src/` must use the `.js` extension.
-- Do not commit dumps or screenshots: they may contain device serials, package names, and screen text. `.dli/`, `dli-fallback-*.png`, and `*.annotated.svg` are already in `.gitignore`.
+- The `PreToolUse` Android-project gate lives in `hooks/hooks.json` + `hooks/aui-android-gate.mjs`; hooks load at session start, so restart Claude Code after changing them.
+- The Compose helper source is `helper/src/aui/ComposeInspectorHelper.java` and the committed build is `helper/aui-compose-helper.jar`; `npm run build:helper` regenerates the jar against the local Android Studio.
+- Expected failures are thrown as `AuiError` from `src/core/errors.ts` with a stable `code` and an optional user-facing `hint`.
+- Do not commit dumps or screenshots: they may contain device serials, package names, and screen text. `.aui/`, `aui-fallback-*.png`, and `*.annotated.svg` are already in `.gitignore`.
 
 ## Implementation notes
 
@@ -56,4 +59,4 @@ Hit testing follows the plugin's strategy: collect all nodes containing the coor
 
 ### Compose tree
 
-The Compose tree goes through a standalone Java helper (`helper/src/dli/ComposeInspectorHelper.java`) bridging Android Studio's transport/JVMTI/inspector artifacts; its JSON output is converted into the unified node tree. On-device details, caching, and prerequisites are documented in [data-sources.md](data-sources.md#compose-jvmti-tree-android-studio-level).
+The Compose tree goes through a standalone Java helper (`helper/src/aui/ComposeInspectorHelper.java`) bridging Android Studio's transport/JVMTI/inspector artifacts; its JSON output is converted into the unified node tree. On-device details, caching, and prerequisites are documented in [data-sources.md](data-sources.md#compose-jvmti-tree-android-studio-level).

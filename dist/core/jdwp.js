@@ -1,5 +1,5 @@
 import net from "node:net";
-import { DliError, errorMessage } from "./errors.js";
+import { AuiError, errorMessage } from "./errors.js";
 const JDWP_HANDSHAKE = Buffer.from("JDWP-Handshake", "ascii");
 const DDMS_CMD_SET = 0xc7;
 const DDMS_CMD = 0x01;
@@ -54,7 +54,7 @@ export class JdwpClient {
         catch (error) {
             socket.destroy();
             await adb.removeForward(port);
-            throw new DliError("JDWP_FAILED", `Could not connect to the app over JDWP: ${errorMessage(error)}`, "Make sure the app is running and debuggable. Use --source semantics for non-debuggable apps.");
+            throw new AuiError("JDWP_FAILED", `Could not connect to the app over JDWP: ${errorMessage(error)}`, "Make sure the app is running and debuggable. Use --source semantics for non-debuggable apps.");
         }
         const client = new JdwpClient(socket, port, adb, options);
         try {
@@ -74,7 +74,7 @@ export class JdwpClient {
             this.handshakeResolve = resolve;
             this.handshakeReject = reject;
             this.handshakeTimer = setTimeout(() => {
-                this.failHandshake(new DliError("JDWP_FAILED", "Timed out waiting for the JDWP handshake.", "The process may not be debuggable, or another debugger is attached."));
+                this.failHandshake(new AuiError("JDWP_FAILED", "Timed out waiting for the JDWP handshake.", "The process may not be debuggable, or another debugger is attached."));
             }, timeoutMs);
             this.socket.write(JDWP_HANDSHAKE);
             // The response may have arrived synchronously with the write.
@@ -87,7 +87,7 @@ export class JdwpClient {
         if (this.rx.length < JDWP_HANDSHAKE.length)
             return;
         if (!this.rx.subarray(0, JDWP_HANDSHAKE.length).equals(JDWP_HANDSHAKE)) {
-            this.failHandshake(new DliError("JDWP_FAILED", "The device rejected the JDWP handshake."));
+            this.failHandshake(new AuiError("JDWP_FAILED", "The device rejected the JDWP handshake."));
             return;
         }
         this.rx = this.rx.subarray(JDWP_HANDSHAKE.length);
@@ -156,7 +156,7 @@ export class JdwpClient {
     }
     writePacket(commandSet, command, payload, id) {
         if (this.closed)
-            throw new DliError("JDWP_FAILED", "JDWP connection is closed.");
+            throw new AuiError("JDWP_FAILED", "JDWP connection is closed.");
         const header = Buffer.alloc(11);
         header.writeUInt32BE(11 + payload.length, 0);
         header.writeUInt32BE(id, 4);
@@ -176,7 +176,7 @@ export class JdwpClient {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.pending.delete(id);
-                reject(new DliError("TIMEOUT", "Timed out waiting for a response from the app over JDWP."));
+                reject(new AuiError("TIMEOUT", "Timed out waiting for a response from the app over JDWP."));
             }, this.requestTimeoutMs);
             this.pending.set(id, { resolve, reject, timer });
         });
@@ -199,7 +199,7 @@ export class JdwpClient {
     }
     parseChunkReply(payload) {
         if (payload.length < 8) {
-            throw new DliError("JDWP_FAILED", "Received a truncated DDM chunk from the app.");
+            throw new AuiError("JDWP_FAILED", "Received a truncated DDM chunk from the app.");
         }
         const type = payload.subarray(0, 4).toString("ascii");
         const length = payload.readUInt32BE(4);
@@ -214,10 +214,10 @@ export class JdwpClient {
             catch {
                 // keep default message
             }
-            throw new DliError("VIEW_DUMP_FAILED", message);
+            throw new AuiError("VIEW_DUMP_FAILED", message);
         }
         if (data.length !== length) {
-            throw new DliError("JDWP_FAILED", `Truncated ${type} chunk received from the app.`);
+            throw new AuiError("JDWP_FAILED", `Truncated ${type} chunk received from the app.`);
         }
         return Buffer.concat([Buffer.from(type, "ascii"), data]);
     }
@@ -226,7 +226,7 @@ export class JdwpClient {
         const type = reply.subarray(0, 4).toString("ascii");
         const data = reply.subarray(4);
         if (type !== CHUNK_VULW) {
-            throw new DliError("JDWP_FAILED", `Unexpected DDM reply "${type}" for window list.`);
+            throw new AuiError("JDWP_FAILED", `Unexpected DDM reply "${type}" for window list.`);
         }
         const count = data.readInt32BE(0);
         let offset = 4;
@@ -262,7 +262,7 @@ export class JdwpClient {
         const reply = await this.ddm(CHUNK_VURT, payload);
         const type = reply.subarray(0, 4).toString("ascii");
         if (type !== CHUNK_VURT) {
-            throw new DliError("VIEW_DUMP_FAILED", `Unexpected DDM reply "${type}" for view dump.`);
+            throw new AuiError("VIEW_DUMP_FAILED", `Unexpected DDM reply "${type}" for view dump.`);
         }
         return reply.subarray(4);
     }

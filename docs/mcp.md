@@ -11,9 +11,9 @@ Claude Code (`.mcp.json` at the project root):
 ```json
 {
   "mcpServers": {
-    "layout-inspector-android": {
+    "android-ui": {
       "command": "node",
-      "args": ["E:/repo/layout-inspector-android/dist/mcp.js"]
+      "args": ["E:/repo/android-ui-inspector/dist/mcp.js"]
     }
   }
 }
@@ -22,10 +22,10 @@ Claude Code (`.mcp.json` at the project root):
 Or with the CLI:
 
 ```bash
-claude mcp add layout-inspector-android -- node E:/repo/layout-inspector-android/dist/mcp.js
+claude mcp add android-ui -- node E:/repo/android-ui-inspector/dist/mcp.js
 ```
 
-(Examples use the repository name `layout-inspector-android` in the path; substitute your actual directory if different.)
+(Examples use the repository name `android-ui-inspector` in the path; substitute your actual directory if different.)
 
 The MCP server also accepts the Compose-related flags: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
 
@@ -34,10 +34,10 @@ Multiple devices / custom adb:
 ```json
 {
   "mcpServers": {
-    "layout-inspector-android": {
+    "android-ui": {
       "command": "node",
       "args": [
-        "E:/repo/layout-inspector-android/dist/mcp.js",
+        "E:/repo/android-ui-inspector/dist/mcp.js",
         "--serial", "<serial>",
         "--adb", "D:/Android/Sdk/platform-tools/adb.exe",
         "--timeout", "30000"
@@ -77,7 +77,7 @@ When installed through the Claude Code plugin no manual configuration is needed:
 5. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
 6. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
 
-`open_viewer` is outside this order: call it only on an explicit visual request such as "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", or "open the UI viewer". It opens a browser window as a visible side effect, so `dump_ui`, `find_elements`, `analyze_ui`, `screenshot`, `diff_ui`, and verification must not call it. Pass `open=false` (or set `DLI_NO_OPEN=1`) to write the HTML without launching a browser; the tool returns `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`.
+`open_viewer` is outside this order: call it only on an explicit visual request such as "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", or "open the UI viewer". It opens a browser window as a visible side effect, so `dump_ui`, `find_elements`, `analyze_ui`, `screenshot`, `diff_ui`, and verification must not call it. Pass `open=false` (or set `AUI_NO_OPEN=1`) to write the HTML without launching a browser; the tool returns `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`.
 
 ### Summarizing the current screen
 
@@ -103,7 +103,7 @@ get_state → dump_ui(source="auto", format="tree") → (separate dialog window)
 → locate_code → read candidate files → ViewModel/state → Repository/API/cache → state/data chain with confirmed|inferred hops
 ```
 
-Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `analyze-screen-logic` skill and `/layout-inspector-android:analyze-screen` command encode this workflow.
+Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `analyze-screen-logic` skill and `/android-ui:analyze-screen` command encode this workflow.
 
 ## Environment variables
 

@@ -23,7 +23,7 @@ If the user explicitly asks about a connected device screen/page but no Android 
 ## Prerequisites
 
 - The target app is installed and in the foreground; the package matches this build.
-- MCP `layout-inspector-android` is available. If not, fall back to:
+- MCP `android-ui` is available. If not, fall back to:
   ```bash
   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out before.json
   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" diff before.json after.json
@@ -35,10 +35,10 @@ If the user explicitly asks about a connected device screen/page but no Android 
 Before modifying code or rebuilding:
 
 ```text
-dump_ui(source="auto", savePath=".dli/before.json", format="json")
+dump_ui(source="auto", savePath=".aui/before.json", format="json")
 ```
 
-- Save under `.dli/` inside the repository (create it if needed) and remind the user that the file may contain device information and must not be committed.
+- Save under `.aui/` inside the repository (create it if needed) and remind the user that the file may contain device information and must not be committed.
 - Also record from `get_state`: package, Activity, screen size/density, and `uiKind`.
 - If the change affects a scrollable page, scroll to the target area before dumping; otherwise before/after may not show the same screen.
 - If the page animates or loads asynchronously, wait for it to settle first (use `screenshot` to confirm).
@@ -48,7 +48,7 @@ dump_ui(source="auto", savePath=".dli/before.json", format="json")
 Rebuild, reinstall, and return to the same page and scroll position:
 
 ```text
-dump_ui(source="auto", savePath=".dli/after.json", format="json")
+dump_ui(source="auto", savePath=".aui/after.json", format="json")
 ```
 
 - `uiKind` must match the baseline. If it changes from `xml` to `mixed`/`compose`, the structure changed fundamentally and the diff may not be comparable.
@@ -57,7 +57,7 @@ dump_ui(source="auto", savePath=".dli/after.json", format="json")
 ## Step 3 — Structured comparison
 
 ```text
-diff_ui(beforePath=".dli/before.json", afterPath=".dli/after.json")
+diff_ui(beforePath=".aui/before.json", afterPath=".aui/after.json")
 ```
 
 - Focus on `added` / `removed` / `changed` and the `text` summary.
@@ -88,7 +88,7 @@ Report only issues related to this change; do not count pre-existing problems as
 When needed:
 
 ```text
-screenshot(savePath=".dli/after.png", annotate=true)
+screenshot(savePath=".aui/after.png", annotate=true)
 ```
 
 - The default width is 720px; these are image coordinates, not device coordinates. Use the returned `coordinateMapping`, or `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`.
@@ -137,4 +137,4 @@ Pass / Regression found / Could not verify (reason)
 - Diff conclusions must cite node refs/paths or text; "the layout looks fine" is not evidence.
 - Separate expected changes from regressions; do not report legitimate copy/safe-area shifts as bugs.
 - Do not modify code. When a regression is found, provide locating clues (ref, bounds, likely layout/Composable).
-- Remind the user not to commit `.dli/` artifacts.
+- Remind the user not to commit `.aui/` artifacts.

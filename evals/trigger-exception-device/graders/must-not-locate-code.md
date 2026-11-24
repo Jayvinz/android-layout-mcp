@@ -1,7 +1,7 @@
 ---
 type: tool_used
 arm: both
-tool: mcp__plugin_layout-inspector-android_layout-inspector-android__locate_code
+tool: mcp__plugin_android-ui_android-ui__locate_code
 min: 0
 max: 0
 ---

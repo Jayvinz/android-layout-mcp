@@ -2,7 +2,7 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`layout-inspector` can capture a live Android screen through three sources:
+`android-ui` can capture a live Android screen through three sources:
 
 | Source | How it works | Requires | Best for |
 |---|---|---|---|
@@ -74,35 +74,35 @@ s43 TextView "开拍" / s44 Button ...          ← the semantics source has rea
 
 ## Studio / JDK compatibility
 
-- **Studio version**: no fixed install path is assumed; the version is read from `product-info.json` / `build.txt`, and `layout-inspector studio` shows the build. Protobuf/gRPC class names and inspector protos may differ across versions, so the helper no longer relies only on a prebuilt jar: on first use with a given Studio build, the helper is recompiled with that Studio's own JBR `javac`/`jar` against its `plugins/android/lib/*.jar`, and cached under `~/.cache/layout-inspector-android/helper/<key>/` keyed by `Studio build + helper source hash + compiler version`.
-- **JDK version**: the Java selection order is `--java` → `DLI_JAVA` → `JAVA_HOME` → Studio JBR → `PATH`. Helper compilation prefers the `javac`/`jar` in the **same directory as the runtime Java** to avoid class file version mismatches; without a compiler it falls back to the bundled helper. Measured:
+- **Studio version**: no fixed install path is assumed; the version is read from `product-info.json` / `build.txt`, and `android-ui studio` shows the build. Protobuf/gRPC class names and inspector protos may differ across versions, so the helper no longer relies only on a prebuilt jar: on first use with a given Studio build, the helper is recompiled with that Studio's own JBR `javac`/`jar` against its `plugins/android/lib/*.jar`, and cached under `~/.cache/android-ui/helper/<key>/` keyed by `Studio build + helper source hash + compiler version`.
+- **JDK version**: the Java selection order is `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → `PATH`. Helper compilation prefers the `javac`/`jar` in the **same directory as the runtime Java** to avoid class file version mismatches; without a compiler it falls back to the committed helper jar `helper/aui-compose-helper.jar`. Measured:
   - Studio JBR 25 → helper class 69, runs;
   - Microsoft OpenJDK 17 (via `--java`) → compiles class 61 with its own `javac`, runs.
 - With other JBR/JDK builds:
 
   ```bash
-  layout-inspector dump --source compose --java "C:/path/to/jdk/bin/java.exe"
+  android-ui dump --source compose --java "C:/path/to/jdk/bin/java.exe"
   ```
 
-  or provide a precompiled helper explicitly: `DLI_COMPOSE_HELPER_JAR=/path/to/helper.jar`.
+  or provide a precompiled helper explicitly: `AUI_COMPOSE_HELPER_JAR=/path/to/helper.jar`.
 - Compatibility boundary: if the Studio build is too old, missing artifacts such as `layout_inspector_compose_java_proto.jar`, or the Compose inspector proto lacks required messages, helper compilation fails with a hint; upgrade Studio, rebuild with `npm run build:helper` against a compatible Studio, or fall back to `source=semantics`. Currently tested: Android Studio `AI-262.10968.63.2622.16840690` (JBR 25).
 
 ## Compose JVMTI tree (Android Studio level)
 
 ```bash
-layout-inspector dump --source compose --depth 10
-layout-inspector find 推荐 --source compose
-layout-inspector hit 540 2239 --source compose
-layout-inspector analyze --source compose
-layout-inspector dump --source compose --json --out ui.json
+android-ui dump --source compose --depth 10
+android-ui find 推荐 --source compose
+android-ui hit 540 2239 --source compose
+android-ui analyze --source compose
+android-ui dump --source compose --json --out ui.json
 ```
 
 Prerequisites:
 
 - The app is a debuggable build (`android:debuggable=true`);
-- Android Studio installed locally (auto-detected by default; set `DLI_ANDROID_STUDIO` or `--studio` to point at one). Detection order: `--studio`/env var → **the running `studio64.exe`/`studio` process path** → common install paths. The Studio the developer is actually using wins (covers custom/Toolbox installs); `layout-inspector studio` shows the matched path and its source;
-- Java 17+ (the Studio-bundled JBR is preferred; set `DLI_JAVA` or `--java` to override);
-- The Compose inspector jar is downloaded and cached at version **1.8.3** under `~/.cache/layout-inspector-android/` by default; if the app's Compose version differs, set `DLI_COMPOSE_VERSION` or `DLI_COMPOSE_INSPECTOR_JAR`;
+- Android Studio installed locally (auto-detected by default; set `AUI_ANDROID_STUDIO` or `--studio` to point at one). Detection order: `--studio`/env var → **the running `studio64.exe`/`studio` process path** → common install paths. The Studio the developer is actually using wins (covers custom/Toolbox installs); `android-ui studio` shows the matched path and its source;
+- Java 17+ (the Studio-bundled JBR is preferred; set `AUI_JAVA` or `--java` to override);
+- The Compose inspector jar is downloaded and cached at version **1.8.3** under `~/.cache/android-ui/` by default; if the app's Compose version differs, set `AUI_COMPOSE_VERSION` or `AUI_COMPOSE_INSPECTOR_JAR`;
 - API 29+ only (required by the Compose inspector), and the app must be in the foreground.
 
 The implementation reuses the artifacts bundled with Android Studio:
@@ -113,7 +113,7 @@ The implementation reuses the artifacts bundled with Android Studio:
 - `inspector.jar` from the Compose `ui-android` AAR
 - Studio's `transport/app_inspection/view_layout_inspection/compose_layout_inspection` protos
 
-The CLI pushes the daemon/agent, installs the inspector jar via `run-as`, attaches the agent, and drives the View inspector over gRPC (root view id only, screenshots disabled to avoid a 78MB SKP memory peak) plus the Compose inspector. The daemon stays resident in `/data/local/tmp/dli-compose` and is reused by later calls; `layout-inspector compose-clean` stops it and removes the on-device files.
+The CLI pushes the daemon/agent, installs the inspector jar via `run-as`, attaches the agent, and drives the View inspector over gRPC (root view id only, screenshots disabled to avoid a 78MB SKP memory peak) plus the Compose inspector. The daemon stays resident in `/data/local/tmp/aui-compose` and is reused by later calls; `android-ui compose-clean` stops it and removes the on-device files.
 
 Android Studio detection: explicit config → the running process's executable path → standard install paths. Process detection results are cached **for 1 hour** inside long-lived MCP processes; on Windows the first probe costs about 1.5–2s due to PowerShell startup, and later probes reuse the cache.
 
@@ -151,7 +151,7 @@ On mixed screens `auto` captures and shows both view + semantics and makes `find
 
 - `view` requires `android:debuggable=true`; release/non-debuggable builds can only use `semantics`.
 - JDWP usually allows one debugger at a time; attach may fail while Android Studio is debugging.
-- `compose` additionally requires a local Android Studio, Java 17+, the app in the foreground, and a matching Compose inspector jar; each capture takes about 8–12s and leaves a resident transport daemon on the device (`layout-inspector compose-clean` cleans it up).
+- `compose` additionally requires a local Android Studio, Java 17+, the app in the foreground, and a matching Compose inspector jar; each capture takes about 8–12s and leaves a resident transport daemon on the device (`android-ui compose-clean` cleans it up).
 - Without Android Studio, Compose is still available via `semantics` (zero dependencies; text/click semantics work).
 - Some ROMs (e.g. MIUI) report an accessibility window shorter than the real screen through uiautomator, clipping bottom nodes; `analyze` skips touch-target measurement in that case, but `hit` still works (the center point stays inside the control).
 - `input text` reliably supports ASCII only; Chinese input needs an extra IME (e.g. ADBKeyboard).

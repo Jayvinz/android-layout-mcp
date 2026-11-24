@@ -4,15 +4,15 @@ node_modules/
 *.tmp
 .tmp-*
 /screenshot*.png
-/layout-inspector-android-*.tgz
+/android-ui-inspector-*.tgz
 *.annotated.svg
 .idea/
 .vscode/
 DS_Store
 
 helper/build/
-/dli-fallback-*.png
-.dli/
+/aui-fallback-*.png
+.aui/
 .tmp-locate/
 .workbuddy/
 evals/results/

@@ -6,10 +6,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const hook = fileURLToPath(new URL("../hooks/dli-android-gate.mjs", import.meta.url));
+const hook = fileURLToPath(new URL("../hooks/aui-android-gate.mjs", import.meta.url));
 
 function makeWorkspace(android: boolean): string {
-  const root = mkdtempSync(join(tmpdir(), "dli-gate-"));
+  const root = mkdtempSync(join(tmpdir(), "aui-gate-"));
   const project = join(root, "project");
   mkdirSync(project);
   if (android) writeFileSync(join(project, "settings.gradle.kts"), "");
@@ -35,7 +35,7 @@ function decide(project: string, prompt: string, tool: string, injected?: string
   writeFileSync(transcript, `${lines.join("\n")}\n`);
   const result = spawnSync(process.execPath, [hook], {
     input: JSON.stringify({
-      tool_name: `mcp__plugin_layout-inspector-android_layout-inspector-android__${tool}`,
+      tool_name: `mcp__plugin_android-ui_android-ui__${tool}`,
       cwd: project,
       transcript_path: transcript,
     }),
@@ -93,7 +93,7 @@ test("ignores plugin-name context in later user turns", () => {
         project,
         "分析当前界面的代码",
         "get_state",
-        "layout-inspector-android: MCP server layout-inspector-android is available for Android work.",
+        "android-ui: MCP server android-ui is ready. Commands: /android-ui:screen, /android-ui:locate.",
       ),
       "deny",
     );

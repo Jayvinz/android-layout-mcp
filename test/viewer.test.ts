@@ -54,7 +54,7 @@ function hasTruncatedPlaceholder(nodes: unknown[]): boolean {
 test("renders one self-contained document with fixture data and no external URLs", () => {
   assert.ok(html.startsWith("<!doctype html>"));
   assert.ok(html.trimEnd().endsWith("</html>"));
-  assert.ok(html.includes('<script id="dli-data" type="application/json">'));
+  assert.ok(html.includes('<script id="aui-data" type="application/json">'));
   assert.ok(html.includes("data:image/png;base64,"));
   assert.ok(html.includes("Content-Security-Policy"));
   assert.ok(html.includes('connect-src \'none\''));
@@ -65,7 +65,7 @@ test("renders one self-contained document with fixture data and no external URLs
 });
 
 test("embedded payload round-trips node counts and screenshot metadata", () => {
-  const match = /<script id="dli-data" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+  const match = /<script id="aui-data" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
   assert.ok(match, "expected the embedded JSON block");
   const payload = JSON.parse(match[1]) as ViewerPayload;
   assert.equal(payload.meta.version, 1);
@@ -114,7 +114,7 @@ test("renders a tree-only viewer when the screenshot is missing", () => {
   const treeOnlyHtml = renderViewerHtmlFromPayload(payload);
   assert.ok(treeOnlyHtml.includes("Screenshot unavailable"));
   assert.ok(treeOnlyHtml.includes("开拍"));
-  assert.ok(treeOnlyHtml.includes('<script id="dli-data" type="application/json">'));
+  assert.ok(treeOnlyHtml.includes('<script id="aui-data" type="application/json">'));
 });
 
 test("records per-tree truncation when maxNodes is reached", () => {
@@ -143,11 +143,11 @@ test("maps downscaled image pixels back to device pixels", () => {
   assert.deepEqual(payload.screenshot!.imageToDevice, { x: 2, y: 2 });
 });
 
-test("DLI_NO_OPEN=1 disables browser launch", async () => {
-  const previous = process.env.DLI_NO_OPEN;
+test("AUI_NO_OPEN=1 disables browser launch", async () => {
+  const previous = process.env.AUI_NO_OPEN;
   let launcherCalled = false;
   try {
-    process.env.DLI_NO_OPEN = "1";
+    process.env.AUI_NO_OPEN = "1";
     const result = await openInBrowser(defaultViewerPath(), {
       launcher: async () => {
         launcherCalled = true;
@@ -155,27 +155,27 @@ test("DLI_NO_OPEN=1 disables browser launch", async () => {
     });
     assert.equal(result.opened, false);
     assert.equal(launcherCalled, false);
-    assert.match(result.error ?? "", /DLI_NO_OPEN/);
+    assert.match(result.error ?? "", /AUI_NO_OPEN/);
   } finally {
-    if (previous === undefined) delete process.env.DLI_NO_OPEN;
-    else process.env.DLI_NO_OPEN = previous;
+    if (previous === undefined) delete process.env.AUI_NO_OPEN;
+    else process.env.AUI_NO_OPEN = previous;
   }
 });
 
 test("an injected launcher reports the open result without spawning", async () => {
-  const previous = process.env.DLI_NO_OPEN;
-  delete process.env.DLI_NO_OPEN;
+  const previous = process.env.AUI_NO_OPEN;
+  delete process.env.AUI_NO_OPEN;
   try {
     const result = await openInBrowser(defaultViewerPath(), { launcher: async () => undefined });
     assert.equal(result.opened, true);
     assert.equal(result.browser, "custom");
   } finally {
-    if (previous !== undefined) process.env.DLI_NO_OPEN = previous;
+    if (previous !== undefined) process.env.AUI_NO_OPEN = previous;
   }
 });
 
-test("defaultViewerPath points at .dli/viewer.html", () => {
+test("defaultViewerPath points at .aui/viewer.html", () => {
   const path = defaultViewerPath("/tmp/base");
   const tail = path.split(/[\\/]/).slice(-2).join("/");
-  assert.equal(tail, ".dli/viewer.html");
+  assert.equal(tail, ".aui/viewer.html");
 });

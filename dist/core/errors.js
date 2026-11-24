@@ -1,16 +1,16 @@
-export class DliError extends Error {
+export class AuiError extends Error {
     code;
     hint;
     constructor(code, message, hint) {
         super(message);
-        this.name = "DliError";
+        this.name = "AuiError";
         this.code = code;
         this.hint = hint;
     }
 }
 export function errorMessage(error) {
     if (error instanceof Error) {
-        if (error instanceof DliError && error.hint) {
+        if (error instanceof AuiError && error.hint) {
             return `${error.message}\nHint: ${error.hint}`;
         }
         return error.message;

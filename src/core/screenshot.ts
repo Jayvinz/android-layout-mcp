@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { PNG } from "pngjs";
 import type { Adb } from "./adb.js";
-import { DliError } from "./errors.js";
+import { AuiError } from "./errors.js";
 import type { UiNode } from "./model.js";
 
 export interface Screenshot {
@@ -89,7 +89,7 @@ export function imageToDevicePoint(
   deviceHeight: number,
 ): { x: number; y: number } {
   if (imageWidth <= 0 || imageHeight <= 0 || deviceWidth <= 0 || deviceHeight <= 0) {
-    throw new DliError("BAD_INPUT", "Image and device dimensions must be positive.");
+    throw new AuiError("BAD_INPUT", "Image and device dimensions must be positive.");
   }
   return {
     x: Math.round((imageX * deviceWidth) / imageWidth),
@@ -127,7 +127,7 @@ export function downscalePng(
   try {
     png = PNG.sync.read(buffer);
   } catch (error) {
-    throw new DliError("SCREENSHOT_FAILED", `Could not decode the device screenshot: ${String(error)}`);
+    throw new AuiError("SCREENSHOT_FAILED", `Could not decode the device screenshot: ${String(error)}`);
   }
   const source = png.data;
   const target = Buffer.alloc(targetWidth * targetHeight * 4);
@@ -180,7 +180,7 @@ function bucketRanges(sourceSize: number, targetSize: number): Array<[number, nu
 
 export function pngSize(buffer: Buffer): { width: number; height: number } {
   if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47) {
-    throw new DliError("SCREENSHOT_FAILED", "The device did not return a PNG screenshot.");
+    throw new AuiError("SCREENSHOT_FAILED", "The device did not return a PNG screenshot.");
   }
   return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }

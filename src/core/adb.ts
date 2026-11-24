@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
-import { DliError } from "./errors.js";
+import { AuiError } from "./errors.js";
 import type { DeviceInfo, ForegroundApp, ScreenInfo } from "./model.js";
 
 const execFileAsync = promisify(execFile);
@@ -23,7 +23,7 @@ export class Adb {
   readonly defaultTimeoutMs: number;
 
   constructor(options: AdbOptions = {}) {
-    this.adbPath = options.adbPath || process.env.DLI_ADB || process.env.ADB_PATH || "adb";
+    this.adbPath = options.adbPath || process.env.AUI_ADB || process.env.ADB_PATH || "adb";
     this.serial = options.serial || process.env.ANDROID_SERIAL || undefined;
     this.defaultTimeoutMs = options.timeoutMs ?? 30_000;
   }
@@ -65,17 +65,17 @@ export class Adb {
           : `${err.stdout ?? ""}${err.stderr ?? ""}`;
       }
       if (err.code === "ENOENT") {
-        throw new DliError(
+        throw new AuiError(
           "ADB_NOT_FOUND",
           `Could not run "${this.adbPath}".`,
-          "Install Android platform-tools or set DLI_ADB to the full path of adb.",
+          "Install Android platform-tools or set AUI_ADB to the full path of adb.",
         );
       }
       const stderr = (err.stderr || "").trim();
       if (/timeout/i.test(stderr) || err.killed) {
-        throw new DliError("TIMEOUT", `adb ${extra.join(" ")} timed out.`, "Retry or increase --timeout.");
+        throw new AuiError("TIMEOUT", `adb ${extra.join(" ")} timed out.`, "Retry or increase --timeout.");
       }
-      throw new DliError(
+      throw new AuiError(
         "ADB_FAILED",
         `adb ${extra.map(quote).join(" ")} failed: ${stderr || err.message}`,
       );
@@ -168,7 +168,7 @@ export class Adb {
     if (serial) {
       const match = ready.find((d) => d.serial === serial);
       if (!match) {
-        throw new DliError(
+        throw new AuiError(
           "NO_DEVICE",
           `Device "${serial}" is not connected (ready devices: ${ready.map((d) => d.serial).join(", ") || "none"}).`,
         );
@@ -176,14 +176,14 @@ export class Adb {
       return match;
     }
     if (ready.length === 0) {
-      throw new DliError(
+      throw new AuiError(
         "NO_DEVICE",
         "No ready Android device or emulator found.",
-        "Connect a device, start an emulator, or run `dli devices` to see available devices.",
+        "Connect a device, start an emulator, or run `android-ui devices` to see available devices.",
       );
     }
     if (ready.length > 1) {
-      throw new DliError(
+      throw new AuiError(
         "MULTIPLE_DEVICES",
         `Multiple devices are connected: ${ready.map((d) => d.serial).join(", ")}.`,
         "Pass --serial <serial> or set ANDROID_SERIAL.",
@@ -314,7 +314,7 @@ export class Adb {
     const text = await this.out(["forward", "tcp:0", `jdwp:${pid}`], { timeoutMs: 15_000 });
     const port = Number.parseInt(text.trim(), 10);
     if (!Number.isFinite(port) || port <= 0) {
-      throw new DliError(
+      throw new AuiError(
         "JDWP_FAILED",
         `adb refused to forward jdwp:${pid}: ${text.trim()}`,
         "The app may not be debuggable. Use --source semantics for a UI dump of non-debuggable apps.",
@@ -327,7 +327,7 @@ export class Adb {
     const text = await this.out(["forward", "tcp:0", `localabstract:${socketName}`], { timeoutMs: 15_000 });
     const port = Number.parseInt(text.trim(), 10);
     if (!Number.isFinite(port) || port <= 0) {
-      throw new DliError("COMPOSE_FAILED", `adb could not forward localabstract:${socketName}: ${text.trim()}`);
+      throw new AuiError("COMPOSE_FAILED", `adb could not forward localabstract:${socketName}: ${text.trim()}`);
     }
     return port;
   }

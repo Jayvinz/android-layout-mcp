@@ -1,7 +1,7 @@
 ---
 type: tool_used
 arm: both
-tool: mcp__plugin_layout-inspector-android_layout-inspector-android__get_state
+tool: mcp__plugin_android-ui_android-ui__get_state
 min: 0
 max: 0
 ---

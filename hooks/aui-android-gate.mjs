@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PreToolUse gate for the layout-inspector MCP tools.
+ * PreToolUse gate for the android-ui MCP tools.
  *
  * The plugin's activation paths target Android projects. This hook is a hard
  * backstop for the skill prose: when the workspace is not an Android project,
@@ -16,9 +16,9 @@ import { dirname, join, resolve } from "node:path";
 const GATED_TOOLS = /(?:^|__)(get_state|dump_ui|find_elements|locate_code|open_viewer)$/;
 
 function debug(value) {
-  if (process.env.DLI_GATE_DEBUG !== "1") return;
+  if (process.env.AUI_GATE_DEBUG !== "1") return;
   try {
-    appendFileSync(join(tmpdir(), "dli-android-gate.log"), `${JSON.stringify(value)}\n`);
+    appendFileSync(join(tmpdir(), "aui-android-gate.log"), `${JSON.stringify(value)}\n`);
   } catch {
     // Debug logging must never affect the decision.
   }
@@ -93,7 +93,7 @@ function isGenuinePrompt(text) {
   // Plugin context, skill bodies, and other injected text are long and/or
   // mention the plugin itself; the user's prompt does not.
   if (trimmed.length > 500) return false;
-  if (/layout-inspector|mcp__plugin/i.test(trimmed)) return false;
+  if (/mcp__plugin|\/android-ui:/i.test(trimmed)) return false;
   return true;
 }
 

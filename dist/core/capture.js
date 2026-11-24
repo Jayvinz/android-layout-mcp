@@ -1,5 +1,5 @@
 import { captureComposeTree } from "./compose.js";
-import { DliError, errorMessage } from "./errors.js";
+import { AuiError, errorMessage } from "./errors.js";
 import { JdwpClient } from "./jdwp.js";
 import { parseSemanticsXml } from "./semantics.js";
 import { flattenNodes, parseViewHierarchy } from "./viewdump.js";
@@ -65,7 +65,7 @@ export async function capture(options) {
     const [screen, foreground] = await Promise.all([adb.screenInfo(), adb.foregroundApp()]);
     const packageName = options.packageName || foreground.packageName;
     if (!packageName) {
-        throw new DliError("BAD_INPUT", "Could not determine the foreground app package.", "Pass --package <package> or make sure an app is in the foreground.");
+        throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.", "Pass --package <package> or make sure an app is in the foreground.");
     }
     progress(`foreground ${packageName}${foreground.activity ? `/${foreground.activity}` : ""}`);
     const target = {
@@ -121,7 +121,7 @@ export async function capture(options) {
     }
     if (wantCompose) {
         if (target.pid === null) {
-            throw new DliError("NO_PID", `Package ${packageName} is not running; Compose inspection needs a live process.`);
+            throw new AuiError("NO_PID", `Package ${packageName} is not running; Compose inspection needs a live process.`);
         }
         const result = await captureComposeTree({
             adb,
@@ -146,7 +146,7 @@ export async function capture(options) {
         progress(`captured Compose tree (${flattenNodes(result.roots).length} nodes)`);
     }
     if (!viewResult && !semanticsResult && !composeResult) {
-        throw new DliError("VIEW_DUMP_FAILED", "Could not capture the UI from the device.", warnings.join(" | "));
+        throw new AuiError("VIEW_DUMP_FAILED", "Could not capture the UI from the device.", warnings.join(" | "));
     }
     const uiKind = composeResult && !viewResult
         ? "compose"
@@ -185,7 +185,7 @@ export async function capture(options) {
 }
 async function captureViewHierarchy(adb, target, screen, options) {
     if (target.pid === null) {
-        throw new DliError("NO_PID", "The app does not have a running process.");
+        throw new AuiError("NO_PID", "The app does not have a running process.");
     }
     const started = Date.now();
     const client = await JdwpClient.open(adb, target.pid, {
@@ -195,7 +195,7 @@ async function captureViewHierarchy(adb, target, screen, options) {
         const windows = await client.listWindows();
         target.windows = windows;
         if (windows.length === 0) {
-            throw new DliError("VIEW_DUMP_FAILED", "The app reported no windows.");
+            throw new AuiError("VIEW_DUMP_FAILED", "The app reported no windows.");
         }
         const candidates = chooseWindows(windows, options.window, target.packageName);
         let lastError = null;
@@ -208,7 +208,7 @@ async function captureViewHierarchy(adb, target, screen, options) {
                     includeProperties: options.includeProperties,
                 });
                 if (roots.length === 0) {
-                    lastError = new DliError("VIEW_DUMP_FAILED", "The view hierarchy was empty.");
+                    lastError = new AuiError("VIEW_DUMP_FAILED", "The view hierarchy was empty.");
                     continue;
                 }
                 target.selectedWindow = window.name;
@@ -220,7 +220,7 @@ async function captureViewHierarchy(adb, target, screen, options) {
         }
         throw lastError instanceof Error
             ? lastError
-            : new DliError("VIEW_DUMP_FAILED", "Could not capture any window.");
+            : new AuiError("VIEW_DUMP_FAILED", "Could not capture any window.");
     }
     finally {
         await client.close();
@@ -232,13 +232,13 @@ function chooseWindows(windows, requested, packageName) {
         if (/^\d+$/.test(requested) && Number.isFinite(index)) {
             const match = windows[index];
             if (!match) {
-                throw new DliError("BAD_INPUT", `Window index ${index} does not exist (0-${windows.length - 1}).`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
+                throw new AuiError("BAD_INPUT", `Window index ${index} does not exist (0-${windows.length - 1}).`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
             }
             return [match];
         }
         const matches = windows.filter((window) => window.name.includes(requested));
         if (matches.length === 0) {
-            throw new DliError("BAD_INPUT", `No window matches "${requested}".`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
+            throw new AuiError("BAD_INPUT", `No window matches "${requested}".`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
         }
         return matches;
     }
@@ -250,19 +250,19 @@ function chooseWindows(windows, requested, packageName) {
 }
 async function captureSemantics(adb, packageName, options) {
     const started = Date.now();
-    const remotePath = `/data/local/tmp/dli-${Date.now()}-${Math.floor(Math.random() * 1e6)}.xml`;
+    const remotePath = `/data/local/tmp/aui-${Date.now()}-${Math.floor(Math.random() * 1e6)}.xml`;
     try {
         const dump = await adb.shell(`uiautomator dump ${remotePath}`, {
             timeoutMs: options.requestTimeoutMs ?? 30_000,
             allowFailure: true,
         });
         if (/ERROR|could not|failed/i.test(dump) && !dump.includes("dumped to")) {
-            throw new DliError("SEMANTICS_FAILED", `uiautomator dump failed: ${dump.trim()}`);
+            throw new AuiError("SEMANTICS_FAILED", `uiautomator dump failed: ${dump.trim()}`);
         }
         const xml = await adb.shellRaw(`cat ${remotePath}`, { timeoutMs: 20_000 });
         const text = xml.toString("utf8");
         if (!text.includes("<hierarchy")) {
-            throw new DliError("SEMANTICS_FAILED", "uiautomator did not return a hierarchy.");
+            throw new AuiError("SEMANTICS_FAILED", "uiautomator did not return a hierarchy.");
         }
         const parsed = parseSemanticsXml(text, packageName);
         return { rotation: parsed.rotation, roots: parsed.roots, captureMs: Date.now() - started };
@@ -327,7 +327,7 @@ export function treesFor(result, source, both) {
         trees.push(["semantics", result.semantics.roots]);
     }
     if (trees.length === 0) {
-        throw new DliError("VIEW_DUMP_FAILED", `No ${mode} tree available.${result.warnings.length ? ` ${result.warnings.join(" | ")}` : ""}`, "Try source=semantics (works on non-debuggable apps) or source=auto.");
+        throw new AuiError("VIEW_DUMP_FAILED", `No ${mode} tree available.${result.warnings.length ? ` ${result.warnings.join(" | ")}` : ""}`, "Try source=semantics (works on non-debuggable apps) or source=auto.");
     }
     return trees;
 }

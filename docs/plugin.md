@@ -2,7 +2,7 @@
 
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
-The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`layout-inspector-android`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. The typical task it targets:
+The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-ui`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. The typical task it targets:
 
 > "Locate the **Me** button on the current screen and trace it to its related code logic."
 
@@ -10,12 +10,13 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 
 | Object | Name |
 |---|---|
-| GitHub repository | `Jayvinz/layout-inspector-android` |
+| Product | `Android UI Inspector` |
+| GitHub repository | `Jayvinz/android-ui-inspector` |
 | Marketplace | `jayvinz-tools` |
-| Plugin | `layout-inspector-android` |
-| npm package | `layout-inspector-android` |
-| MCP server | `layout-inspector-android` |
-| CLI command | `layout-inspector` |
+| Plugin | `android-ui` |
+| npm package name | `android-ui-inspector` (not published to the registry) |
+| MCP server | `android-ui` |
+| CLI command | `android-ui` |
 
 ## Components
 
@@ -26,9 +27,9 @@ The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/analyze-screen-logic/` | Whole-screen/dialog analysis: implementation, ViewModel/state, data sources, navigation, conditions, and side effects (read-only) |
 | Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
-| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `view.md`, `verify.md` | `/layout-inspector-android:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify` |
+| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `view.md`, `verify.md` | `/android-ui:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify` |
 | Agent | `agents/ui-code-locator.md` | Read-only UI→code locator subagent for isolating multi-step investigation in a subcontext |
-| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after installing or updating the plugin |
+| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
 
@@ -39,11 +40,11 @@ Prerequisites: Node.js ≥ 20, `adb` available; Compose JVMTI additionally needs
 **Install from the GitHub marketplace** (recommended for other users):
 
 ```text
-/plugin marketplace add Jayvinz/layout-inspector-android
-/plugin install layout-inspector-android@jayvinz-tools
+/plugin marketplace add Jayvinz/android-ui-inspector
+/plugin install android-ui@jayvinz-tools
 ```
 
-The repo root is both the marketplace and the first plugin: `.claude-plugin/marketplace.json` has `source: "./"`, the plugin is `layout-inspector-android`, the marketplace is `jayvinz-tools`. The npm package is `layout-inspector-android`; whether installed as a plugin or via npm, the CLI command is `layout-inspector`.
+The repo root is both the marketplace and the first plugin: `.claude-plugin/marketplace.json` has `source: "./"`, the plugin is `android-ui`, the marketplace is `jayvinz-tools`. The package name is `android-ui-inspector`, but it is not published to the npm registry: install the plugin, or `npm link` from a clone. Either way the CLI command is `android-ui`.
 
 On a GitHub install, Claude Code copies the plugin into its cache and installs Node dependencies from `package.json` + `package-lock.json` (no lifecycle scripts, 60s timeout). That is why `dist/` must be committed and `node_modules/` must not.
 
@@ -55,21 +56,21 @@ npm run build
 ```
 
 ```text
-/plugin marketplace add E:/repo/layout-inspector-android
-/plugin install layout-inspector-android@jayvinz-tools
+/plugin marketplace add E:/repo/android-ui-inspector
+/plugin install android-ui@jayvinz-tools
 ```
 
-(Replace `E:/repo/layout-inspector-android` with your actual path.)
+(Replace `E:/repo/android-ui-inspector` with your actual path.)
 
 A marketplace added from a **local path** loads plugins in place and does not install dependencies for you, so run `npm install && npm run build` first.
 
 Or load for the current session only:
 
 ```bash
-claude --plugin-dir E:/repo/layout-inspector-android
+claude --plugin-dir E:/repo/android-ui-inspector
 ```
 
-After installation `/mcp` should show the `layout-inspector-android` server and `/help` should list `/layout-inspector-android:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify`.
+After installation `/mcp` should show the `android-ui` server and `/help` should list `/android-ui:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify`.
 
 ## Typical workflow
 
@@ -86,18 +87,18 @@ Natural-language requests about the current screen or a visible control ("抓取
 
 Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `analyze-screen-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
 
-Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/layout-inspector-android:view` or the `open_viewer` tool: one capture, one self-contained `.dli/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
+Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/android-ui:view` or the `open_viewer` tool: one capture, one self-contained `.aui/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
 
 **Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after install/update.
 
 Or call the commands directly:
 
 ```text
-/layout-inspector-android:locate Me
-/layout-inspector-android:screen
-/layout-inspector-android:analyze-screen
-/layout-inspector-android:view
-/layout-inspector-android:verify
+/android-ui:locate Me
+/android-ui:screen
+/android-ui:analyze-screen
+/android-ui:view
+/android-ui:verify
 ```
 
 ## Locate script
@@ -132,7 +133,7 @@ The plugin manifest's `mcpServers` injects no environment variables; the MCP pro
 ## Read-only and permissions
 
 - Skills/agent are read-only by default; `tap`/`swipe`/`input_text` are explicit interaction tools triggered by user requests.
-- The locate/verify workflows write `.dli/before.json`, `.dli/after.json`, `.dli/*.png` inside the repository; add `.dli/` to `.gitignore` (this repo already does).
+- The locate/verify workflows write `.aui/before.json`, `.aui/after.json`, `.aui/*.png` inside the repository; add `.aui/` to `.gitignore` (this repo already does).
 - Do not commit dumps: they may contain device serials, foreground package names, and screen text.
 
 ## Adding a second plugin later
@@ -140,10 +141,10 @@ The plugin manifest's `mcpServers` injects no environment variables; the MCP pro
 This project is the first plugin of the marketplace, with `source` pointing at the repo root. To add another plugin later:
 
 ```text
-layout-inspector-android/
+android-ui-inspector/
 ├── .claude-plugin/
 │   ├── marketplace.json       # jayvinz-tools catalog
-│   └── plugin.json            # first plugin layout-inspector-android
+│   └── plugin.json            # first plugin android-ui
 ├── plugins/
 │   └── another-plugin/
 │       └── .claude-plugin/plugin.json
@@ -168,7 +169,7 @@ claude plugin validate --strict .
 ## Release and validation
 
 - The marketplace and plugin live in the same GitHub repository; after pushing, users can install with `/plugin marketplace add <owner>/<repo>` — no review required.
-- The repository is conventionally `Jayvinz/layout-inspector-android`; if the GitHub owner/repo differs, update `marketplace.json`'s `owner.url`, `plugin.json`'s `homepage`/`repository`, and the install commands in the READMEs together.
+- The repository is conventionally `Jayvinz/android-ui-inspector`; if the GitHub owner/repo differs, update `marketplace.json`'s `owner.url`, `plugin.json`'s `homepage`/`repository`, and the install commands in the READMEs together.
 - Run `claude plugin validate --strict .` before a release; the CI workflow `.github/workflows/validate.yml` runs typecheck, tests, build, verifies `dist/` matches the source, and finishes with the same validation.
 - To go further into the official Anthropic directory: submit a Plugin bundle at `claude.ai/directory/manage` — it requires a paid claude.ai plan, a GitHub repository, automated validation and security scanning, and new listings pass human review; `claude-plugins-official` itself accepts no public submissions.
 
@@ -188,10 +189,10 @@ Without `npm version`, sync manually:
 node scripts/sync-version.mjs
 ```
 
-Both `prepublishOnly` and CI run:
+CI runs this check:
 
 ```bash
 node scripts/sync-version.mjs --check
 ```
 
-A mismatch fails the publish or CI directly — there is no need to edit two files by hand.
+A mismatch fails CI directly — there is no need to edit two files by hand.

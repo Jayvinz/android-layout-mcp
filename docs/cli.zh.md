@@ -2,7 +2,7 @@
 
 [English](cli.md) | [简体中文](cli.zh.md)
 
-`layout-inspector` CLI 与 MCP Server 驱动同一套 core。要求：Node.js ≥ 20，Android platform-tools（`adb` 在 PATH 中，或设置 `DLI_ADB` / `ADB_PATH`）。
+`android-ui` CLI 与 MCP Server 驱动同一套 core。要求：Node.js ≥ 20，Android platform-tools（`adb` 在 PATH 中，或设置 `AUI_ADB` / `ADB_PATH`）。
 
 ## 安装
 
@@ -15,7 +15,7 @@ node dist/cli.js devices
 
 # 方式二：链接成全局命令
 npm link
-layout-inspector devices
+android-ui devices
 ```
 
 也可以不构建，直接开发模式运行：`npx tsx src/cli.ts dump`。
@@ -24,49 +24,49 @@ layout-inspector devices
 
 ```bash
 # 设备与前台 App
-layout-inspector devices
-layout-inspector state
+android-ui devices
+android-ui state
 
 # 当前界面（默认 auto，Compose 会走 semantics）
-layout-inspector dump
+android-ui dump
 
 # 指定数据源与深度；JSON 输出可直接交给 agent
-layout-inspector dump --source view --depth 8 --props
-layout-inspector dump --source both --json --out ui.json
+android-ui dump --source view --depth 8 --props
+android-ui dump --source both --json --out ui.json
 
 # 按文本 / id / class / ref 查找
-layout-inspector find "开拍" --both
-layout-inspector find "com.example:id/submit" --by id
-layout-inspector find "Button" --by class --match exact --clickable
+android-ui find "开拍" --both
+android-ui find "com.example:id/submit" --by id
+android-ui find "Button" --by class --match exact --clickable
 
 # 屏幕坐标命中测试（最小面积优先，重叠时 --index 切换）
-layout-inspector hit 540 2239 --both
+android-ui hit 540 2239 --both
 
 # 截图（可降分辨率），附带节点框的 SVG 叠加层
-layout-inspector shot --out screenshot.png --annotate
-layout-inspector shot --out small.png --max-width 540
-layout-inspector shot --out small.png --scale 0.5
+android-ui shot --out screenshot.png --annotate
+android-ui shot --out small.png --max-width 540
+android-ui shot --out small.png --scale 0.5
 
 # 布局 / 无障碍问题检查
-layout-inspector analyze
+android-ui analyze
 
 # 交互式 HTML 查看器（显式可视化请求，会打开浏览器）
-layout-inspector view
-layout-inspector view --no-open --out .dli/viewer.html
+android-ui view
+android-ui view --no-open --out .aui/viewer.html
 
 # 点击元素中心（自动先定位再 tap）
-layout-inspector tap --text "关注"
-layout-inspector tap 540 2239
+android-ui tap --text "关注"
+android-ui tap 540 2239
 
 # 两次快照对比：改代码 / 切换页面前后
-layout-inspector dump --json --out before.json
+android-ui dump --json --out before.json
 # ... 修改、重新运行、刷新页面 ...
-layout-inspector dump --json --out after.json
-layout-inspector diff before.json after.json
+android-ui dump --json --out after.json
+android-ui diff before.json after.json
 
 # 查看某个节点的全部属性
-layout-inspector inspect v4
-layout-inspector inspect 0.0.0
+android-ui inspect v4
+android-ui inspect 0.0.0
 ```
 
 `dump` 的人类可读输出示例：
@@ -87,26 +87,26 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 | 命令 | 说明 |
 |---|---|
-| `layout-inspector devices` | 列出设备、型号、Android/SDK 版本 |
-| `layout-inspector state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口 |
-| `layout-inspector windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现） |
-| `layout-inspector dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--props`、`--json`、`--out` |
-| `layout-inspector find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both` |
-| `layout-inspector hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先 |
-| `layout-inspector inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性） |
-| `layout-inspector analyze` | 布局/无障碍检查，见下表 |
-| `layout-inspector shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg` |
-| `layout-inspector view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
-| `layout-inspector diff <a> <b>` | 对比两个 dump JSON |
-| `layout-inspector tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或 `--text/--id/--ref` 选择元素后点击其中心 |
-| `layout-inspector swipe` / `input` / `key` | 滑动、输入 ASCII 文本、发送 keyevent |
-| `layout-inspector studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java |
-| `layout-inspector mcp` | 启动 MCP Server（stdio）；`--print-config` 打印客户端配置 |
-| `layout-inspector compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/dli-compose` 和 App code_cache 中的 inspector jar |
+| `android-ui devices` | 列出设备、型号、Android/SDK 版本 |
+| `android-ui state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口 |
+| `android-ui windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现） |
+| `android-ui dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--props`、`--json`、`--out` |
+| `android-ui find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both` |
+| `android-ui hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先 |
+| `android-ui inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性） |
+| `android-ui analyze` | 布局/无障碍检查，见下表 |
+| `android-ui shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg` |
+| `android-ui view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
+| `android-ui diff <a> <b>` | 对比两个 dump JSON |
+| `android-ui tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或 `--text/--id/--ref` 选择元素后点击其中心 |
+| `android-ui swipe` / `input` / `key` | 滑动、输入 ASCII 文本、发送 keyevent |
+| `android-ui studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java |
+| `android-ui mcp` | 启动 MCP Server（stdio）；`--print-config` 打印客户端配置 |
+| `android-ui compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar |
 
 全局选项：`-s, --serial`、`--adb <path>`、`--timeout <ms>`、`-v, --verbose`。
 Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
-截图兜底：抓取失败时自动保存一张 `dli-fallback-<时间>.png`（默认 720px 宽）；用
+截图兜底：抓取失败时自动保存一张 `aui-fallback-<time>.png`（默认 720px 宽）；用
 `--no-fallback-screenshot` 关闭。多设备时也可用 `ANDROID_SERIAL`。
 
 ## 分析规则
@@ -124,25 +124,25 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 | `duplicate_id` | 同一个 resource-id 出现在多个可见节点 |
 | `deep_nesting` | 嵌套深度超过阈值（默认 14） |
 
-规则可按需开启：`layout-inspector analyze --rules small_touch_target,overlap`。
+规则可按需开启：`android-ui analyze --rules small_touch_target,overlap`。
 
 ## 交互式查看器
 
-`layout-inspector view`（别名 `open`）会抓取一次当前界面，写入一个自包含的 HTML 文件，并在默认浏览器中打开。仅在用户显式要求可视化界面时使用；`dump`、`find`、`analyze`、`shot` 与验证流程都不会顺带打开浏览器。
+`android-ui view`（别名 `open`）会抓取一次当前界面，写入一个自包含的 HTML 文件，并在默认浏览器中打开。仅在用户显式要求可视化界面时使用；`dump`、`find`、`analyze`、`shot` 与验证流程都不会顺带打开浏览器。
 
 ```bash
-layout-inspector view                                    # 生成 .dli/viewer.html 并打开浏览器
-layout-inspector view --no-open                          # 只写文件
-layout-inspector view --out .tmp-view/v.html             # 自定义路径
-layout-inspector view --source semantics --max-width 720
-layout-inspector view --rules small_touch_target,overlap --no-issues
-layout-inspector view --json                             # path、opened、bytes、截图元数据
+android-ui view                                    # 生成 .aui/viewer.html 并打开浏览器
+android-ui view --no-open                          # 只写文件
+android-ui view --out .tmp-view/v.html             # 自定义路径
+android-ui view --source semantics --max-width 720
+android-ui view --rules small_touch_target,overlap --no-issues
+android-ui view --json                             # path、opened、bytes、截图元数据
 ```
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `--source` | `auto` | `auto`、`view`、`semantics`、`compose` 或 `both` |
-| `--out` | `.dli/viewer.html` | HTML 输出路径，自动创建父目录 |
+| `--out` | `.aui/viewer.html` | HTML 输出路径，自动创建父目录 |
 | `--no-open` | 关闭 | 只写文件，不启动浏览器 |
 | `--max-width` | `1080` | 内嵌截图最大宽度（超过则降分辨率） |
 | `--max-nodes` | `4000` | 每棵树最多序列化的节点数 |
@@ -152,22 +152,22 @@ layout-inspector view --json                             # path、opened、bytes
 | `--package`、`--pid`、`--window` | 前台 App | 目标选择与 `dump` 相同 |
 | `--json` | 关闭 | 输出 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
 
-页面内嵌树、base64 截图、节点详情和问题列表；不发起任何网络请求，可直接从 `file://` 打开。它是静态快照，ref 只在本次抓取内有效。HTML 中包含设备序列号、包名与屏幕文本，请放在已 gitignore 的 `.dli/` 下，不要提交。设置 `DLI_NO_OPEN=1` 可全局禁止打开浏览器。
+页面内嵌树、base64 截图、节点详情和问题列表；不发起任何网络请求，可直接从 `file://` 打开。它是静态快照，ref 只在本次抓取内有效。HTML 中包含设备序列号、包名与屏幕文本，请放在已 gitignore 的 `.aui/` 下，不要提交。设置 `AUI_NO_OPEN=1` 可全局禁止打开浏览器。
 
 ## 截图与兜底
 
 ```bash
-layout-inspector shot --out screenshot.png                  # 原始分辨率
-layout-inspector shot --out small.png --max-width 540       # 540x1200，约 180KB
-layout-inspector shot --out small.png --scale 0.5
-layout-inspector shot --out ui.png --annotate --source compose
+android-ui shot --out screenshot.png                  # 原始分辨率
+android-ui shot --out small.png --max-width 540       # 540x1200，约 180KB
+android-ui shot --out small.png --scale 0.5
+android-ui shot --out ui.png --annotate --source compose
 ```
 
 - 截图始终使用 `adb exec-out screencap -p`，然后可用纯 JS（`pngjs`）做面积平均降采样；
   不依赖 ImageMagick/Sharp。
 - **结构化抓取失败时自动兜底**：`dump`/`find`/`hit`/`analyze` 等命令会额外保存一张
-  `dli-fallback-<时间>.png` 并在错误信息里给出路径；MCP 工具会把截图作为 image content
-  和错误文本一起返回。用 `--no-fallback-screenshot` 或 `DLI_NO_FALLBACK_SCREENSHOT=1` 关闭。
+  `aui-fallback-<time>.png` 并在错误信息里给出路径；MCP 工具会把截图作为 image content
+  和错误文本一起返回。用 `--no-fallback-screenshot` 或 `AUI_NO_FALLBACK_SCREENSHOT=1` 关闭。
 - MCP `screenshot` 默认 720px 宽以控制 payload；需要原生分辨率时传 `fullResolution=true`。
 - `--annotate` 的 SVG 会自动按截图缩放比例映射节点框。
 
@@ -197,7 +197,7 @@ layout-inspector shot --out ui.png --annotate --source compose
 
 ```bash
 # 图片上读到的 (360, 800)，图片尺寸 720x1600
-layout-inspector tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
+android-ui tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
 # -> image (360, 800) in 720x1600 -> device (540, 1200) on 1080x2400
 ```
 
@@ -222,12 +222,14 @@ MCP：
 
 | 变量 | 作用 |
 |---|---|
-| `DLI_ADB` / `ADB_PATH` / `--adb` | adb 路径 |
+| `AUI_ADB` / `ADB_PATH` / `--adb` | adb 路径 |
 | `ANDROID_SERIAL` / `--serial` | 多设备时的目标序列号 |
-| `DLI_ANDROID_STUDIO` / `--studio` | Android Studio 安装目录（Compose inspection） |
-| `DLI_JAVA` / `--java` | Compose helper 使用的 Java |
-| `DLI_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
-| `DLI_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |
-| `DLI_COMPOSE_HELPER_JAR` | 预编译的 JVMTI helper JAR |
-| `DLI_NO_OPEN=1` | `view` / `open_viewer` 不启动浏览器（仍会写入 HTML） |
-| `DLI_NO_FALLBACK_SCREENSHOT=1` | 关闭抓取失败时的兜底截图 |
+| `AUI_ANDROID_STUDIO` / `--studio` | Android Studio 安装目录（Compose inspection） |
+| `AUI_JAVA` / `--java` | Compose helper 使用的 Java |
+| `AUI_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
+| `AUI_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |
+| `AUI_COMPOSE_HELPER_JAR` | 预编译的 JVMTI helper JAR |
+| `AUI_NO_OPEN=1` | `view` / `open_viewer` 不启动浏览器（仍会写入 HTML） |
+| `AUI_NO_FALLBACK_SCREENSHOT=1` | 关闭抓取失败时的兜底截图 |
+| `AUI_JAVAC` / `AUI_JAR` | `npm run build:helper` 使用的编译器与 jar 工具 |
+| `AUI_GATE_DEBUG=1` | 把 `PreToolUse` hook 的判定结果追加写入临时目录下的 `aui-android-gate.log` |

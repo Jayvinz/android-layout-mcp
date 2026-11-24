@@ -2,7 +2,7 @@
 
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
-仓库根目录同时是一个 Claude Code marketplace（`jayvinz-tools`）和 plugin（`layout-inspector-android`），
+仓库根目录同时是一个 Claude Code marketplace（`jayvinz-tools`）和 plugin（`android-ui`），
 把 CLI、MCP Server、UI→代码定位脚本和一套 skill/command/agent 打包在一起。它面向的典型任务是：
 
 > “定位当前页面中的 **个人页** 按钮，以及其相关代码逻辑。”
@@ -11,12 +11,13 @@
 
 | 对象 | 名称 |
 |---|---|
-| GitHub 仓库 | `Jayvinz/layout-inspector-android` |
+| 产品名 | `Android UI Inspector` |
+| GitHub 仓库 | `Jayvinz/android-ui-inspector` |
 | Marketplace | `jayvinz-tools` |
-| Plugin | `layout-inspector-android` |
-| npm 包 | `layout-inspector-android` |
-| MCP server | `layout-inspector-android` |
-| CLI 命令 | `layout-inspector` |
+| Plugin | `android-ui` |
+| npm 包名 | `android-ui-inspector`（不发布到 registry） |
+| MCP server | `android-ui` |
+| CLI 命令 | `android-ui` |
 
 ## 组件
 
@@ -27,9 +28,9 @@
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
 | Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
-| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`view.md`、`verify.md` | `/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify` |
+| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`view.md`、`verify.md` | `/android-ui:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify` |
 | Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
-| Hook | `hooks/hooks.json` + `hooks/dli-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`；安装或更新插件后需重启 Claude Code |
+| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
 
@@ -41,13 +42,13 @@ Claude Code 需要能从 PATH 调用 `node` / `npm`。
 **从 GitHub marketplace 安装**（推荐给其他用户）：
 
 ```text
-/plugin marketplace add Jayvinz/layout-inspector-android
-/plugin install layout-inspector-android@jayvinz-tools
+/plugin marketplace add Jayvinz/android-ui-inspector
+/plugin install android-ui@jayvinz-tools
 ```
 
 仓库根目录同时是 marketplace 和第一个插件：`.claude-plugin/marketplace.json` 的
-`source` 是 `"./"`，插件名 `layout-inspector-android`，marketplace 名 `jayvinz-tools`。
-npm 包名是 `layout-inspector-android`；不管通过插件还是 npm 安装，CLI 命令都是 `layout-inspector`。
+`marketplace.json` 里 `source: "./"`，插件名 `android-ui`，marketplace 名 `jayvinz-tools`。
+包名是 `android-ui-inspector`，但不会发布到 npm registry：请安装插件，或在本地克隆后 `npm link`。两种情况 CLI 命令都是 `android-ui`。
 
 GitHub 安装时 Claude Code 会把插件复制到缓存，并根据 `package.json` +
 `package-lock.json` 自动安装 Node 依赖（无 lifecycle scripts、60 秒超时）。因此仓库里
@@ -61,11 +62,11 @@ npm run build
 ```
 
 ```text
-/plugin marketplace add E:/repo/layout-inspector-android
-/plugin install layout-inspector-android@jayvinz-tools
+/plugin marketplace add E:/repo/android-ui-inspector
+/plugin install android-ui@jayvinz-tools
 ```
 
-（如果本地目录不同，把 `E:/repo/layout-inspector-android` 换成实际路径。）
+（如果本地目录不同，把 `E:/repo/android-ui-inspector` 换成实际路径。）
 
 从**本地路径**添加的 marketplace 会原地加载插件，不会自动在源码目录安装依赖，所以先执行
 上面的 `npm install && npm run build`。
@@ -73,11 +74,11 @@ npm run build
 或只在当前会话加载：
 
 ```bash
-claude --plugin-dir E:/repo/layout-inspector-android
+claude --plugin-dir E:/repo/android-ui-inspector
 ```
 
-安装后 `/mcp` 应能看到 `layout-inspector-android` server；`/help` 中会出现
-`/layout-inspector-android:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify`。
+安装后 `/mcp` 应能看到 `android-ui` server；`/help` 中会出现
+`/android-ui:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify`。
 
 ## 典型流程
 
@@ -101,8 +102,8 @@ claude --plugin-dir E:/repo/layout-inspector-android
 → 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
 
 显式可视化请求（“打开可视化看看”“在浏览器里打开当前页面”“open the UI viewer”）走
-`/layout-inspector-android:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
-`.dli/viewer.html`，再打开默认浏览器。`dump`/`find`/`analyze`/`screenshot`/验证流程都不会打开浏览器。
+`/android-ui:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
+`.aui/viewer.html`，再打开默认浏览器。`dump`/`find`/`analyze`/`screenshot`/验证流程都不会打开浏览器。
 
 **Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
@@ -113,11 +114,11 @@ claude --plugin-dir E:/repo/layout-inspector-android
 也可以直接调用命令：
 
 ```text
-/layout-inspector-android:locate 个人页
-/layout-inspector-android:screen
-/layout-inspector-android:analyze-screen
-/layout-inspector-android:view
-/layout-inspector-android:verify
+/android-ui:locate 个人页
+/android-ui:screen
+/android-ui:analyze-screen
+/android-ui:view
+/android-ui:verify
 ```
 
 ## 定位脚本
@@ -159,8 +160,8 @@ serial/adb/Studio 参数时，优先用环境变量，或在项目级 `.mcp.json
 ## 只读与权限
 
 - Skills/agent 默认只读；`tap`/`swipe`/`input_text` 是显式交互工具，由用户请求触发。
-- 定位/验证过程会在仓库内写 `.dli/before.json`、`.dli/after.json`、`.dli/*.png`；
-  建议把 `.dli/` 加入 `.gitignore`（本仓库已加入）。
+- 定位/验证过程会在仓库内写 `.aui/before.json`、`.aui/after.json`、`.aui/*.png`；
+  建议把 `.aui/` 加入 `.gitignore`（本仓库已加入）。
 - 不要提交 dump：其中可能包含设备序列号、前台包名和界面文本。
 
 ## 以后添加第二个插件
@@ -168,10 +169,10 @@ serial/adb/Studio 参数时，优先用环境变量，或在项目级 `.mcp.json
 当前项目是 marketplace 的第一个插件，`source` 指向仓库根目录。以后新增插件时：
 
 ```text
-layout-inspector-android/
+android-ui-inspector/
 ├── .claude-plugin/
 │   ├── marketplace.json       # jayvinz-tools 目录
-│   └── plugin.json            # 第一个插件 layout-inspector-android
+│   └── plugin.json            # 第一个插件 android-ui
 ├── plugins/
 │   └── another-plugin/
 │       └── .claude-plugin/plugin.json
@@ -198,7 +199,7 @@ claude plugin validate --strict .
 
 - marketplace 和插件都托管在同一个 GitHub 仓库；推送后用户即可
   `/plugin marketplace add <owner>/<repo>` 安装，无需任何审核。
-- 仓库约定为 `Jayvinz/layout-inspector-android`；如果 GitHub owner/repo 不同，同步修改
+- 仓库约定为 `Jayvinz/android-ui-inspector`；如果 GitHub owner/repo 不同，同步修改
   `marketplace.json` 的 `owner.url`、`plugin.json` 的 `homepage`/`repository`
   和 README 中的安装命令。
 - 发布前运行 `claude plugin validate --strict .`；CI 工作流
@@ -225,10 +226,10 @@ npm version major
 node scripts/sync-version.mjs
 ```
 
-`prepublishOnly` 和 CI 都会运行：
+CI 会运行这个检查：
 
 ```bash
 node scripts/sync-version.mjs --check
 ```
 
-版本不一致时发布会或 CI 直接失败，不需要再手动改两份文件。
+版本不一致时 CI 会直接失败，不需要再手动改两份文件。

@@ -27,5 +27,5 @@ A connected device does not make the repository Android.
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" view --package "<package>"
    ```
 3. Report the absolute file path and whether the browser opened (`opened`, or `openError` when it did not). Mention screenshot availability and whether the tree was truncated.
-4. The viewer is a static snapshot: refs are valid only for that capture, there is no live refresh, and the file contains device/screen data. Keep it under `.dli/` and never commit it.
+4. The viewer is a static snapshot: refs are valid only for that capture, there is no live refresh, and the file contains device/screen data. Keep it under `.aui/` and never commit it.
 5. Do not modify code, do not call `locate_code`, and do not open a browser for ordinary summary/dump/screenshot requests.

@@ -1,7 +1,7 @@
 {
-  "path": ".dli/viewer.html",
+  "path": ".aui/viewer.html",
   "opened": false,
-  "openError": "disabled by DLI_NO_OPEN=1",
+  "openError": "disabled by AUI_NO_OPEN=1",
   "bytes": 12345,
   "uiKind": "compose",
   "sources": ["semantics"],
@@ -14,5 +14,5 @@
     "scale": 1
   },
   "warnings": [],
-  "hint": "Viewer written to .dli/viewer.html but not opened (disabled by DLI_NO_OPEN=1). Static offline snapshot: refs are valid only for this capture."
+  "hint": "Viewer written to .aui/viewer.html but not opened (disabled by AUI_NO_OPEN=1). Static offline snapshot: refs are valid only for this capture."
 }

@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { PNG } from "pngjs";
-import { DliError } from "./errors.js";
+import { AuiError } from "./errors.js";
 export async function takeScreenshot(adb, options = {}) {
     const buffer = await adb.screenshot();
     const size = pngSize(buffer);
@@ -42,7 +42,7 @@ export function screenshotMetadata(screenshot) {
 /** Converts a point in downscaled-image pixels to device pixels. */
 export function imageToDevicePoint(imageX, imageY, imageWidth, imageHeight, deviceWidth, deviceHeight) {
     if (imageWidth <= 0 || imageHeight <= 0 || deviceWidth <= 0 || deviceHeight <= 0) {
-        throw new DliError("BAD_INPUT", "Image and device dimensions must be positive.");
+        throw new AuiError("BAD_INPUT", "Image and device dimensions must be positive.");
     }
     return {
         x: Math.round((imageX * deviceWidth) / imageWidth),
@@ -72,7 +72,7 @@ export function downscalePng(buffer, width, height, options = {}) {
         png = PNG.sync.read(buffer);
     }
     catch (error) {
-        throw new DliError("SCREENSHOT_FAILED", `Could not decode the device screenshot: ${String(error)}`);
+        throw new AuiError("SCREENSHOT_FAILED", `Could not decode the device screenshot: ${String(error)}`);
     }
     const source = png.data;
     const target = Buffer.alloc(targetWidth * targetHeight * 4);
@@ -122,7 +122,7 @@ function bucketRanges(sourceSize, targetSize) {
 }
 export function pngSize(buffer) {
     if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47) {
-        throw new DliError("SCREENSHOT_FAILED", "The device did not return a PNG screenshot.");
+        throw new AuiError("SCREENSHOT_FAILED", "The device did not return a PNG screenshot.");
     }
     return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }

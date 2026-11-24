@@ -104,7 +104,7 @@ export interface OpenBrowserOptions {
 }
 export declare const VIEWER_BUDGET_BYTES: number;
 export declare const DEFAULT_MAX_NODES = 4000;
-/** `<baseDir or cwd>/.dli/viewer.html`, using the platform separator. */
+/** `<baseDir or cwd>/.aui/viewer.html`, using the platform separator. */
 export declare function defaultViewerPath(baseDir?: string): string;
 /** Builds the embedded JSON payload, enforcing the 8 MB budget. */
 export declare function viewerPayload(result: CaptureResult, options?: ViewerOptions): ViewerPayload;

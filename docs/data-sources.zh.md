@@ -2,7 +2,7 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`layout-inspector` 可以通过三个数据源抓取 Android 实时界面：
+`android-ui` 可以通过三个数据源抓取 Android 实时界面：
 
 | 数据源 | 原理 | 依赖 | 适合 |
 |---|---|---|---|
@@ -84,23 +84,23 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
 ## Studio / JDK 版本适配
 
 - **Studio 版本**：不假设固定安装路径；会读取 `product-info.json` / `build.txt` 得到版本号，
-  `layout-inspector studio` 会显示 build。不同版本的 protobuf/gRPC 类名和 inspector proto 可能不同，因此
+  `android-ui studio` 会显示 build。不同版本的 protobuf/gRPC 类名和 inspector proto 可能不同，因此
   helper 不再只依赖预编译 jar：首次使用某个 Studio build 时，会用**该 Studio 自带的 JBR
   `javac`/`jar`** 针对其 `plugins/android/lib/*.jar` 重新编译 helper，并按
   `Studio build + helper 源码 hash + 编译器版本` 缓存到
-  `~/.cache/layout-inspector-android/helper/<key>/`。
-- **JDK 版本**：Java 选择顺序为 `--java` → `DLI_JAVA` → `JAVA_HOME` → Studio JBR → PATH。
+  `~/.cache/android-ui/helper/<key>/`。
+- **JDK 版本**：Java 选择顺序为 `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → PATH。
   helper 编译优先使用**与运行时 Java 同一目录下的 `javac`/`jar`**，避免 class file version
-  不匹配；没有编译器时回退到打包的 helper。实测：
+  不匹配；没有编译器时回退到仓库中已提交的 helper jar `helper/aui-compose-helper.jar`。实测：
   - Studio JBR 25 → helper class 69，可运行；
   - Microsoft OpenJDK 17（`--java` 指定）→ 自动用其 `javac` 编译 class 61，可运行。
 - 若使用其他 JBR/JDK，可用：
 
   ```bash
-  layout-inspector dump --source compose --java "C:/path/to/jdk/bin/java.exe"
+  android-ui dump --source compose --java "C:/path/to/jdk/bin/java.exe"
   ```
 
-  或显式提供已编译 helper：`DLI_COMPOSE_HELPER_JAR=/path/to/helper.jar`。
+  或显式提供已编译 helper：`AUI_COMPOSE_HELPER_JAR=/path/to/helper.jar`。
 - 兼容边界：Studio 版本过旧、缺少 `layout_inspector_compose_java_proto.jar` 等工件，或
   Compose inspector proto 缺少所需消息时，helper 编译会失败并给出提示；此时请升级 Studio，
   或用 `npm run build:helper` 针对兼容的 Studio 构建，或回退到 `source=semantics`。
@@ -109,23 +109,23 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
 ## Compose JVMTI 树（Android Studio 级）
 
 ```bash
-layout-inspector dump --source compose --depth 10
-layout-inspector find 推荐 --source compose
-layout-inspector hit 540 2239 --source compose
-layout-inspector analyze --source compose
-layout-inspector dump --source compose --json --out ui.json
+android-ui dump --source compose --depth 10
+android-ui find 推荐 --source compose
+android-ui hit 540 2239 --source compose
+android-ui analyze --source compose
+android-ui dump --source compose --json --out ui.json
 ```
 
 前置条件：
 
 - App 是可调试构建（`android:debuggable=true`）；
-- 本机安装 Android Studio（默认自动探测；可用 `DLI_ANDROID_STUDIO` 或 `--studio` 指定）；
+- 本机安装 Android Studio（默认自动探测；可用 `AUI_ANDROID_STUDIO` 或 `--studio` 指定）；
   探测顺序：`--studio`/环境变量 → **正在运行的 `studio64.exe`/`studio` 进程路径** → 常见安装路径。
-  优先使用开发者实际在用的那个 Studio 安装（同时覆盖自定义/Toolbox 安装）；可用 `layout-inspector studio`
+  优先使用开发者实际在用的那个 Studio 安装（同时覆盖自定义/Toolbox 安装）；可用 `android-ui studio`
   查看实际命中的路径和来源；
-- Java 17+（优先用 Android Studio 自带 JBR；可用 `DLI_JAVA` 或 `--java` 指定）；
-- Compose inspector jar 默认按 **1.8.3** 下载并缓存到 `~/.cache/layout-inspector-android/`；
-  如 App 的 Compose 版本不同，设置 `DLI_COMPOSE_VERSION` 或 `DLI_COMPOSE_INSPECTOR_JAR`；
+- Java 17+（优先用 Android Studio 自带 JBR；可用 `AUI_JAVA` 或 `--java` 指定）；
+- Compose inspector jar 默认按 **1.8.3** 下载并缓存到 `~/.cache/android-ui/`；
+  如 App 的 Compose 版本不同，设置 `AUI_COMPOSE_VERSION` 或 `AUI_COMPOSE_INSPECTOR_JAR`；
 - 只支持 API 29+（Compose inspector 要求），并且 App 需在前台。
 
 实现上复用了 Android Studio 自带的：
@@ -138,8 +138,8 @@ layout-inspector dump --source compose --json --out ui.json
 
 CLI 会自动 push daemon/agent、`run-as` 安装 inspector jar、attach agent、通过 gRPC 驱动
 View inspector（只拿 root view id，关闭截图以避免 78MB 的 SKP 内存峰值）和 Compose inspector。
-daemon 会常驻在 `/data/local/tmp/dli-compose`，后续调用直接复用；用
-`layout-inspector compose-clean` 停止 daemon 并清理设备侧文件。
+daemon 会常驻在 `/data/local/tmp/aui-compose`，后续调用直接复用；用
+`android-ui compose-clean` 停止 daemon 并清理设备侧文件。
 
 Android Studio 定位：显式配置 → 运行中进程的可执行文件路径 → 标准安装路径。进程探测结果在
 长驻 MCP 进程内缓存 **1 小时**；Windows 上首次探测因 PowerShell 启动约 1.5–2s，之后复用缓存。
@@ -184,7 +184,7 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 - `view` 要求 App `android:debuggable=true`；Release/未开启调试的包只能用 `semantics`。
 - JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
 - `compose` 额外要求：本机 Android Studio、Java 17+、App 在前台、Compose inspector jar 版本匹配；
-  单次抓取约 8–12s，且会在设备上常驻一个 transport daemon（`layout-inspector compose-clean` 可清理）。
+  单次抓取约 8–12s，且会在设备上常驻一个 transport daemon（`android-ui compose-clean` 可清理）。
 - 没有 Android Studio 时，Compose 仍可用 `semantics`（零依赖、文本/点击语义可用）。
 - 某些 ROM（如 MIUI）的 uiautomator 返回的无障碍窗口高度小于真实屏幕，底部节点会被裁剪；
   `analyze` 会自动跳过这类触摸区测量，但 `hit` 仍可用（中心点仍落在控件内）。

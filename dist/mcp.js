@@ -11,7 +11,7 @@ import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
 import { diffSnapshots, renderDiff } from "./core/diff.js";
-import { DliError, errorMessage } from "./core/errors.js";
+import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderSource } from "./core/render.js";
@@ -21,7 +21,7 @@ import { loadDump, saveDump, snapshotRoots, chooseDiffSource } from "./core/seri
 import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload, } from "./core/viewer.js";
 import { PACKAGE_VERSION } from "./core/version.js";
 const TOOL_SERVER_INFO = {
-    name: "layout-inspector-android",
+    name: "android-ui",
     version: PACKAGE_VERSION,
 };
 const execFileAsync = promisify(execFile);
@@ -68,8 +68,8 @@ export async function startMcpServer(options = {}) {
     };
     async function errorResultWithScreenshot(error) {
         if (!screenshotFallbackEnabled ||
-            process.env.DLI_NO_FALLBACK_SCREENSHOT === "1" ||
-            (error instanceof DliError && error.code === "BAD_INPUT")) {
+            process.env.AUI_NO_FALLBACK_SCREENSHOT === "1" ||
+            (error instanceof AuiError && error.code === "BAD_INPUT")) {
             return errorResult(error);
         }
         try {
@@ -309,10 +309,10 @@ export async function startMcpServer(options = {}) {
                 Boolean(args.composeFile) ||
                 (args.className?.length ?? 0) > 0;
             if (!hasAnchor) {
-                throw new DliError("BAD_INPUT", "locate_code needs at least one anchor: text, desc, id, composeName, composeFile, or className.");
+                throw new AuiError("BAD_INPUT", "locate_code needs at least one anchor: text, desc, id, composeName, composeFile, or className.");
             }
             if (!existsSync(LOCATOR_SCRIPT)) {
-                throw new DliError("BAD_INPUT", `Code locator script not found at ${LOCATOR_SCRIPT}.`, "Reinstall the plugin, or run npm run build in the plugin directory.");
+                throw new AuiError("BAD_INPUT", `Code locator script not found at ${LOCATOR_SCRIPT}.`, "Reinstall the plugin, or run npm run build in the plugin directory.");
             }
             const argv = [
                 LOCATOR_SCRIPT,
@@ -353,7 +353,7 @@ export async function startMcpServer(options = {}) {
                 const stderr = typeof error === "object" && error !== null && "stderr" in error
                     ? String(error.stderr ?? "")
                     : "";
-                throw new DliError("BAD_INPUT", stderr.trim() || errorMessage(error));
+                throw new AuiError("BAD_INPUT", stderr.trim() || errorMessage(error));
             }
             return jsonResult(JSON.parse(stdout));
         }
@@ -500,7 +500,7 @@ export async function startMcpServer(options = {}) {
             package: z.string().optional().describe("Package to inspect; defaults to the foreground app."),
             window: z.string().optional().describe("ViewRootImpl window name or index for source=view."),
             source: sourceSchema.optional().describe("auto (default), view, semantics, compose, or both."),
-            savePath: z.string().optional().describe("HTML output path (default .dli/viewer.html)."),
+            savePath: z.string().optional().describe("HTML output path (default .aui/viewer.html)."),
             open: z.boolean().optional().describe("Open the browser after writing (default true)."),
             maxWidth: z.number().int().min(1).max(4000).optional().describe("Downscale the embedded screenshot to at most this width (default 1080)."),
             maxNodes: z.number().int().min(1).max(20000).optional().describe("Maximum serialized nodes per tree (default 4000)."),
@@ -632,11 +632,11 @@ export async function startMcpServer(options = {}) {
             const imageArgs = [args.imageX, args.imageY, args.imageWidth, args.imageHeight];
             if (imageArgs.some((value) => value !== undefined)) {
                 if (imageArgs.some((value) => value === undefined)) {
-                    throw new DliError("BAD_INPUT", "Image-coordinate tap needs imageX, imageY, imageWidth, and imageHeight.");
+                    throw new AuiError("BAD_INPUT", "Image-coordinate tap needs imageX, imageY, imageWidth, and imageHeight.");
                 }
                 const screen = await adb.screenInfo();
                 if (!screen.width || !screen.height) {
-                    throw new DliError("BAD_INPUT", "Could not determine the device screen size.");
+                    throw new AuiError("BAD_INPUT", "Could not determine the device screen size.");
                 }
                 point = imageToDevicePoint(args.imageX, args.imageY, args.imageWidth, args.imageHeight, screen.width, screen.height);
                 mappedFrom = {
@@ -650,14 +650,14 @@ export async function startMcpServer(options = {}) {
             }
             else if (args.x !== undefined || args.y !== undefined) {
                 if (args.x === undefined || args.y === undefined) {
-                    throw new DliError("BAD_INPUT", "tap needs both x and y, or a selector.");
+                    throw new AuiError("BAD_INPUT", "tap needs both x and y, or a selector.");
                 }
                 point = { x: args.x, y: args.y };
             }
             else {
                 const query = args.ref || args.text || args.id;
                 if (!query)
-                    throw new DliError("BAD_INPUT", "tap needs x+y, text, id, or ref.");
+                    throw new AuiError("BAD_INPUT", "tap needs x+y, text, id, or ref.");
                 const captureSource = args.source === "view" || args.source === "semantics" || args.source === "compose"
                     ? args.source
                     : "both";
@@ -676,9 +676,9 @@ export async function startMcpServer(options = {}) {
                         break;
                 }
                 if (!node)
-                    throw new DliError("BAD_INPUT", `No visible node matches "${query}".`);
+                    throw new AuiError("BAD_INPUT", `No visible node matches "${query}".`);
                 if (!node.visible)
-                    throw new DliError("BAD_INPUT", `Node ${node.ref} is not visible.`);
+                    throw new AuiError("BAD_INPUT", `Node ${node.ref} is not visible.`);
                 point = { x: node.center.x, y: node.center.y };
             }
             await adb.inputTap(point.x, point.y);
@@ -748,7 +748,7 @@ export async function startMcpServer(options = {}) {
         }
     });
     await server.connect(new StdioServerTransport());
-    console.error(`[layout-inspector-android] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
+    console.error(`[android-ui] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
 }
 function emptyHint(result) {
     if (result.source === "view" && result.semantics) {
@@ -789,7 +789,7 @@ function parseServerArgs(argv) {
         else if (arg === "--help" || arg === "-h") {
             console.error("Usage: node mcp.js [--serial <serial>] [--adb <path>] [--timeout <ms>]\n" +
                 "       [--studio <path>] [--java <path>] [--compose-version <version>]\n" +
-                "Starts the layout-inspector-android MCP server over stdio.");
+                "Starts the Android UI Inspector MCP server over stdio.");
             process.exit(0);
         }
         else {
@@ -803,7 +803,7 @@ const invokedDirectly = process.argv[1] !== undefined &&
     pathToFileURL(process.argv[1]).href === import.meta.url;
 if (invokedDirectly) {
     startMcpServer(parseServerArgs(process.argv.slice(2))).catch((error) => {
-        console.error(`[layout-inspector-android] failed to start: ${errorMessage(error)}`);
+        console.error(`[android-ui] failed to start: ${errorMessage(error)}`);
         process.exit(1);
     });
 }

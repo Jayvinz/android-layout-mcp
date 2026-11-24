@@ -26,12 +26,12 @@ If the user explicitly asks about a connected device screen/page but no Android 
 
 1. The target app is in the foreground. Record `package`, `activity`, and pid from `get_state`; if the foreground package differs from the repository's applicationId, say so before analyzing.
 2. The working directory is the Android repository root; if not, ask for the path. Without it, stop at observation and say that source analysis needs the project root.
-3. MCP tools come from `layout-inspector-android`: `get_state`, `dump_ui`, `find_elements`, `hit_test`, `locate_code`, `screenshot`.
+3. MCP tools come from `android-ui`: `get_state`, `dump_ui`, `find_elements`, `hit_test`, `locate_code`, `screenshot`.
 4. If MCP is unavailable, fall back to the CLI:
    ```bash
-   mkdir -p .dli
+   mkdir -p .aui
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" state --json
-   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .dli/current.json
+   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .aui/current.json
    ```
    If `dist/` is missing, report the build requirement and stop; do not fabricate a screen.
 

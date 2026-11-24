@@ -24,12 +24,12 @@ If the user explicitly asks about a connected device screen/page but no Android 
 
 1. Confirm `adb` is available and the device is online: MCP `list_devices`, or `adb devices`. With multiple devices, pick a `serial` and pass the same one to every call.
 2. The target app should be in the foreground. Record `package` and `activity` from `get_state`; if the user names an app that is not in the foreground, say so before summarizing.
-3. MCP tools come from the `layout-inspector-android` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, `analyze_ui`, `tap`, `swipe`, `input_text`, and `press_key`.
+3. MCP tools come from the `android-ui` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, `analyze_ui`, `tap`, `swipe`, `input_text`, and `press_key`.
 4. If MCP is unavailable, fall back to the CLI:
    ```bash
-   mkdir -p .dli
+   mkdir -p .aui
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" state --json
-   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .dli/current.json
+   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .aui/current.json
    node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" find "登录" --json
    ```
    If `dist/` does not exist, the plugin has not been built. Tell the user to run `npm install && npm run build` in the plugin directory; do not fabricate a screen.
@@ -46,7 +46,7 @@ Call `dump_ui(source="auto", format="tree", visibleOnly=true)`. Record `uiKind` 
 
 - Do not paste hundreds of lines. Summarize the top 2-3 levels, then the visible leaf labels and clickable entries.
 - Refs (`v*` / `s*` / `c*`) are valid only for this capture; re-capture after the screen changes.
-- For an export request ("导出布局树", "save the dump"), pass `savePath=".dli/current.json"` and report the path. Never commit dumps.
+- For an export request ("导出布局树", "save the dump"), pass `savePath=".aui/current.json"` and report the path. Never commit dumps.
 
 ### Step 3 — Answer about a specific control
 
@@ -86,7 +86,7 @@ Only when the user explicitly asks to visualize or open the screen in a browser 
 
 - Do not call it for ordinary summaries, dumps, element lookups, screenshots, analysis, or verification; those must never open a browser.
 - Report the absolute file path and whether the browser opened (`opened` / `openError`). The viewer is a static snapshot; refs are valid only for that capture.
-- The file contains device/serial/screen text; keep it under `.dli/` and do not commit it.
+- The file contains device/serial/screen text; keep it under `.aui/` and do not commit it.
 
 ## uiKind policy
 

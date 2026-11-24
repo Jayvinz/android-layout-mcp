@@ -12,9 +12,9 @@ Claude Code（项目根目录 `.mcp.json`）：
 ```json
 {
   "mcpServers": {
-    "layout-inspector-android": {
+    "android-ui": {
       "command": "node",
-      "args": ["E:/repo/layout-inspector-android/dist/mcp.js"]
+      "args": ["E:/repo/android-ui-inspector/dist/mcp.js"]
     }
   }
 }
@@ -23,10 +23,10 @@ Claude Code（项目根目录 `.mcp.json`）：
 或使用 CLI 命令：
 
 ```bash
-claude mcp add layout-inspector-android -- node E:/repo/layout-inspector-android/dist/mcp.js
+claude mcp add android-ui -- node E:/repo/android-ui-inspector/dist/mcp.js
 ```
 
-（示例按仓库名 `layout-inspector-android` 写路径；本地目录不同时用实际目录替换。）
+（示例按仓库名 `android-ui-inspector` 写路径；本地目录不同时用实际目录替换。）
 
 MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
 
@@ -35,10 +35,10 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 ```json
 {
   "mcpServers": {
-    "layout-inspector-android": {
+    "android-ui": {
       "command": "node",
       "args": [
-        "E:/repo/layout-inspector-android/dist/mcp.js",
+        "E:/repo/android-ui-inspector/dist/mcp.js",
         "--serial", "<serial>",
         "--adb", "D:/Android/Sdk/platform-tools/adb.exe",
         "--timeout", "30000"
@@ -82,7 +82,7 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 5. `analyze_ui` → 检查小触摸区、重叠、裁剪等；
 6. 修改代码后：`dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`。
 
-`open_viewer` 不在上述顺序内：只有用户显式提出可视化请求时才调用，例如“打开可视化看看”“在浏览器里打开当前页面”“可视化当前布局”或“open the UI viewer”。它会打开一个浏览器窗口，属于可见副作用，因此 `dump_ui`、`find_elements`、`analyze_ui`、`screenshot`、`diff_ui` 与验证流程都不得调用它。传 `open=false`（或设置 `DLI_NO_OPEN=1`）可只写 HTML 不打开浏览器；工具返回 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`。
+`open_viewer` 不在上述顺序内：只有用户显式提出可视化请求时才调用，例如“打开可视化看看”“在浏览器里打开当前页面”“可视化当前布局”或“open the UI viewer”。它会打开一个浏览器窗口，属于可见副作用，因此 `dump_ui`、`find_elements`、`analyze_ui`、`screenshot`、`diff_ui` 与验证流程都不得调用它。传 `open=false`（或设置 `AUI_NO_OPEN=1`）可只写 HTML 不打开浏览器；工具返回 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`。
 
 ### 速览当前页面
 
@@ -111,7 +111,7 @@ get_state → dump_ui(source="auto", format="tree") → (独立弹窗窗口) dum
 
 适用于“分析当前界面/弹窗的代码和业务逻辑”：先判断是页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
 再追 1–3 跳状态与数据。全程只读，不修改代码。`analyze-screen-logic` skill 与
-`/layout-inspector-android:analyze-screen` 命令就是这条流程。
+`/android-ui:analyze-screen` 命令就是这条流程。
 
 ## 环境变量
 
