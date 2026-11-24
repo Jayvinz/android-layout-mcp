@@ -23,10 +23,10 @@ If the user explicitly asks about a connected device screen/page but no Android 
 ## Prerequisites
 
 - The target app is installed and in the foreground; the package matches this build.
-- MCP `android-ui` is available. If not, fall back to:
+- MCP `android-ui` is available. If not, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout, or `android-ui` on `PATH`:
   ```bash
-  node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out before.json
-  node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" diff before.json after.json
+  node "$AUI_ROOT/dist/cli.js" dump --json --out before.json
+  node "$AUI_ROOT/dist/cli.js" diff before.json after.json
   ```
 - If the user has already changed the code and reinstalled without a baseline, do not fabricate a "before". Verify against the expected state using `analyze_ui`, screenshots, and assertions on key nodes, and state clearly that no baseline exists.
 

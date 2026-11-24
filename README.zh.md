@@ -88,10 +88,13 @@ claude --plugin-dir ./android-ui-inspector-<version>.zip
 ### 2. 接入 MCP Server（其他客户端）
 
 ```bash
-node dist/cli.js mcp --print-config
+node dist/cli.js mcp --print-config --client cursor
 ```
 
-把打印出的配置放进客户端的 MCP 配置文件（例如 Claude Code 项目根目录的 `.mcp.json`）：
+`--client` 支持 `claude`、`claude-desktop`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、
+`antigravity`、`qwen`、`trae`、`vscode`、`codex`、`zed`、`opencode`、`goose`、`amp`、`generic`。
+它按目标客户端的格式输出（Codex 用 TOML、VS Code 用 `servers`、Zed 用 `context_servers`、Goose 用
+`extensions`……），并把目标文件路径打印到 stderr。默认输出 `mcpServers` 对象：
 
 ```json
 {
@@ -103,6 +106,10 @@ node dist/cli.js mcp --print-config
   }
 }
 ```
+
+支持技能加载的客户端还能复用这 4 个技能：`node scripts/sync-agent-skills.mjs --dest ../my-android-app`
+会把它们写入 `.agents/skills/`（Cursor 与 VS Code 直接读 `.claude/skills/`）。斜杠命令、子代理与
+门禁 hook 仍然只在 Claude Code 中可用。
 
 工具清单、参数与推荐调用顺序见 [docs/mcp.zh.md](docs/mcp.zh.md)。
 

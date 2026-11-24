@@ -49,6 +49,40 @@ Multiple devices / custom adb:
 
 When installed through the Claude Code plugin no manual configuration is needed: the plugin manifest's `mcpServers` starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js` automatically (see [plugin.md](plugin.md)).
 
+### Other clients
+
+The server is a plain stdio MCP server, so any client can run it; only the config envelope differs. `--client` prints the shape that client expects. The destination file goes to stderr, so stdout stays a paste-ready snippet:
+
+```bash
+node dist/cli.js mcp --print-config --client codex > config.toml
+```
+
+| `--client` | File | Shape |
+|---|---|---|
+| `claude` (default), `claude-desktop`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
+| `vscode` | `.vscode/mcp.json` | `servers` with `type: "stdio"` |
+| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
+| `zed` | `settings.json` | `context_servers` with `command.path` |
+| `opencode` | `opencode.json` | `mcp` with a local command array |
+| `goose` | `~/.config/goose/config.yaml` | YAML `extensions` |
+| `amp` | `~/.config/amp/settings.json` | dotted `amp.mcpServers` key |
+
+The global flags (`--serial`, `--adb`, `--timeout`, `--studio`, `--java`, `--compose-version`) are carried into the snippet, so a pinned device survives the copy. `--client` reshapes the envelope only; the tools are identical everywhere.
+
+Client config formats move; the paths and shapes above are what these clients accepted in November 2026. Windows uses `%USERPROFILE%` where the table says `~`.
+
+### Skills in other agents
+
+The four skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`:
+
+```bash
+node scripts/sync-agent-skills.mjs --dest ../my-android-app   # install into a project
+node scripts/sync-agent-skills.mjs --global                   # ~/.agents/skills
+node scripts/sync-agent-skills.mjs --dest . --check           # exit 1 when the copy is stale
+```
+
+Set `AUI_ROOT` to the plugin checkout (or put `android-ui` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/screen`, `/locate`, …) and the `ui-code-locator` subagent are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
+
 ## Tools
 
 | Tool | Purpose |

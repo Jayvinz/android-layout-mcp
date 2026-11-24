@@ -2,7 +2,7 @@
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir, writeFile } from "node:fs/promises";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
@@ -10,6 +10,7 @@ import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js
 import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
+import { MCP_CLIENT_IDS, mcpClientConfig, isMcpClient } from "./core/mcp-config.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderIssues, renderSource } from "./core/render.js";
 import { imageToDevicePoint, renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
@@ -627,29 +628,31 @@ program
     .command("mcp")
     .description("start an MCP server (stdio) exposing Android UI inspection tools")
     .option("--print-config", "print an MCP client config snippet and exit")
+    .addOption(new Option("--client <id>", "client the printed config is shaped for").choices([
+    ...MCP_CLIENT_IDS,
+]))
     .option("--register-view-attributes", "set the debug_view_attributes global setting (restarts the app)")
     .action(async (options, command) => {
     const globals = globalOptions(command);
     if (options.printConfig) {
         const serverPath = fileURLToPath(new URL("./mcp.js", import.meta.url));
-        const config = {
-            mcpServers: {
-                "android-ui": {
-                    command: "node",
-                    args: [
-                        serverPath,
-                        ...(globals.serial ? ["--serial", globals.serial] : []),
-                        ...(globals.adb ? ["--adb", globals.adb] : []),
-                        ...(globals.timeout !== 30_000 ? ["--timeout", String(globals.timeout)] : []),
-                        ...(globals.studio ? ["--studio", globals.studio] : []),
-                        ...(globals.java ? ["--java", globals.java] : []),
-                        ...(globals.composeVersion ? ["--compose-version", globals.composeVersion] : []),
-                    ],
-                    env: {},
-                },
-            },
-        };
-        printJson(config);
+        const args = [
+            serverPath,
+            ...(globals.serial ? ["--serial", globals.serial] : []),
+            ...(globals.adb ? ["--adb", globals.adb] : []),
+            ...(globals.timeout !== 30_000 ? ["--timeout", String(globals.timeout)] : []),
+            ...(globals.studio ? ["--studio", globals.studio] : []),
+            ...(globals.java ? ["--java", globals.java] : []),
+            ...(globals.composeVersion ? ["--compose-version", globals.composeVersion] : []),
+        ];
+        const requested = options.client ?? "claude";
+        if (!isMcpClient(requested)) {
+            throw new AuiError("BAD_INPUT", `unknown client "${requested}"`, `supported clients: ${MCP_CLIENT_IDS.join(", ")}`);
+        }
+        const config = mcpClientConfig(requested, "node", args);
+        process.stdout.write(config.content);
+        // stdout stays a paste-ready snippet; the destination goes to stderr.
+        console.error(`# ${config.client}: merge into ${config.target} (${config.format})`);
         return;
     }
     if (options.registerViewAttributes) {

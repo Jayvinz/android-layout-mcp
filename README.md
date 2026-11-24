@@ -95,10 +95,14 @@ See [docs/plugin.md](docs/plugin.md) for the component list and versioning.
 ### 2. Connect the MCP server (other clients)
 
 ```bash
-node dist/cli.js mcp --print-config
+node dist/cli.js mcp --print-config --client cursor
 ```
 
-Put the printed config into your client's MCP configuration (for example `.mcp.json` at the Claude Code project root):
+`--client` accepts `claude`, `claude-desktop`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`,
+`antigravity`, `qwen`, `trae`, `vscode`, `codex`, `zed`, `opencode`, `goose`, `amp`, and `generic`. Each
+emits the envelope that client expects (TOML for Codex, `servers` for VS Code, `context_servers` for Zed,
+`extensions` for Goose, …) and prints the destination file to stderr. The default is the `mcpServers`
+object:
 
 ```json
 {
@@ -110,6 +114,10 @@ Put the printed config into your client's MCP configuration (for example `.mcp.j
   }
 }
 ```
+
+Clients with skill support can also load the four bundled skills: `node scripts/sync-agent-skills.mjs
+--dest ../my-android-app` writes them to `.agents/skills/` (Cursor and VS Code read `.claude/skills/`
+directly). Slash commands, the subagent, and the gate hook stay Claude Code only.
 
 See [docs/mcp.md](docs/mcp.md) for the tool list, parameters, and the recommended call order.
 

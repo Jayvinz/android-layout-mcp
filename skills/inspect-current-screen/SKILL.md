@@ -25,12 +25,12 @@ If the user explicitly asks about a connected device screen/page but no Android 
 1. Confirm `adb` is available and the device is online: MCP `list_devices`, or `adb devices`. With multiple devices, pick a `serial` and pass the same one to every call.
 2. The target app should be in the foreground. Record `package` and `activity` from `get_state`; if the user names an app that is not in the foreground, say so before summarizing.
 3. MCP tools come from the `android-ui` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, `analyze_ui`, `tap`, `swipe`, `input_text`, and `press_key`.
-4. If MCP is unavailable, fall back to the CLI:
+4. If MCP is unavailable, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`, `scripts/`, and `skills/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout. `android-ui` on `PATH` is equivalent:
    ```bash
    mkdir -p .aui
-   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" state --json
-   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" dump --json --out .aui/current.json
-   node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" find "登录" --json
+   node "$AUI_ROOT/dist/cli.js" state --json
+   node "$AUI_ROOT/dist/cli.js" dump --json --out .aui/current.json
+   node "$AUI_ROOT/dist/cli.js" find "登录" --json
    ```
    If `dist/` does not exist, the plugin has not been built. Tell the user to run `npm install && npm run build` in the plugin directory; do not fabricate a screen.
 
@@ -82,7 +82,7 @@ Call `screenshot` only when the answer depends on appearance or the tree is ambi
 
 ### Explicit visual viewer
 
-Only when the user explicitly asks to visualize or open the screen in a browser ("打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer"), call MCP `open_viewer` (or the CLI fallback `node "${CLAUDE_PLUGIN_ROOT}/dist/cli.js" view`). It captures once, writes a self-contained offline HTML viewer, and may open a browser window.
+Only when the user explicitly asks to visualize or open the screen in a browser ("打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer"), call MCP `open_viewer` (or the CLI fallback `node "$AUI_ROOT/dist/cli.js" view`). It captures once, writes a self-contained offline HTML viewer, and may open a browser window.
 
 - Do not call it for ordinary summaries, dumps, element lookups, screenshots, analysis, or verification; those must never open a browser.
 - Report the absolute file path and whether the browser opened (`opened` / `openError`). The viewer is a static snapshot; refs are valid only for that capture.

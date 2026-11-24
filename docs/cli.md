@@ -101,7 +101,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-ui tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` with `--by`/`--match`/`--index`/`--source` and tap the center |
 | `android-ui swipe` / `input` / `key` | Swipe (`--duration`, default 300ms), input ASCII text, send keyevent |
 | `android-ui studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
-| `android-ui mcp` | Start the MCP server (stdio); `--print-config` prints a client config, `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
+| `android-ui mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
 | `android-ui compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
 
 Global options: `-s, --serial`, `--adb <path>`, `--timeout <ms>`, `-v, --verbose`.

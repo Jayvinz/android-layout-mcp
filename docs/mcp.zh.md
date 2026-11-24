@@ -51,6 +51,48 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 通过 Claude Code 插件安装时不需要手写配置：插件 manifest 的 `mcpServers` 会自动启动
 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`（见 [plugin.zh.md](plugin.zh.md)）。
 
+### 其他客户端
+
+这个 Server 就是一个普通的 stdio MCP Server，任何客户端都能拉起；差别只在配置外壳。`--client`
+会按目标客户端的格式输出，目标文件路径写到 stderr，因此 stdout 可以直接粘贴或重定向：
+
+```bash
+node dist/cli.js mcp --print-config --client codex > config.toml
+```
+
+| `--client` | 文件 | 形状 |
+|---|---|---|
+| `claude`（默认）、`claude-desktop`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
+| `vscode` | `.vscode/mcp.json` | `servers`，带 `type: "stdio"` |
+| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-ui]` |
+| `zed` | `settings.json` | `context_servers`，命令放在 `command.path` |
+| `opencode` | `opencode.json` | `mcp`，本地命令用数组 |
+| `goose` | `~/.config/goose/config.yaml` | YAML `extensions` |
+| `amp` | `~/.config/amp/settings.json` | 点号键 `amp.mcpServers` |
+
+全局参数（`--serial`、`--adb`、`--timeout`、`--studio`、`--java`、`--compose-version`）会一并写进片段，
+固定设备的选择不会在复制时丢失。`--client` 只改外壳，工具集完全相同。
+
+客户端配置格式会变；上表的路径与形状是这些客户端在 2026 年 11 月接受的写法。Windows 上
+表中 `~` 对应 `%USERPROFILE%`。
+
+### 在其他 agent 中使用技能
+
+四个技能在 Claude Code 之外也能跑：frontmatter 只用了 `name` 与 `description`（Agent Skills 标准的可移植子集），
+正文里的 CLI 兜底路径用 `AUI_ROOT` 而不是 `${CLAUDE_PLUGIN_ROOT}`。Cursor 与 VS Code 会直接读
+`.claude/skills/`；Codex CLI、Gemini CLI、Cline、Goose 读 `.agents/skills/`：
+
+```bash
+node scripts/sync-agent-skills.mjs --dest ../my-android-app   # 装进某个工程
+node scripts/sync-agent-skills.mjs --global                   # 装到 ~/.agents/skills
+node scripts/sync-agent-skills.mjs --dest . --check           # 副本过期时退出码 1
+```
+
+在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-ui` 放进 `PATH`），CLI 兜底才能生效。
+斜杠命令（`/screen`、`/locate` 等）与 `ui-code-locator` 子代理是 Claude Code 专属；其他客户端通过技能与
+工具描述走同样的流程。`PreToolUse` 门禁 hook 同样是 Claude Code 专属，其他环境里 Android 工程门禁
+只是技能正文中的软约束。
+
 ## 工具
 
 | 工具 | 作用 |

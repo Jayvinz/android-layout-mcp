@@ -101,7 +101,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-ui tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或用 `--text/--id/--ref` 配合 `--by`/`--match`/`--index`/`--source` 选择元素后点击其中心 |
 | `android-ui swipe` / `input` / `key` | 滑动（`--duration`，默认 300ms）、输入 ASCII 文本、发送 keyevent |
 | `android-ui studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
-| `android-ui mcp` | 启动 MCP Server（stdio）；`--print-config` 打印客户端配置，`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
+| `android-ui mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
 | `android-ui compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
 
 全局选项：`-s, --serial`、`--adb <path>`、`--timeout <ms>`、`-v, --verbose`。
