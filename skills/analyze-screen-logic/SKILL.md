@@ -102,7 +102,7 @@ For the primary actions on the surface:
 3. Record route arguments and what the next screen expects.
 4. Note guards (validation, permissions, feature flags) that can block the action.
 
-Do not tap unless the user asks; if interaction evidence is needed, tap once and re-capture. Never turn this into a test loop.
+This skill reads code and captures the screen; it never taps, swipes, types, or sends key events. Interaction chains are traced through source only, and anything you could not confirm from code is marked `inferred`.
 
 ## Output template
 
@@ -147,7 +147,7 @@ Answer in the user's language, compactly, without full-file pastes:
 - One control's implementation, click chain, or state → `locate-ui-code`. A bare "which Activity/Fragment/Composable owns this page" lookup with no business-logic question → also `locate-ui-code`. This skill analyzes the whole screen/dialog.
 - Observation only ("what is on this screen", bounds, clickable, class) → `inspect-current-screen`; it never calls `locate_code`.
 - Before/after, regression, "did my change work" → `verify-ui-change`.
-- Never edit code, build, install, or tap unless explicitly asked. This skill is read-only.
+- Never edit code, build, install, or drive the device. This skill is read-only.
 - Refs and ids are valid for one capture; re-capture before a follow-up on a changed screen.
 
 ## Quality rules

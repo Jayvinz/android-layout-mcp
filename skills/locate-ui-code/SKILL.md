@@ -26,9 +26,9 @@ If the user explicitly asks about a connected device screen/page but no Android 
 
 ## Prerequisites
 
-1. Confirm `adb` is available and the device is online: use MCP `list_devices`, or `adb devices`. If multiple devices are connected, choose a `serial` and pass the same one to `get_state` / `dump_ui` / `find_elements` / `hit_test` / `screenshot` / `tap`.
+1. Confirm `adb` is available and the device is online: use MCP `list_devices`, or `adb devices`. If multiple devices are connected, choose a `serial` and pass the same one to `get_state` / `dump_ui` / `find_elements` / `hit_test` / `screenshot`.
 2. Confirm the working directory is the target Android repository root; check `settings.gradle(.kts)`, `gradlew`, and `app/`. If you are not inside the repository, ask the user for the path or infer it from the nearest relevant module.
-3. The plugin MCP tools are provided by the `android-layout` server: `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `screenshot`, `analyze_ui`, `diff_ui`, `tap`, `swipe`.
+3. The plugin MCP tools are provided by the `android-layout` server: `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `screenshot`, `analyze_ui`, `diff_ui`, `list_fragments`.
 4. If MCP is unavailable, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`, `scripts/`, and `skills/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout. `android-layout` on `PATH` is equivalent:
    ```bash
    mkdir -p .aui
@@ -53,12 +53,13 @@ Then decide whether to capture more based on `uiKind`:
 | `mixed` | Keep view + semantics; capture compose only when tracing source | Covers both XML and Compose areas |
 | `xml` | Nothing extra | View classes, resource ids, and text are enough |
 | `unknown` | Try `dump_ui(source="semantics")` first | Fallback for non-debuggable apps or restricted captures |
+| release build (`--source view` fails) | `dump_ui(source="dumpsys")` | Real View classes and resource ids without a debug build; no text |
 
 Notes:
 
 - `ref` values (`v*` / `s*` / `c*`) are valid only for one capture. Re-capture after the UI changes; never reuse stale refs.
 - `visibleOnly` only affects `format="tree"`; JSON output still contains invisible nodes, so filter them yourself.
-- When the user refers to "the top-left of the screen" or "the position in the screenshot", call `screenshot` and use the returned `width` / `originalWidth` / `scale` for coordinate mapping. Never treat image pixels as device coordinates. Then use `hit_test` or `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`.
+- When the user refers to "the top-left of the screen" or "the position in the screenshot", call `screenshot` and use the returned `width` / `originalWidth` / `scale` for coordinate mapping. Never treat image pixels as device coordinates; map them with `coordinateMapping.imageToDevice` and then call `hit_test` in device coordinates.
 - Take screenshots only when visual information is genuinely needed. Text, ids, and Compose anchors are usually sufficient.
 - If Compose capture fails (non-debuggable app, Android Studio not installed, Compose version mismatch), do not retry repeatedly. Fall back to semantics plus string/id anchors and mark source confidence as medium or low in the conclusion. Do not claim the result came from the Compose tree.
 
@@ -66,6 +67,7 @@ Notes:
 
 When the user asks "which Activity/Fragment/Composable/route implements this page/dialog", skip control search and locate the page entry directly:
 
+- **Fragment check first.** Call `list_fragments`. It reads `dumpsys activity`, so it works even when the app is not debuggable (a release build), where the ViewDebug source fails. A live fragment with a real class name is the strongest page-owner evidence there is; a `null` class name or an obfuscated one (`b`, `c0`) means the build is minified, so fall back to the tag and the hosting Activity, and say the name is obfuscated rather than guessing a class.
 - XML/View pages: take the `activity` from `get_state` → `rg 'class .*ProfileActivity'` (replace with the actual class name); find its declaration in `AndroidManifest.xml`; inside the Activity look for `setContentView(R.layout.x)` or the Fragment's `onCreateView` / Binding `inflate`.
 - Compose pages: call `dump_ui(source="compose", maxNodes=2000)` and read the Composable names near the root, then use `locate_code`'s `compose-callsite` to find parents and `NavHost` / `composable("route")`.
 - Dialogs/BottomSheets: look for `DialogFragment`, `BottomSheetDialogFragment`, and `show()` calls; check `<dialog>` destinations in Navigation XML.
@@ -92,14 +94,14 @@ If two or more candidates remain equally plausible, give the user the candidate 
 
 When nothing is found:
 
-1. The target may be offscreen or collapsed: use `swipe` to scroll/expand, then re-run `dump_ui` and `find_elements`; remind the user that old refs are invalid.
+1. The target may be offscreen or collapsed: say it is not in this capture, and ask the user to scroll or expand it. Then re-run `dump_ui` and `find_elements`; remind the user that old refs are invalid. This skill never scrolls the device itself.
 2. Icon buttons without text: use `by="desc"` or `by="id"`.
 3. A dialog/overlay may belong to another window: inspect `windows` in `get_state`, then `dump_ui(source="view", window="<index>")` if needed.
 4. Still nothing: go to Step 3 and fall back to code search using nearby static text, ids, or class names; follow `references/repo-search-recipes.md`.
 
 **Do not turn "not in this capture" into "not in the repository".** One frame is evidence about the screen, not about the codebase.
 
-- If the user names a control that is not in the captured tree (a closed dialog, another tab, a scrolled-off item), say it is not on the current screen, then either open it (`tap` / `swipe`, or ask the user) and re-capture, or search the source for the literal.
+- If the user names a control that is not in the captured tree (a closed dialog, another tab, a scrolled-off item), say it is not on the current screen, then ask the user to open it and re-capture, or search the source for the literal.
 - For Compose, search the quoted literal (`Text("Close")`, `contentDescription = "Close"`) instead of assuming attribute syntax such as `android:text` / `text =`; `locate_code` reports these as `literal-text` candidates.
 - If source hits exist while the control is absent on screen, report them as `not currently visible` and keep them separate from capture evidence. Never claim the repository lacks the control based on a single frame.
 

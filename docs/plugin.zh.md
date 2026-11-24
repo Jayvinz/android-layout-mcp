@@ -28,7 +28,7 @@
 
 | 组件 | 路径 | 作用 |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` 等 |
+| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` 等 |
 | Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作、布局/无障碍检查，以及显式触发的浏览器查看器；不追溯源码 |
 | Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
 | Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
@@ -177,7 +177,7 @@ serial/adb/Studio 参数时，优先用环境变量，或在项目级 `.mcp.json
 
 ## 只读与权限
 
-- Skills/agent 默认只读；`tap`/`swipe`/`input_text` 是显式交互工具，由用户请求触发。
+- 所有技能与该子代理都是只读的：插件观察和分析设备，但从不点击、滑动、输入文本或发送按键。
 - 定位/验证过程会在仓库内写 `.aui/before.json`、`.aui/after.json`、`.aui/*.png`；
   建议把 `.aui/` 加入 `.gitignore`（本仓库已加入）。
 - 不要提交 dump：其中可能包含设备序列号、前台包名和界面文本。

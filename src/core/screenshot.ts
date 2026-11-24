@@ -54,8 +54,8 @@ export interface ScreenshotMetadata {
 
 /**
  * Metadata that must accompany a downscaled screenshot. Vision/OCR coordinates
- * are in image pixels, while `input tap` expects device pixels; agents must map
- * them with this factor before tapping.
+ * are in image pixels, while device coordinates are what `hit` accepts and what
+ * gets reported; agents must map them with this factor before quoting a position.
  */
 export function screenshotMetadata(screenshot: Screenshot): ScreenshotMetadata {
   const factorX = screenshot.width > 0 ? screenshot.originalWidth / screenshot.width : 1;

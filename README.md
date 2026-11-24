@@ -17,7 +17,7 @@ Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-l
 ## Highlights
 
 - **Adaptive data sources** — `auto` picks the right tree per screen: ViewDebug v2 for XML, accessibility semantics for Compose, and both for mixed screens. Opt into the Compose JVMTI tree for Composable names and `file:line`.
-- **Find, hit-test, interact** — search by text / content-description / resource-id / class / ref, resolve every element under a coordinate (smallest area first), then tap, swipe, or input.
+- **Find and hit-test** — search by text / content-description / resource-id / class / ref, and resolve every element under a coordinate (smallest area first). Read-only: it never taps, swipes, or types.
 - **Visual verification** — screenshots with SVG node overlays and automatic image→device coordinate mapping; a fallback screenshot is saved automatically when structured capture fails.
 - **Interactive viewer on request** — say "打开可视化看看" and get a self-contained offline HTML file (tree, screenshot overlay, node details, layout issues) opened in your browser. It never opens a browser as a side effect of other commands.
 - **Checks and diffs** — 10 layout/accessibility rules and identity-keyed before/after diffs around a code change.
@@ -73,7 +73,7 @@ After installation you get:
 
 | Component               | Content                                                                                                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MCP server `android-layout` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `open_viewer`, `diff_ui`, `tap`, and more                                          |
+| MCP server `android-layout` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `open_viewer`, `diff_ui`, `list_fragments`, and more                                          |
 | Slash commands          | `/android-layout:locate` (UI→source), `:screen` (current screen), `:analyze-screen` (screen/dialog logic), `:view` (browser viewer), `:verify` (verify changes on device) |
 | Skills                  | `inspect-current-screen`, `locate-ui-code`, `analyze-screen-logic`, `verify-ui-change`                                                                                |
 | Read-only subagent      | `ui-code-locator`                                                                                                                                                     |
@@ -172,7 +172,7 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 | Understand the current screen (foreground app, Activity, visible entries) | `/android-layout:screen` / `get_state` + `dump_ui`  |
 | Inspect a visible control's bounds, center, clickable/enabled state, and class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | Verify a UI change on a real device (diff + rules + screenshot)           | `/android-layout:verify` / `diff_ui` + `analyze_ui` |
-| Find elements / hit-test / tap, swipe, input                              | `find_elements` / `hit_test` / `tap`, `swipe`, `input_text`, `press_key` |
+| Find elements / hit-test                                                  | `find_elements` / `hit_test` |
 | Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `android-layout shot`                        |
 | Visualize the current screen in a browser (explicit request only)         | `open_viewer` / `android-layout view` / `/android-layout:view` |
 | Layout and accessibility checks                                           | `analyze_ui` / `android-layout analyze`                     |
@@ -184,9 +184,10 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 | ----------- | ------------------------------------------ | ----------------------------------------------------------------------- |
 | `view`      | Debuggable app                             | Full View classes, resource ids, layout params, visibility              |
 | `semantics` | Nothing                                    | Compose text, content descriptions, clickable bounds on any app         |
+| `dumpsys`   | Nothing                                    | Real View classes, resource ids, bounds, and **Activity/Fragment structure** on a non-debuggable app; no text, so it pairs with `semantics` |
 | `compose`   | Debuggable app + Android Studio + Java 17+ | Composable names, `file:line`, bounds, parameters, recomposition counts |
 
-`auto` (the default) captures `view` + `semantics` and picks per screen: `view` for XML, `semantics` for Compose, both for mixed screens. Use `--source compose` explicitly when you need Composable-level detail (~8–12s). See [docs/data-sources.md](docs/data-sources.md).
+`auto` (the default) captures `view` + `semantics` and picks per screen: `view` for XML, `semantics` for Compose, both for mixed screens. Use `--source dumpsys` for a release build where the ViewDebug source is unavailable, and `--source compose` when you need Composable-level detail (~8–12s). See [docs/data-sources.md](docs/data-sources.md).
 
 ## Documentation
 
@@ -201,13 +202,13 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 
 ## Limitations
 
-- `view` / `compose` require `android:debuggable=true`; release builds can only use `semantics`.
+- `view` / `compose` require `android:debuggable=true`; release builds can use `semantics` or `dumpsys` (structure and ids, no text).
 - JDWP usually allows one debugger at a time; attach may fail while Android Studio is debugging.
 - `compose` additionally needs a local Android Studio and Java 17+; each capture takes about 8–12s.
 - `input text` reliably supports ASCII only; every command captures a fresh snapshot — there is no live monitoring.
 - Text output is trimmed at 2000 nodes (`--max-nodes`/`--depth`/`--visible-only` shape the text tree only); `--json`/`--out` write the complete dump, and MCP `dump_ui` caps JSON at 800 nodes unless you raise `maxNodes`.
 - The HTML viewer embeds at most 8 MB; beyond that it drops View properties, then halves the node budget down to 200, and reports `truncated`.
-- `find`/`hit`/`tap` selectors only match visible nodes; image-coordinate taps require the screenshot metadata (`--image-*` or `imageX/Y/Width/Height`). MCP `screenshot` defaults to 720 px wide, while CLI `shot` keeps the native resolution.
+- `find`/`hit` selectors only match visible nodes. Coordinate work needs the screenshot metadata (`coordinateMapping`) to convert image pixels to device coordinates. MCP `screenshot` defaults to 720 px wide, while CLI `shot` keeps the native resolution.
 - Content drawn directly to a `Canvas` (custom views, `SurfaceView`, `WebView` pixels) has no text or child nodes; the semantics tree only shows what the app exposes to accessibility.
 - Activation targets Android projects; in other repositories it requires an explicit device/screen request or an explicit Android mention.
 

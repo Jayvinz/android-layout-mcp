@@ -1,6 +1,7 @@
 import { captureComposeTree } from "./compose.js";
 import { AuiError, errorMessage } from "./errors.js";
 import { JdwpClient } from "./jdwp.js";
+import { allFragments, mergeSemanticsText, notableFragments, parseDumpsys } from "./dumpsys.js";
 import { parseSemanticsXml } from "./semantics.js";
 import { flattenNodes, parseViewHierarchy } from "./viewdump.js";
 const STRUCTURAL_CONTAINER_CLASSES = new Set([
@@ -81,11 +82,14 @@ export async function capture(options) {
         target.pid = pids[0] ?? null;
     }
     progress(target.pid ? `pid ${target.pid}` : "no running process found for the package");
-    const wantView = sourceMode !== "semantics" && sourceMode !== "compose";
+    const wantView = sourceMode === "view" || sourceMode === "auto" || sourceMode === "both";
+    // dumpsys carries no text, so it always pairs with the semantics tree.
     const wantSemantics = sourceMode !== "view" && sourceMode !== "compose";
+    const wantDumpsys = sourceMode === "dumpsys";
     const wantCompose = sourceMode === "compose";
     let viewResult = null;
     let semanticsResult = null;
+    let dumpsysResult = null;
     let composeResult = null;
     if (wantView) {
         if (target.pid === null) {
@@ -119,6 +123,28 @@ export async function capture(options) {
             }
         }
     }
+    if (wantDumpsys) {
+        try {
+            dumpsysResult = await captureDumpsys(adb, packageName, target, screen, options);
+            // dumpsys has no text; merge the semantics tree when one is available so
+            // a non-debuggable screen still answers "what does this control say".
+            if (semanticsResult) {
+                const merged = mergeSemanticsText(dumpsysResult.roots, semanticsResult.roots, { screen });
+                dumpsysResult.labelledNodes = merged.labelled;
+                if (merged.labelled > 0) {
+                    progress(`labelled ${merged.labelled} dumpsys nodes from the semantics tree`);
+                }
+            }
+            progress(`captured dumpsys hierarchy (${flattenNodes(dumpsysResult.roots).length} nodes, ` +
+                `${dumpsysResult.fragments.length} fragments)`);
+        }
+        catch (error) {
+            const message = errorMessage(error);
+            warnings.push(`dumpsys capture failed: ${message}`);
+            if (sourceMode === "dumpsys")
+                throw error;
+        }
+    }
     if (wantCompose) {
         if (target.pid === null) {
             throw new AuiError("NO_PID", `Package ${packageName} is not running; Compose inspection needs a live process.`);
@@ -145,20 +171,25 @@ export async function capture(options) {
         target.debuggable = true;
         progress(`captured Compose tree (${flattenNodes(result.roots).length} nodes)`);
     }
-    if (!viewResult && !semanticsResult && !composeResult) {
+    if (!viewResult && !semanticsResult && !dumpsysResult && !composeResult) {
         throw new AuiError("VIEW_DUMP_FAILED", "Could not capture the UI from the device.", warnings.join(" | "));
     }
     const uiKind = composeResult && !viewResult
         ? "compose"
         : viewResult
             ? classifyUi(viewResult.roots)
-            : "unknown";
+            : dumpsysResult && hasComposeInDumpsys(dumpsysResult.roots)
+                ? "compose"
+                : "unknown";
     let source;
     if (sourceMode === "auto") {
         source = chooseAutoSource(viewResult, semanticsResult, uiKind);
     }
     else if (sourceMode === "both") {
         source = viewResult ? "view" : "semantics";
+    }
+    else if (sourceMode === "dumpsys") {
+        source = "dumpsys";
     }
     else {
         source = sourceMode;
@@ -168,6 +199,8 @@ export async function capture(options) {
         sources.push("view");
     if (semanticsResult)
         sources.push("semantics");
+    if (dumpsysResult)
+        sources.push("dumpsys");
     if (composeResult)
         sources.push("compose");
     return {
@@ -179,6 +212,7 @@ export async function capture(options) {
         uiKind,
         ...(viewResult ? { view: viewResult } : {}),
         ...(semanticsResult ? { semantics: semanticsResult } : {}),
+        ...(dumpsysResult ? { dumpsys: dumpsysResult } : {}),
         ...(composeResult ? { compose: composeResult } : {}),
         warnings,
     };
@@ -276,6 +310,52 @@ async function captureSemantics(adb, packageName, options) {
         }
     }
 }
+/**
+ * `dumpsys activity <pkg>` works on any app, debuggable or not, and is the only
+ * source that reports Fragment instances. It carries class names, resource ids,
+ * and absolute bounds but no text, so callers pair it with the semantics tree.
+ */
+async function captureDumpsys(adb, packageName, target, screen, options) {
+    const started = Date.now();
+    const output = await adb.shell(`dumpsys activity ${packageName}`, {
+        timeoutMs: options.requestTimeoutMs ?? 30_000,
+    });
+    const text = output;
+    if (!/ACTIVITY\s/.test(text)) {
+        throw new AuiError("DUMPSYS_FAILED", `dumpsys returned no activity block for ${packageName}.`, "Make sure the app is running and in the foreground.");
+    }
+    const parsed = parseDumpsys(text, {
+        packageName,
+        screen,
+        // Only trust the foreground activity when the target is the foreground app;
+        // for an explicit --package the dump's own activity line is authoritative.
+        activityHint: target.activity && target.activity.includes(packageName) ? target.activity : null,
+    });
+    if (parsed.roots.length === 0) {
+        throw new AuiError("DUMPSYS_FAILED", "dumpsys reported no view hierarchy for this app.", "Some system apps hide their hierarchy; try source=semantics.");
+    }
+    const fragments = notableFragments(allFragments(parsed)).map((fragment) => ({
+        className: fragment.className,
+        shortClassName: fragment.shortClassName,
+        tag: fragment.tag,
+        state: fragment.state,
+        added: fragment.added,
+        hidden: fragment.hidden,
+        detached: fragment.detached,
+        activity: fragment.activity,
+    }));
+    return {
+        activity: parsed.activity,
+        roots: parsed.roots,
+        fragments,
+        labelledNodes: 0,
+        captureMs: Date.now() - started,
+    };
+}
+/** dumpsys cannot classify compose vs xml reliably; a ComposeView node is the signal. */
+function hasComposeInDumpsys(roots) {
+    return flattenNodes(roots).some((node) => /ComposeView/.test(node.className));
+}
 function chooseAutoSource(viewResult, semanticsResult, uiKind) {
     if (!viewResult)
         return "semantics";
@@ -312,6 +392,10 @@ export function treesFor(result, source, both) {
     else if (mode === "semantics") {
         if (result.semantics)
             trees.push(["semantics", result.semantics.roots]);
+    }
+    else if (mode === "dumpsys") {
+        if (result.dumpsys)
+            trees.push(["dumpsys", result.dumpsys.roots]);
     }
     else if (result.uiKind === "mixed" && result.view && result.semantics) {
         trees.push(["view", result.view.roots]);

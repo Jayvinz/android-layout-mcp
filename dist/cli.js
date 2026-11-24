@@ -10,10 +10,11 @@ import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js
 import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
+import { allFragments, notableFragments, parseDumpsys } from "./core/dumpsys.js";
 import { MCP_CLIENT_IDS, mcpClientConfig, isMcpClient } from "./core/mcp-config.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderIssues, renderSource } from "./core/render.js";
-import { imageToDevicePoint, renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
+import { renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
 import { loadDump, saveDump, serializeDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
 import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload } from "./core/viewer.js";
@@ -158,9 +159,60 @@ program
     }
 });
 program
+    .command("fragments")
+    .description("list Activity and Fragment structure from dumpsys (works on non-debuggable apps)")
+    .option("--package <package>", "package name (defaults to foreground app)")
+    .option("--json", "output JSON")
+    .option("--all", "include AndroidX lifecycle bookkeeping fragments")
+    .action(async (options, command) => {
+    const adb = makeAdb(command);
+    const pkg = options.package ?? (await adb.foregroundApp()).packageName;
+    if (!pkg)
+        throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.");
+    const output = await adb.shell(`dumpsys activity ${pkg}`, { timeoutMs: 30_000 });
+    const parsed = parseDumpsys(output, { packageName: pkg });
+    const picked = options.all ? allFragments(parsed) : notableFragments(allFragments(parsed));
+    if (options.json) {
+        printJson({
+            package: pkg,
+            activities: parsed.activities.map((activity) => ({
+                activity: activity.activity,
+                pid: activity.pid,
+                fragments: (options.all
+                    ? activity.fragments
+                    : notableFragments(activity.fragments)).map((fragment) => ({
+                    className: fragment.className,
+                    tag: fragment.tag,
+                    state: fragment.state,
+                    added: fragment.added,
+                    hidden: fragment.hidden,
+                    detached: fragment.detached,
+                })),
+            })),
+        });
+        return;
+    }
+    if (picked.length === 0) {
+        console.log("no product fragments found (single Activity, Compose-only, or obfuscated names)");
+        return;
+    }
+    for (const fragment of picked) {
+        const flags = [
+            fragment.added ? "added" : "not-added",
+            fragment.hidden ? "hidden" : null,
+            fragment.detached ? "detached" : null,
+        ]
+            .filter(Boolean)
+            .join(",");
+        console.log(`${fragment.shortClassName ?? fragment.className ?? "?"}` +
+            `${fragment.tag ? ` tag=${fragment.tag}` : ""}` +
+            `${fragment.state !== null ? ` state=${fragment.state}` : ""} (${flags})`);
+    }
+});
+program
     .command("dump")
     .description("capture the current UI hierarchy")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--package <package>", "package name (defaults to foreground app)")
     .option("--pid <pid>", "process id")
     .option("--window <name-or-index>", "ViewRootImpl window to dump (view source)")
@@ -200,7 +252,7 @@ program
     .option("--match <mode>", "contains | exact | regex", "contains")
     .option("--clickable", "only clickable nodes")
     .option("--both", "search both view and semantics trees")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--limit <n>", "maximum matches", parsePositiveInt, 50)
     .option("--json", "output JSON")
     .action(async (query, options, command) => {
@@ -238,7 +290,7 @@ program
     .command("hit <x> <y>")
     .description("find the view(s) at a screen coordinate (smallest area wins)")
     .option("--both", "hit-test both view and semantics trees")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--index <n>", "select the n-th candidate at the same point (cycles overlapping views)", parseNonNegativeInt, 0)
     .option("--json", "output JSON")
     .action(async (xArg, yArg, options, command) => {
@@ -291,7 +343,7 @@ program
 program
     .command("analyze")
     .description("report layout and accessibility issues")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--rules <rules>", "comma-separated rules (small_touch_target, overlap, clipped, ...)")
     .option("--min-touch-dp <dp>", "minimum touch target size", parsePositiveInt, 48)
     .option("--max-depth <n>", "deep nesting threshold", parsePositiveInt, 14)
@@ -318,7 +370,7 @@ program
 program
     .command("inspect <ref-or-path>")
     .description("show full details for one node (ref like v12/s12 or id path like 0.2.1)")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--json", "output JSON (default)")
     .action(async (ref, options, command) => {
     const result = await captureFor(command, { ...options, props: true });
@@ -337,7 +389,7 @@ program
     .description("save a PNG screenshot, optionally with a node-box overlay")
     .option("--out <file>", "output PNG path", "screenshot.png")
     .option("--annotate", "also write an .annotated.svg with node boxes")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--max-width <px>", "downscale the screenshot to at most this width", parsePositiveInt)
     .option("--scale <factor>", "downscale by a factor between 0 and 1", parseScale)
     .option("--json", "print metadata (base64 with --base64)")
@@ -389,7 +441,7 @@ program
     .command("view")
     .alias("open")
     .description("capture the current UI and open an interactive HTML viewer in the browser")
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
+    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--package <package>", "package name (defaults to foreground app)")
     .option("--pid <pid>", "process id")
     .option("--window <name-or-index>", "ViewRootImpl window to capture (view source)")
@@ -497,104 +549,6 @@ program
         return;
     }
     console.log(renderDiff(result));
-});
-program
-    .command("tap")
-    .description("tap coordinates, or the center of a matched element")
-    .argument("[x]", "screen x coordinate")
-    .argument("[y]", "screen y coordinate")
-    .option("--text <text>", "match element text/description")
-    .option("--id <resource-id>", "match resource id")
-    .option("--ref <ref>", "match node ref (v12/s12)")
-    .option("--by <field>", "any | text | desc | id | class | ref", "any")
-    .option("--match <mode>", "contains | exact | regex", "contains")
-    .option("--index <n>", "match index", parseNonNegativeInt, 0)
-    .option("--source <mode>", "auto | view | semantics | compose | both", "auto")
-    .option("--image-x <px>", "x in the downscaled screenshot image")
-    .option("--image-y <px>", "y in the downscaled screenshot image")
-    .option("--image-width <px>", "screenshot image width reported by `shot`")
-    .option("--image-height <px>", "screenshot image height reported by `shot`")
-    .action(async (xArg, yArg, options, command) => {
-    const adb = makeAdb(command);
-    let point = null;
-    let node = null;
-    const imageOptions = [
-        options.imageX,
-        options.imageY,
-        options.imageWidth,
-        options.imageHeight,
-    ];
-    if (imageOptions.some((value) => value !== undefined)) {
-        if (imageOptions.some((value) => value === undefined)) {
-            throw new AuiError("BAD_INPUT", "Image-coordinate tap needs --image-x, --image-y, --image-width, and --image-height.");
-        }
-        const screen = await adb.screenInfo();
-        if (!screen.width || !screen.height) {
-            throw new AuiError("BAD_INPUT", "Could not determine the device screen size for image-coordinate mapping.");
-        }
-        point = imageToDevicePoint(parseImageCoordinate(options.imageX, "image-x"), parseImageCoordinate(options.imageY, "image-y"), parseNonNegativeInt(options.imageWidth), parseNonNegativeInt(options.imageHeight), screen.width, screen.height);
-        console.log(`image (${options.imageX}, ${options.imageY}) in ${options.imageWidth}x${options.imageHeight} ` +
-            `-> device (${point.x}, ${point.y}) on ${screen.width}x${screen.height}`);
-    }
-    else if (xArg !== undefined || yArg !== undefined) {
-        if (xArg === undefined || yArg === undefined) {
-            throw new AuiError("BAD_INPUT", "tap needs both x and y, or a selector (--text/--id/--ref).");
-        }
-        point = { x: parseCoordinate(xArg, "x"), y: parseCoordinate(yArg, "y") };
-    }
-    else {
-        const result = await captureFor(command, {
-            ...options,
-            source: options.ref && (!options.source || options.source === "auto") ? "both" : options.source,
-        });
-        const trees = treesFor(result, parseSource(options.source), options.ref !== undefined && (!options.source || options.source === "auto"));
-        const [treeSource, roots] = trees[0];
-        const query = options.ref || options.text || options.id;
-        if (!query) {
-            throw new AuiError("BAD_INPUT", "tap needs coordinates or --text/--id/--ref.");
-        }
-        const by = options.ref ? "ref" : options.id ? "id" : options.text ? options.by : options.by;
-        const matches = findNodes(roots, {
-            query,
-            by,
-            match: options.match,
-            visibleOnly: true,
-        });
-        node = matches[options.index]?.node ?? null;
-        if (!node) {
-            throw new AuiError("BAD_INPUT", `No visible ${treeSource} node matches "${query}" (--by ${by}).`);
-        }
-        point = node.center;
-    }
-    await adb.inputTap(point.x, point.y);
-    console.log(`tapped (${Math.round(point.x)}, ${Math.round(point.y)})`);
-    if (node)
-        console.log(`node ${node.ref} ${nodePath(node)}`);
-});
-program
-    .command("swipe <x1> <y1> <x2> <y2>")
-    .description("swipe between two screen coordinates")
-    .option("--duration <ms>", "swipe duration", parsePositiveInt, 300)
-    .action(async (x1, y1, x2, y2, options, command) => {
-    const adb = makeAdb(command);
-    await adb.inputSwipe(parseCoordinate(x1, "x1"), parseCoordinate(y1, "y1"), parseCoordinate(x2, "x2"), parseCoordinate(y2, "y2"), options.duration);
-    console.log("swiped");
-});
-program
-    .command("input <text>")
-    .description("type text into the focused field (ASCII)")
-    .action(async (text, _options, command) => {
-    const adb = makeAdb(command);
-    await adb.inputText(text);
-    console.log("text sent");
-});
-program
-    .command("key <keycode>")
-    .description("send a key event, e.g. KEYCODE_BACK, KEYCODE_ENTER, or 4")
-    .action(async (key, _options, command) => {
-    const adb = makeAdb(command);
-    await adb.keyEvent(key);
-    console.log(`key ${key} sent`);
 });
 program
     .command("compose-clean")
@@ -732,9 +686,14 @@ Fallback screenshot: ${path} ` +
 function parseSource(value) {
     if (value === undefined || value === "auto")
         return "auto";
-    if (value === "view" || value === "semantics" || value === "compose" || value === "both")
+    if (value === "view" ||
+        value === "semantics" ||
+        value === "dumpsys" ||
+        value === "compose" ||
+        value === "both") {
         return value;
-    throw new AuiError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, compose, or both).`);
+    }
+    throw new AuiError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, dumpsys, compose, or both).`);
 }
 async function resolvePackage(adb, packageOption, pidOption) {
     const foreground = await adb.foregroundApp();

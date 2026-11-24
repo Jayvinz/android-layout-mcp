@@ -25,7 +25,7 @@ server key, and CLI command are the shorter `android-layout`.
 
 | Component | Path | Purpose |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` / `tap` and more |
+| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` and more |
 | Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, layout/accessibility audits, and the explicit browser viewer; no source tracing |
 | Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
 | Skill | `skills/analyze-screen-logic/` | Whole-screen/dialog analysis: implementation, ViewModel/state, data sources, navigation, conditions, and side effects (read-only) |
@@ -140,7 +140,7 @@ The script only ranks candidates — always open the files to confirm. It never 
 
 ## Agent
 
-`ui-code-locator` is a read-only subagent suited to "capture screen → find node → scan candidates → read code" multi-step work, so the main session only receives the conclusion. By default it performs no edits, builds, installs, or taps.
+`ui-code-locator` is a read-only subagent suited to "capture screen → find node → scan candidates → read code" multi-step work, so the main session only receives the conclusion. It performs no edits, builds, installs, or device input.
 
 ## Environment variables
 
@@ -148,7 +148,7 @@ The plugin manifest's `mcpServers` injects no environment variables; the MCP pro
 
 ## Read-only and permissions
 
-- Skills/agent are read-only by default; `tap`/`swipe`/`input_text` are explicit interaction tools triggered by user requests.
+- Every skill and the agent are read-only: the plugin observes and analyzes a device but never taps, swipes, types, or sends key events.
 - The locate/verify workflows write `.aui/before.json`, `.aui/after.json`, `.aui/*.png` inside the repository; add `.aui/` to `.gitignore` (this repo already does).
 - Do not commit dumps: they may contain device serials, foreground package names, and screen text.
 

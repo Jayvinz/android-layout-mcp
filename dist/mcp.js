@@ -10,12 +10,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
+import { allFragments, notableFragments, parseDumpsys } from "./core/dumpsys.js";
 import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderSource } from "./core/render.js";
-import { imageToDevicePoint, renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
+import { renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
 import { serializeNode } from "./core/viewdump.js";
 import { loadDump, saveDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
 import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload, } from "./core/viewer.js";
@@ -26,7 +27,7 @@ const TOOL_SERVER_INFO = {
 };
 const execFileAsync = promisify(execFile);
 const LOCATOR_SCRIPT = fileURLToPath(new URL("../scripts/locate-code.mjs", import.meta.url));
-const sourceSchema = z.enum(["auto", "view", "semantics", "compose", "both"]);
+const sourceSchema = z.enum(["auto", "view", "semantics", "dumpsys", "compose", "both"]);
 const ruleSchema = z.enum([
     "zero_size",
     "offscreen",
@@ -148,7 +149,7 @@ export async function startMcpServer(options = {}) {
         inputSchema: {
             serial: z.string().optional().describe("Device serial."),
             package: z.string().optional().describe("Package to inspect; defaults to foreground app."),
-            source: sourceSchema.optional().describe("auto (default), view, semantics, compose, or both."),
+            source: sourceSchema.optional().describe("auto (default), view, semantics, dumpsys, compose, or both."),
             format: z.enum(["json", "tree"]).optional().describe("json (default) or tree."),
             depth: z.number().int().min(0).max(100).optional().describe("Limit JSON tree depth; omit for full depth."),
             maxNodes: z.number().int().min(1).max(5000).optional().describe("Limit JSON nodes (default 800)."),
@@ -231,7 +232,7 @@ export async function startMcpServer(options = {}) {
     });
     server.registerTool("find_elements", {
         title: "Find elements",
-        description: "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+        description: "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, center, clickable state, and the full path for each match. This is the best way to locate an element and get its device coordinates. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
         inputSchema: {
             query: z.string().describe("Text, id, class, ref, or regex to search for."),
             by: z.enum(["any", "text", "desc", "id", "class", "ref"]).optional().describe("Field to search (default any)."),
@@ -436,9 +437,60 @@ export async function startMcpServer(options = {}) {
             return errorResultWithScreenshot(error);
         }
     });
+    server.registerTool("list_fragments", {
+        title: "List Activity and Fragment structure",
+        description: "Report the Activity and Fragment structure of the foreground app from `dumpsys activity`: fragment class (or tag when the class is obfuscated), lifecycle state, and whether it is added/hidden/detached. Works on non-debuggable apps, where the ViewDebug source fails. Framework bookkeeping fragments (AndroidX ReportFragment, LifecycleDispatcher tags) are filtered out. Use this to answer \"which Fragment implements this page\" before scanning source. It returns no view hierarchy; pair it with dump_ui(source=\"dumpsys\") for nodes. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+        inputSchema: {
+            serial: z.string().optional(),
+            package: z.string().optional().describe("Package to inspect; defaults to the foreground app."),
+            includeFramework: z
+                .boolean()
+                .optional()
+                .describe("Keep AndroidX lifecycle bookkeeping fragments (ReportFragment etc.)."),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+    }, async (args) => {
+        try {
+            const adb = adbFor(args.serial);
+            const pkg = args.package ?? (await adb.foregroundApp()).packageName;
+            if (!pkg)
+                throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.");
+            const output = await adb.shell(`dumpsys activity ${pkg}`, { timeoutMs: 30_000 });
+            const parsed = parseDumpsys(output, { packageName: pkg });
+            const fragments = args.includeFramework
+                ? allFragments(parsed)
+                : notableFragments(allFragments(parsed));
+            return jsonResult({
+                package: pkg,
+                activities: parsed.activities.map((activity) => ({
+                    activity: activity.activity,
+                    pid: activity.pid,
+                    fragments: activity.fragments
+                        .filter((fragment) => args.includeFramework ? true : notableFragments([fragment]).length > 0)
+                        .map((fragment) => ({
+                        className: fragment.className,
+                        shortClassName: fragment.shortClassName,
+                        tag: fragment.tag,
+                        state: fragment.state,
+                        added: fragment.added,
+                        hidden: fragment.hidden,
+                        detached: fragment.detached,
+                        containerId: fragment.containerId,
+                    })),
+                })),
+                fragments,
+                hint: fragments.length === 0
+                    ? "No product Fragments found. The screen may be a single Activity, Compose-only, or a Fragment with an obfuscated name."
+                    : undefined,
+            });
+        }
+        catch (error) {
+            return errorResultWithScreenshot(error);
+        }
+    });
     server.registerTool("screenshot", {
         title: "Take a screenshot",
-        description: "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before tapping. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
+        description: "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before reporting a position. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
         inputSchema: {
             savePath: z.string().optional().describe("Write the PNG here (e.g. screenshot.png)."),
             annotate: z.boolean().optional().describe("Also write an .annotated.svg with node boxes next to savePath."),
@@ -478,7 +530,7 @@ export async function startMcpServer(options = {}) {
                 savedTo: args.savePath,
                 annotatedPath,
                 hint: shot.scale < 1
-                    ? "This image is downscaled. Coordinates read from the image are NOT device coordinates; multiply by coordinateMapping.imageToDevice before tapping, or use tap with imageX/imageY/imageWidth/imageHeight."
+                    ? "This image is downscaled. Coordinates read from the image are NOT device coordinates; multiply by coordinateMapping.imageToDevice before reporting a position."
                     : "Coordinates in this image are device coordinates.",
             };
             return {
@@ -597,151 +649,6 @@ export async function startMcpServer(options = {}) {
                 changed: diff.changed,
                 text: renderDiff(diff),
             });
-        }
-        catch (error) {
-            return errorResultWithScreenshot(error);
-        }
-    });
-    server.registerTool("tap", {
-        title: "Tap the screen",
-        description: "Tap device coordinates, the center of an element matched by text/id/ref, or a point read from a downscaled screenshot. For screenshot coordinates use imageX/imageY plus imageWidth/imageHeight and the device size is mapped automatically (never tap image pixels directly). Provide x+y, imageX/imageY/imageWidth/imageHeight, or a selector (text, id, ref).",
-        inputSchema: {
-            x: z.number().int().min(0).optional(),
-            y: z.number().int().min(0).optional(),
-            imageX: z.number().min(0).optional().describe("x coordinate in the downscaled screenshot image."),
-            imageY: z.number().min(0).optional().describe("y coordinate in the downscaled screenshot image."),
-            imageWidth: z.number().min(1).optional().describe("Screenshot image width from the screenshot metadata."),
-            imageHeight: z.number().min(1).optional().describe("Screenshot image height from the screenshot metadata."),
-            text: z.string().optional().describe("Element text/description query."),
-            id: z.string().optional().describe("Resource id query."),
-            ref: z.string().optional().describe("Node ref from dump_ui/find_elements (v12/s12)."),
-            by: z.enum(["any", "text", "desc", "id", "class", "ref"]).optional(),
-            match: z.enum(["contains", "exact", "regex"]).optional(),
-            index: z.number().int().min(0).optional().describe("Match index (default 0)."),
-            source: sourceSchema.optional(),
-            serial: z.string().optional(),
-            package: z.string().optional(),
-        },
-        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    }, async (args) => {
-        try {
-            const adb = adbFor(args.serial);
-            let point;
-            let node = null;
-            let mappedFrom = null;
-            const imageArgs = [args.imageX, args.imageY, args.imageWidth, args.imageHeight];
-            if (imageArgs.some((value) => value !== undefined)) {
-                if (imageArgs.some((value) => value === undefined)) {
-                    throw new AuiError("BAD_INPUT", "Image-coordinate tap needs imageX, imageY, imageWidth, and imageHeight.");
-                }
-                const screen = await adb.screenInfo();
-                if (!screen.width || !screen.height) {
-                    throw new AuiError("BAD_INPUT", "Could not determine the device screen size.");
-                }
-                point = imageToDevicePoint(args.imageX, args.imageY, args.imageWidth, args.imageHeight, screen.width, screen.height);
-                mappedFrom = {
-                    imageX: args.imageX,
-                    imageY: args.imageY,
-                    imageWidth: args.imageWidth,
-                    imageHeight: args.imageHeight,
-                    deviceWidth: screen.width,
-                    deviceHeight: screen.height,
-                };
-            }
-            else if (args.x !== undefined || args.y !== undefined) {
-                if (args.x === undefined || args.y === undefined) {
-                    throw new AuiError("BAD_INPUT", "tap needs both x and y, or a selector.");
-                }
-                point = { x: args.x, y: args.y };
-            }
-            else {
-                const query = args.ref || args.text || args.id;
-                if (!query)
-                    throw new AuiError("BAD_INPUT", "tap needs x+y, text, id, or ref.");
-                const captureSource = args.source === "view" || args.source === "semantics" || args.source === "compose"
-                    ? args.source
-                    : "both";
-                const result = await captureFor({ serial: args.serial, package: args.package, source: captureSource });
-                const trees = treesFor(result, captureSource, captureSource === "both");
-                const by = args.ref ? "ref" : args.id ? "id" : args.by;
-                for (const [, roots] of trees) {
-                    const matches = findNodes(roots, {
-                        query,
-                        by,
-                        match: args.match,
-                        visibleOnly: true,
-                    });
-                    node = matches[args.index ?? 0]?.node ?? null;
-                    if (node)
-                        break;
-                }
-                if (!node)
-                    throw new AuiError("BAD_INPUT", `No visible node matches "${query}".`);
-                if (!node.visible)
-                    throw new AuiError("BAD_INPUT", `Node ${node.ref} is not visible.`);
-                point = { x: node.center.x, y: node.center.y };
-            }
-            await adb.inputTap(point.x, point.y);
-            return jsonResult({
-                tapped: { x: Math.round(point.x), y: Math.round(point.y) },
-                ...(mappedFrom ? { mappedFrom } : {}),
-                node: node ? { ...nodeSummary(node), path: nodePath(node) } : null,
-            });
-        }
-        catch (error) {
-            return errorResultWithScreenshot(error);
-        }
-    });
-    server.registerTool("swipe", {
-        title: "Swipe the screen",
-        description: "Swipe between two screen coordinates with an optional duration in milliseconds.",
-        inputSchema: {
-            x1: z.number().int().min(0),
-            y1: z.number().int().min(0),
-            x2: z.number().int().min(0),
-            y2: z.number().int().min(0),
-            durationMs: z.number().int().min(1).max(10_000).optional(),
-            serial: z.string().optional(),
-        },
-        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    }, async (args) => {
-        try {
-            await adbFor(args.serial).inputSwipe(args.x1, args.y1, args.x2, args.y2, args.durationMs ?? 300);
-            return jsonResult({ swiped: true });
-        }
-        catch (error) {
-            return errorResultWithScreenshot(error);
-        }
-    });
-    server.registerTool("input_text", {
-        title: "Type text",
-        description: "Type ASCII text into the focused field using adb shell input text.",
-        inputSchema: {
-            text: z.string(),
-            serial: z.string().optional(),
-        },
-        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    }, async (args) => {
-        try {
-            await adbFor(args.serial).inputText(args.text);
-            return jsonResult({ typed: true, text: args.text });
-        }
-        catch (error) {
-            return errorResultWithScreenshot(error);
-        }
-    });
-    server.registerTool("press_key", {
-        title: "Press a key",
-        description: "Send an Android key event, e.g. KEYCODE_BACK, KEYCODE_ENTER, KEYCODE_HOME, or a numeric keycode.",
-        inputSchema: {
-            key: z.string(),
-            serial: z.string().optional(),
-        },
-        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    }, async (args) => {
-        try {
-            await adbFor(args.serial).keyEvent(args.key);
-            return jsonResult({ pressed: args.key });
         }
         catch (error) {
             return errorResultWithScreenshot(error);

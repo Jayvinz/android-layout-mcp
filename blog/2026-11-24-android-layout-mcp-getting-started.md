@@ -14,14 +14,15 @@ By the end of this post you will have a client connected, a first inspection run
 
 The tool captures the current screen through up to three data sources and normalizes them into one node tree. The default mode, `auto`, picks per screen: the debug View hierarchy for XML layouts, the accessibility semantics tree for Compose screens, and both for screens that mix the two. The third source, Compose inspection, is opt-in with `--source compose` and talks to Android Studio's Compose inspector for Composable names and `file:line`.
 
-On top of that tree it exposes 14 MCP tools:
+On top of that tree it exposes 10 MCP tools:
 
 - capture and inspection (`list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`)
-- interaction (`tap`, `swipe`, `input_text`, `press_key`)
 - verification (`analyze_ui` with 10 layout and accessibility rules, `diff_ui`, `screenshot`, `open_viewer`)
 - source tracing (`locate_code`)
 
-There is also a self-contained HTML viewer, a suite of 104 tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
+Every tool is read-only: the plugin observes the device, it never drives it.
+
+There is also a self-contained HTML viewer, a suite of 114 tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
 
 Why not let the model read a screenshot instead? Pixels give labels and positions but no resource ids, clickable bounds, or source lines. A tree gives the agent values it can query, compare, and diff between captures.
 
@@ -98,7 +99,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
   v1 FrameLayout ...
 ```
 
-JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and the parent path for every node. On a Compose screen `uiKind` is `compose` and refs start with `s`; on a mixed screen both trees appear, and search, hit testing, and taps query both. The [data source guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md) explains which tree wins on each screen type.
+JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and the parent path for every node. On a Compose screen `uiKind` is `compose` and refs start with `s`; on a mixed screen both trees appear, and search plus hit testing query both. The [data source guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md) explains which tree wins on each screen type.
 
 *[Figure 2: a `find` result in Claude Code, showing bounds, center, and clickable state]*
 
@@ -159,7 +160,7 @@ Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cli
 }
 ```
 
-`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 14 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
+`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 11 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
 
 The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands, the subagent, and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
 
@@ -169,9 +170,9 @@ The four skills travel as well. Their frontmatter uses only `name` and `descript
 - JDWP usually allows one debugger at a time. Attaching may fail while Android Studio is debugging.
 - `compose` needs a local Android Studio, Java 17+, API 29+, and 8 to 12 seconds per capture. It leaves a resident transport daemon on the device; `android-layout compose-clean` removes it.
 - The semantics tree only sees what the app exposes to accessibility. Text drawn directly to a canvas, a `SurfaceView`, or a `WebView` has no text or children to find.
-- `input text` reliably supports ASCII only. Chinese input needs an extra IME such as ADBKeyboard.
+
 - There is no live monitoring. Every command captures a fresh snapshot.
-- Interaction tools are available, but the skills are read-only unless you ask for a tap, swipe, or text input.
+- The plugin never drives the device. There is no tap, swipe, text input, or key event: you get evidence and coordinates, and you perform the action.
 
 ### What's next
 

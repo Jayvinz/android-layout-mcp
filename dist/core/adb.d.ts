@@ -39,10 +39,6 @@ export declare class Adb {
     push(localPath: string, remotePath: string): Promise<void>;
     removeForward(port: number): Promise<void>;
     screenshot(): Promise<Buffer>;
-    inputTap(x: number, y: number): Promise<void>;
-    inputSwipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<void>;
-    inputText(text: string): Promise<void>;
-    keyEvent(key: string): Promise<void>;
     installViewAttributesFlag(): Promise<boolean>;
 }
 export declare function shellQuote(value: string): string;

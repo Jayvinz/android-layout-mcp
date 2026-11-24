@@ -54,9 +54,8 @@ android-layout analyze
 android-layout view
 android-layout view --no-open --out .aui/viewer.html
 
-# 点击元素中心（自动先定位再 tap）
-android-layout tap --text "关注"
-android-layout tap 540 2239
+# 命中测试某个设备坐标（返回全部重叠节点，面积最小的优先）
+android-layout hit 540 2239 --json
 
 # 两次快照对比：改代码 / 切换页面前后
 android-layout dump --json --out before.json
@@ -98,8 +97,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-layout shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg`；`--json`、`--json --base64` |
 | `android-layout view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
 | `android-layout diff <a> <b>` | 对比两个 dump JSON；`--source`、`--tolerance`（默认 1px）、`--json` |
-| `android-layout tap` | 设备坐标点击、`--image-*` 截图坐标映射点击，或用 `--text/--id/--ref` 配合 `--by`/`--match`/`--index`/`--source` 选择元素后点击其中心 |
-| `android-layout swipe` / `input` / `key` | 滑动（`--duration`，默认 300ms）、输入 ASCII 文本、发送 keyevent |
+| `android-layout fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；`--package`、`--json`、`--all`（保留 AndroidX 记账型 Fragment） |
 | `android-layout studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
 | `android-layout mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
 | `android-layout compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
@@ -112,8 +110,7 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 ## 限制与默认值
 
 - **文本树与 JSON**：`--depth`、`--max-nodes`（默认 2000）和 `--visible-only` 只影响人类可读的文本树；被截断时最后一行会说明展示到多少节点。`--json` / `--out` 写出完整 dump（`version: 1`，不裁剪），agent 端需要自己裁剪，或改用 MCP `dump_ui` 的 `depth`/`maxNodes`。
-- **搜索**：`find`、`hit` 与 `tap` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
-- **点击**：选择器只匹配可见节点，命中隐藏节点会报错而不是静默点击。截图坐标点击必须同时给出四个 `--image-*` 参数；`--index` 用于消除重叠匹配。混合页面上 `tap --text` 只搜索所选来源的第一棵树——若文本只存在于 Compose 语义树，请传 `--source semantics`（或用 `--ref` 配合 `--source both`）。
+- **搜索**：`find` 与 `hit` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
 - **截图**：CLI `shot` 默认保持原生分辨率，只有指定 `--max-width`/`--scale` 才降采样；`--base64` 仅在同时带 `--json` 时生效。MCP `screenshot` 默认 720px 宽。
 - **查看器预算**：内嵌 JSON 上限 8 MB。超限时先丢弃 `--props`，再把 `--max-nodes` 折半（下限 200）；`view --json` 会返回 `truncated`，内嵌 payload 中带 `limits.budgetExceeded`。页面始终是静态快照。
 - **Diff**：每次只比较一棵树，按节点身份而非像素对比。`--tolerance`（默认 1px）忽略更小的边界变化；两个 dump 的主来源不一致时用 `--source` 指定。
@@ -186,7 +183,8 @@ android-layout shot --out ui.png --annotate --source compose
 
 ### 截图坐标 ≠ 设备坐标
 
-降采样后，agent 从图里读出的 `(x, y)` 是**图片坐标**，而 `input tap` 需要**设备坐标**。
+降采样后，从图里读出的 `(x, y)` 是**图片坐标**；**设备坐标**才是 `hit` 接受的、也是要报给用户的值。
+
 截图输出（CLI `--json` 和 MCP 的 image 文本）都会带原始尺寸和映射系数：
 
 ```json
@@ -206,30 +204,14 @@ android-layout shot --out ui.png --annotate --source compose
 }
 ```
 
-推荐直接用 **image-aware tap**，避免手工换算：
+换算之后再报位置或调用 `hit`：
 
 ```bash
-# 图片上读到的 (360, 800)，图片尺寸 720x1600
-android-layout tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
-# -> image (360, 800) in 720x1600 -> device (540, 1200) on 1080x2400
+# 图片上读到的 (360, 800)，图片尺寸 720x1600，换算到 1080x2400 屏幕即 (540, 1200)
+android-layout hit 540 1200 --json
 ```
 
-MCP：
-
-```json
-{
-  "name": "tap",
-  "arguments": {
-    "imageX": 360,
-    "imageY": 800,
-    "imageWidth": 720,
-    "imageHeight": 1600
-  }
-}
-```
-
-如果 agent 用 `find_elements` / `hit_test` 拿到的是设备坐标，可以直接传给 `tap` 的 `x/y`。
-只有在做视觉识图时才需要 `coordinateMapping`。
+`find` / `hit` 与 MCP `find_elements` / `hit_test` 返回的已经是设备坐标；只有在做视觉识图时才需要 `coordinateMapping`。
 
 ## 环境变量
 

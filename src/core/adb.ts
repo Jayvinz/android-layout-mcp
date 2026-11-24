@@ -351,34 +351,6 @@ export class Adb {
     });
   }
 
-  async inputTap(x: number, y: number): Promise<void> {
-    await this.shell(`input tap ${Math.round(x)} ${Math.round(y)}`, { timeoutMs: 15_000 });
-  }
-
-  async inputSwipe(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    durationMs = 300,
-  ): Promise<void> {
-    await this.shell(
-      `input swipe ${Math.round(x1)} ${Math.round(y1)} ${Math.round(x2)} ${Math.round(y2)} ${Math.round(durationMs)}`,
-      { timeoutMs: 30_000 },
-    );
-  }
-
-  async inputText(text: string): Promise<void> {
-    const encoded = text
-      .replace(/\\/g, "\\\\")
-      .replace(/([%'"`$&;|<>()*?![\]{}#~ ])/g, (ch) => (ch === " " ? "%s" : `\\${ch}`));
-    await this.shell(`input text ${encoded}`, { timeoutMs: 15_000 });
-  }
-
-  async keyEvent(key: string): Promise<void> {
-    await this.shell(`input keyevent ${shellQuote(key)}`, { timeoutMs: 15_000 });
-  }
-
   async installViewAttributesFlag(): Promise<boolean> {
     // Android Studio enables this for richer ViewDebug properties. It restarts the app.
     try {

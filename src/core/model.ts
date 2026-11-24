@@ -1,5 +1,5 @@
-export type SourceMode = "auto" | "view" | "semantics" | "compose" | "both";
-export type NodeSource = "view" | "semantics" | "compose";
+export type SourceMode = "auto" | "view" | "semantics" | "dumpsys" | "compose" | "both";
+export type NodeSource = "view" | "semantics" | "dumpsys" | "compose";
 export type UiKind = "xml" | "compose" | "mixed" | "unknown";
 export type Visibility = "visible" | "invisible" | "gone";
 
@@ -157,6 +157,19 @@ export interface CaptureTarget {
   selectedWindow?: string;
 }
 
+export interface FragmentSummary {
+  /** Fragment class as printed by `dumpsys`; obfuscated in release builds. */
+  className: string | null;
+  shortClassName: string | null;
+  tag: string | null;
+  /** 0=ATTACHED … 3=STARTED … 5=RESUMED. */
+  state: number | null;
+  added: boolean;
+  hidden: boolean;
+  detached: boolean;
+  activity: string | null;
+}
+
 export interface CaptureResult {
   device: DeviceInfo;
   target: CaptureTarget;
@@ -172,6 +185,15 @@ export interface CaptureResult {
   semantics?: {
     rotation: number;
     roots: UiNode[];
+    captureMs: number;
+  };
+  dumpsys?: {
+    activity: string | null;
+    roots: UiNode[];
+    /** Fragments of the chosen activity, framework bookkeeping filtered out. */
+    fragments: FragmentSummary[];
+    /** Semantics nodes whose text was merged onto a dumpsys node. */
+    labelledNodes: number;
     captureMs: number;
   };
   compose?: {
@@ -213,6 +235,7 @@ export interface DumpFile {
   uiKind: UiKind;
   view?: CaptureResult["view"];
   semantics?: CaptureResult["semantics"];
+  dumpsys?: CaptureResult["dumpsys"];
   compose?: CaptureResult["compose"];
   warnings: string[];
 }

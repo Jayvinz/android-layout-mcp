@@ -13,7 +13,7 @@
 ## 核心特性
 
 - **数据源自适应** —— `auto` 按页面选择正确的数据树：XML 用 ViewDebug v2，Compose 用无障碍语义树，混合页面两者并用；需要 Composable 名称与 `file:line` 时可显式启用 Compose JVMTI 树。
-- **查找、命中测试、交互** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的所有元素（按面积从小到大排序），然后点击、滑动或输入。
+- **查找与命中测试** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的全部元素（按面积从小到大排序）。全程只读，不点击、不滑动、不输入。
 - **可视化验证** —— 截图支持 SVG 节点标注与图片坐标→设备坐标的自动映射；结构化抓取失败时会自动保存一张兜底截图。
 - **按需交互式浏览器查看器** —— 说“打开可视化看看”即可生成一个自包含的离线 HTML 文件（树、截图叠加层、节点详情、布局问题）并在浏览器中打开；其他命令绝不会顺带打开浏览器。
 - **检查与对比** —— 10 条布局/无障碍规则，以及围绕代码改动的 identity-keyed 改前/改后 diff。
@@ -68,7 +68,7 @@ MCP Server ────────────────────┘      
 
 | 组件 | 内容 |
 |---|---|
-| MCP server `android-layout` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`open_viewer`、`diff_ui`、`tap` 等工具 |
+| MCP server `android-layout` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`open_viewer`、`diff_ui`、`list_fragments` 等工具 |
 | Slash 命令 | `/android-layout:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:view`（浏览器查看器）、`:verify`（真机验证改动） |
 | Skills | `inspect-current-screen`、`locate-ui-code`、`analyze-screen-logic`、`verify-ui-change` |
 | 只读子代理 | `ui-code-locator` |
@@ -164,7 +164,7 @@ android-layout view          # 生成交互式 HTML 查看器并在浏览器中�
 | 看懂当前页面（前台 App、Activity、可见入口） | `/android-layout:screen` / `get_state` + `dump_ui` |
 | 检查某个可见控件的 bounds、center、可点击/enabled 状态与 class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
 | 真机验证 UI 改动（diff + 规则 + 截图） | `/android-layout:verify` / `diff_ui` + `analyze_ui` |
-| 查找元素 / 命中测试 / 点击、滑动、输入 | `find_elements` / `hit_test` / `tap`、`swipe`、`input_text`、`press_key` |
+| 查找元素 / 命中测试 | `find_elements` / `hit_test` |
 | 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-layout shot` |
 | 在浏览器中可视化当前页面（仅显式请求） | `open_viewer` / `android-layout view` / `/android-layout:view` |
 | 布局与无障碍问题检查 | `analyze_ui` / `android-layout analyze` |
@@ -176,9 +176,10 @@ android-layout view          # 生成交互式 HTML 查看器并在浏览器中�
 |---|---|---|
 | `view` | 可调试 App | 完整 View 类名、resource id、layout params、可见性 |
 | `semantics` | 无 | 任意 App 上的 Compose 文本、content description、可点击边界 |
+| `dumpsys` | 无 | 不可调试 App 上的真实 View 类名、resource id、边界，以及 **Activity/Fragment 结构**；没有文本，需与 `semantics` 合用 |
 | `compose` | 可调试 App + 本地 Android Studio + Java 17+ | Composable 名称、`file:line`、边界、参数、重组次数 |
 
-`auto`（默认）会抓取 `view` + `semantics` 并按页面选择：XML 用 `view`，Compose 用 `semantics`，混合页面两者并用。需要 Composable 级别的细节时再显式使用 `--source compose`（约 8–12s）。详见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
+`auto`（默认）会抓取 `view` + `semantics` 并按页面选择：XML 用 `view`，Compose 用 `semantics`，混合页面两者并用。发布包等不可调试场景用 `--source dumpsys`；需要 Composable 级别的细节时再显式使用 `--source compose`（约 8–12s）。详见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
 
 ## 文档
 
@@ -199,7 +200,7 @@ android-layout view          # 生成交互式 HTML 查看器并在浏览器中�
 - `input text` 只可靠支持 ASCII；每次命令都是全新快照，没有实时监听。
 - 文本输出默认截断到 2000 节点（`--max-nodes`/`--depth`/`--visible-only` 只影响文本树）；`--json`/`--out` 写出完整 dump，MCP `dump_ui` 的 JSON 默认上限 800 节点，可调高 `maxNodes`。
 - HTML 查看器最多嵌入 8 MB；超限会先丢弃 View 属性，再把节点预算折半至 200，并标记 `truncated`。
-- `find`/`hit`/`tap` 的选择器只匹配可见节点；截图坐标点击需要截图元数据（`--image-*` 或 `imageX/Y/Width/Height`）。MCP `screenshot` 默认 720px 宽，CLI `shot` 保持原生分辨率。
+- `find`/`hit` 的选择器只匹配可见节点。涉及坐标时需要截图元数据（`coordinateMapping`）把图片像素换算成设备坐标。MCP `screenshot` 默认 720px 宽，CLI `shot` 保持原生分辨率。
 - 直接画到 `Canvas` 上的内容（自定义 View、`SurfaceView`、`WebView` 像素）没有文本和子节点；语义树只能看到 App 暴露给无障碍的信息。
 - 激活面向 Android 工程；在其他仓库中需要用户明确要求查看设备页面/界面，或明确提到 Android。
 

@@ -40,6 +40,26 @@ export function renderCapture(result: CaptureResult, source?: NodeSource | "both
   if (result.semantics) {
     lines.push(`semantics rotation=${result.semantics.rotation} (${result.semantics.captureMs}ms)`);
   }
+  if (result.dumpsys) {
+    lines.push(
+      `dumpsys activity=${result.dumpsys.activity ?? "?"} (${result.dumpsys.captureMs}ms, ` +
+        `${result.dumpsys.labelledNodes} nodes labelled from semantics)`,
+    );
+    for (const fragment of result.dumpsys.fragments) {
+      const state = fragmentState(fragment.state);
+      const flags = [
+        fragment.added ? "added" : "not-added",
+        fragment.hidden ? "hidden" : null,
+        fragment.detached ? "detached" : null,
+      ]
+        .filter(Boolean)
+        .join(",");
+      lines.push(
+        `  fragment ${fragment.shortClassName ?? fragment.className ?? "?"}` +
+          `${fragment.tag ? ` tag=${fragment.tag}` : ""}${state ? ` ${state}` : ""} (${flags})`,
+      );
+    }
+  }
   if (result.compose) {
     lines.push(`compose root view id=${result.compose.rootViewId} (${result.compose.captureMs}ms)`);
   }
@@ -63,11 +83,15 @@ export function renderCapture(result: CaptureResult, source?: NodeSource | "both
           ? result.compose?.roots
           : source === "view"
             ? result.view?.roots
-            : result.source === "semantics"
+            : source === "dumpsys"
+              ? result.dumpsys?.roots
+              : result.source === "semantics"
               ? result.semantics?.roots
               : result.source === "compose"
                 ? result.compose?.roots
-                : result.view?.roots;
+                : result.source === "dumpsys"
+                  ? result.dumpsys?.roots
+                  : result.view?.roots;
     if (roots) lines.push("", ...renderTrees(roots, options));
   }
   return lines.join("\n");
@@ -171,4 +195,18 @@ export function renderIssues(result: AnalyzeResult, options: { showPaths?: boole
 function truncate(value: string, length: number): string {
   const single = value.replace(/\s+/g, " ").trim();
   return single.length > length ? `${single.slice(0, length - 3)}...` : single;
+}
+
+/** Fragment lifecycle state as printed by `dumpsys` (Fragment constants). */
+function fragmentState(state: number | null): string | null {
+  if (state === null) return null;
+  const names: Record<number, string> = {
+    0: "ATTACHED",
+    1: "CREATED",
+    2: "VIEW_CREATED",
+    3: "STARTED",
+    4: "RESUMED",
+    5: "RESUMED",
+  };
+  return names[state] ?? `state=${state}`;
 }

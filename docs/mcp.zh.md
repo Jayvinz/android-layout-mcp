@@ -82,7 +82,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 | 客户端 | 版本 | 实测内容 |
 |---|---|---|
-| OpenCode | 1.19.5 | 生成的 `opencode.json` 可连接；`tools/list` 收到全部 14 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 |
+| OpenCode | 1.19.5 | 生成的 `opencode.json` 可连接；`tools/list` 收到全部 11 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 |
 | CodeBuddy Code | 2.186.0 | `mcpServers` 可连接、`list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载。无交互运行需加 `--settings '{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`） |
 | Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 |
 | WorkBuddy | 内置 | 重启并在 GUI 中一次性启用/信任自定义 server 后，`list_devices` 返回真实设备，`inspect-current-screen` 从 `.workbuddy/skills/` 加载；只写 `mcp.json` 不会暴露工具 |
@@ -118,15 +118,14 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 | `list_devices` | 设备列表 |
 | `get_state` | 屏幕、前台 App、pid、窗口 |
 | `dump_ui` | 抓 UI；`source=auto/view/semantics/compose/both`、`format=json/tree`、`depth`、`maxNodes`、`savePath` |
-| `find_elements` | 按文本/描述/id/类/ref 搜索；返回 bounds、tap 中心、clickable、完整路径 |
+| `find_elements` | 按文本/描述/id/类/ref 搜索；返回 bounds、中心点、clickable、完整路径 |
 | `locate_code` | 根据 UI 锚点（text/desc/id/Compose file+line/class）扫描 Android 仓库，返回字符串/布局/Compose 定义和排序后的 `file:line` 候选 |
 | `hit_test` | 坐标命中；默认同时返回 view 与 semantics；`source=compose` 可查 Compose 树 |
 | `analyze_ui` | 布局/无障碍问题检查（规则见 [cli.zh.md](cli.zh.md#分析规则)） |
 | `screenshot` | 返回 PNG image content；默认降采样到 720px 宽（`fullResolution=true` 关闭），可保存并生成 SVG 叠加层 |
 | `open_viewer` | 一次抓取，写入自包含的离线 HTML 查看器（树、截图叠加层、详情、问题），并在浏览器中打开 |
 | `diff_ui` | 对比两个 `dump_ui(savePath)` 写出的 JSON |
-| `tap` | 坐标或 `text/id/ref` 元素点击；支持 `imageX/imageY/imageWidth/imageHeight` 图片坐标映射 |
-| `swipe` / `input_text` / `press_key` | 交互 |
+| `list_fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；不可调试 App 同样可用。默认过滤 AndroidX 记账型 Fragment，`includeFramework` 可保留 |
 
 **Android 工程门槛。** `get_state`、`dump_ui`、`find_elements`、`locate_code`、`open_viewer` 面向 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
@@ -145,19 +144,16 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 | `open_viewer` | `.aui/viewer.html`、每棵树 4000 节点、1080px | `maxNodes` 1–20000；`includeProperties` 嵌入 ViewDebug 属性（默认关闭）；`includeIssues` 执行分析（默认开启）；内嵌 JSON 8 MB 预算——先丢属性，再把节点折半至下限 200 |
 | `diff_ui` | `tolerance=1` px | `tolerance` 0–100；每次只比较一棵树（`source`）；两个输入都必须是 `dump_ui(savePath=...)` 写出的 dump |
 | `hit_test` | 候选 0，仅可见节点 | `index` 用于在同一坐标的多个重叠候选中选择 |
-| `tap` | 第一个可见匹配 | 图片坐标映射必须同时给四个 `image*` 参数；选择器只匹配可见节点；`index` 选择第几个匹配（默认 0） |
-| `swipe` | 300ms | `durationMs` 1–10000 |
 
-`input_text` 仅支持 ASCII（空格发送为 `%s`）；`press_key` 把值原样转发给 `adb shell input keyevent`，请使用 `KEYCODE_*` 名称或数字码。抓取失败时，工具会返回错误文本和一张兜底截图（image content）。
+抓取失败时，工具会返回错误文本和一张兜底截图（image content）。
 
 ## 推荐调用顺序
 
 1. `get_state` → 确认前台 App；
 2. `dump_ui(source="auto", format="tree")` 或 `find_elements` → 看界面 / 定位；
-3. `tap` → 操作；
-4. `screenshot` → 视觉确认；
-5. `analyze_ui` → 检查小触摸区、重叠、裁剪等；
-6. 修改代码后：`dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`。
+3. `screenshot` → 视觉确认；
+4. `analyze_ui` → 检查小触摸区、重叠、裁剪等；
+5. 修改代码后：`dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`。
 
 `open_viewer` 不在上述顺序内：只有用户显式提出可视化请求时才调用，例如“打开可视化看看”“在浏览器里打开当前页面”“可视化当前布局”或“open the UI viewer”。它会打开一个浏览器窗口，属于可见副作用，因此 `dump_ui`、`find_elements`、`analyze_ui`、`screenshot`、`diff_ui` 与验证流程都不得调用它。传 `open=false`（或设置 `AUI_NO_OPEN=1`）可只写 HTML 不打开浏览器；工具返回 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`。
 

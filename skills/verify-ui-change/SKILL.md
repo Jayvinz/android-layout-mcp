@@ -91,18 +91,18 @@ When needed:
 screenshot(savePath=".aui/after.png", annotate=true)
 ```
 
-- The default width is 720px; these are image coordinates, not device coordinates. Use the returned `coordinateMapping`, or `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`.
+- The default width is 720px; these are image coordinates, not device coordinates. Use the returned `coordinateMapping` to convert before quoting a device position.
 - `annotate=true` writes an `.annotated.svg` with node boxes, which helps spot misalignment.
 - Screenshots are supporting evidence; `dump_ui` / `diff_ui` structured results take precedence.
 
-## Step 6 — Interaction verification
+## Step 6 — Clickable-state verification
 
-If the change affects clicks or navigation:
+This skill does not drive the device; there is no tap, swipe, text input, or key event. Verify the wiring statically and report what the user should try:
 
-1. `find_elements(query="<text/id>", both=true)` to confirm the target is clickable and has reasonable bounds.
-2. `tap(ref="<ref>")` or `tap(text="...")`, then `get_state` to confirm the page/Activity changed.
-3. Do the same for scroll/input with `swipe` and `input_text`.
-4. On failure, inspect the node and coordinates returned by `tap`; do not tap blindly in a loop.
+1. `find_elements(query="<text/id>", both=true)` to confirm the target exists, is `clickable=true`, is `enabled`, and has reasonable bounds.
+2. Compare those flags and bounds between the baseline and the after capture: a node that became invisible, disabled, zero-sized, or covered by a sibling is the regression even though nobody clicked it.
+3. Check `analyze_ui` for `small_touch_target`, `invisible_clickable`, and `overlap` on the changed nodes.
+4. Say which interaction the user should try manually, and what to look for. Never claim an interaction succeeded — the device was never driven.
 
 ## Output
 

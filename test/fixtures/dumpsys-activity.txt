@@ -1,0 +1,154 @@
+TASK 10273:com.example.studymixed id=1406 userId=0
+  ACTIVITY com.example.studymixed/.EntryActivity 1fde2c7 pid=5866
+    Local Activity 22196f5 State:
+      mResumed=true mStopped=false mFinished=false
+      mIsInMultiWindowMode=false mIsInPictureInPictureMode=false
+      mChangingConfigurations=false
+      mCurrentConfig={0.86 ?mcc?mnc [zh_CN] ldltr sw392dp w392dp h827dp 440dpi nrml long hdr widecg port uimode=12 finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2400) mAppBounds=Rect(0, 80 - 1080, 2356) mMaxBounds=Rect(0, 0 - 1080, 2400) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mInSplitScreen=false} s.1 fontWeightAdjustment=0 themeChanged=0 themeChangedFlags=0 extraData = Bundle[{}]/d}
+      mLoadersStarted=true
+      Active Fragments in 1cd0568:
+        #0: ReportFragment{2612d81 #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+          mFragmentId=#0 mContainerId=#0 mTag=androidx.lifecycle.LifecycleDispatcher.report_fragment_tag
+          mState=5 mIndex=0 mWho=android:fragment:0 mBackStackNesting=0
+          mAdded=true mRemoving=false mFromLayout=false mInLayout=false
+          mHidden=false mDetached=false mMenuVisible=true mHasMenu=false
+          mRetainInstance=false mRetaining=false mUserVisibleHint=true
+          mFragmentManager=FragmentManager{1cd0568 in HostCallbacks{203de26}}
+          mHost=android.app.Activity$HostCallbacks@203de26
+          Child FragmentManager{b95a67 in ReportFragment{2612d81}}:
+            FragmentManager misc state:
+              mHost=android.app.Activity$HostCallbacks@203de26
+              mContainer=android.app.Fragment$1@b211014
+              mParent=ReportFragment{2612d81 #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+              mCurState=5 mStateSaved=false mDestroyed=false
+      Added Fragments:
+        #0: ReportFragment{2612d81 #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+      FragmentManager misc state:
+        mHost=android.app.Activity$HostCallbacks@203de26
+        mContainer=android.app.Activity$HostCallbacks@203de26
+        mCurState=5 mStateSaved=false mDestroyed=false
+    ViewRoot:
+      mAdded=true
+      mRemoved=false
+      mStopped=false
+      mPausedForTransition=false
+      mConsumeBatchedInputScheduled=false
+      mConsumeBatchedInputImmediatelyScheduled=false
+      mPendingInputEventCount=0
+      mProcessInputEventsScheduled=false
+      mTraversalScheduled=false
+      mIsAmbientMode=false
+      mUnbufferedInputSource=0
+      mAttachInfo=       AttachInfo:
+        mHasWindowFocus=true
+        mWindowVisibility=0
+        mInTouchMode=true
+        mUnbufferedDispatchRequested=false
+      android.view.ViewRootImpl$NativePreImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$ImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$NativePostImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$WindowInputEventReceiver
+       mInputChannel: e81eec6 com.example.studymixed/com.example.studymixed.EntryActivity (client)
+       mSeqMap: {}
+       mReceiverPtr:
+        mInputConsumer:
+          mResampleTouch = true
+          mChannel = e81eec6 com.example.studymixed/com.example.studymixed.EntryActivity (client)
+          mMsgDeferred: false
+          Batches:
+              <empty>
+          mSeqChains:
+              <empty>
+          mConsumeTimes:
+              <empty>
+          
+        mBatchedInputEventPending: false
+        mOutboundQueue:
+          <empty>
+        
+    Choreographer:
+      mFrameScheduled=false
+      mLastFrameTime=57193610 (650629 ms ago)
+    InsetsController:
+      InsetsState
+        mDisplayFrame=Rect(0, 0 - 1080, 2400)
+        mDisplayCutout=DisplayCutout{insets=Rect(0, 80 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(517, 0 - 563, 80), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2400 physicalDisplayWidth=1080 physicalDisplayHeight=2400 density={2.75} cutoutSpec={M 0,0 H -23 V 80 H 23 V 0 H 0 Z} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}
+        mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=106, center=Point(106, 106)}, RoundedCorner{position=TopRight, radius=106, center=Point(974, 106)}, RoundedCorner{position=BottomRight, radius=106, center=Point(974, 2294)}, RoundedCorner{position=BottomLeft, radius=106, center=Point(106, 2294)}]}
+        mRoundedCornerFrame=Rect(0, 0 - 1080, 2400)
+        mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(34, 0 - 70, 80) rotation=0}
+          InsetsSource type=ITYPE_STATUS_BAR frame=[0,0][1080,80] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_NAVIGATION_BAR frame=[0,2356][1080,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_LEFT_GESTURES frame=[0,0][0,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_RIGHT_GESTURES frame=[1080,0][1080,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_TOP_MANDATORY_GESTURES frame=[0,0][1080,113] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_BOTTOM_MANDATORY_GESTURES frame=[0,2356][1080,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_LEFT_DISPLAY_CUTOUT frame=[0,0][-100000,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_TOP_DISPLAY_CUTOUT frame=[0,0][1080,80] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_RIGHT_DISPLAY_CUTOUT frame=[100000,0][1080,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_BOTTOM_DISPLAY_CUTOUT frame=[0,100000][1080,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_TOP_TAPPABLE_ELEMENT frame=[0,0][1080,80] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_BOTTOM_TAPPABLE_ELEMENT frame=[0,2356][1080,2400] visible=true insetsRoundedCornerFrame=false
+          InsetsSource type=ITYPE_IME frame=[0,0][0,0] visible=false insetsRoundedCornerFrame=false
+    View Hierarchy:
+      DecorView@37220bd[EntryActivity]
+        android.widget.LinearLayout{cbfb6b2 V.E...... ........ 0,0-1080,2356}
+          android.view.ViewStub{6f73603 G.E...... ......I. 0,0-0,0 #10201c6 android:id/action_mode_bar_stub}
+          android.widget.FrameLayout{3091980 V.E...... ........ 0,80-1080,2356}
+            androidx.appcompat.widget.FitWindowsLinearLayout{9a50bb9 V.E...... ........ 0,0-1080,2276 #7f080036 app:id/action_bar_root}
+              androidx.appcompat.widget.ViewStubCompat{eee8bfe G.E...... ......I. 0,0-0,0 #7f080043 app:id/action_mode_bar_stub}
+              androidx.appcompat.widget.ContentFrameLayout{ead2f5f V.E...... ........ 0,0-1080,2276 #1020002 android:id/content}
+                android.widget.ScrollView{6a64dac VFED.V... ........ 0,0-1080,2276}
+                  android.widget.LinearLayout{f81aa75 V.E...... ........ 0,0-1080,2276}
+                    com.google.android.material.textview.MaterialTextView{7a36a0a V.ED..... ........ 66,66-1014,143}
+                    com.google.android.material.textview.MaterialTextView{89f627b V.ED..... ........ 66,165-1014,264}
+                    com.google.android.material.button.MaterialButton{2009898 VFED..C.. ........ 66,352-1014,484 #7f080067 app:id/btnXml}
+                    com.google.android.material.button.MaterialButton{64f78f1 VFED..C.. ........ 66,517-1014,649 #7f080065 app:id/btnCompose}
+                    com.google.android.material.button.MaterialButton{2161cd6 VFED..C.. ........ 66,682-1014,814 #7f080066 app:id/btnMixed}
+                    com.google.android.material.textview.MaterialTextView{3b7ab57 V.ED..... ........ 66,902-1014,1084}
+        android.view.View{7b2a644 V.ED..... ........ 0,2356-1080,2400 #1020030 android:id/navigationBarBackground}
+        android.view.View{251b32d V.ED..... ........ 0,0-1080,80 #102002f android:id/statusBarBackground}
+    Looper (main, tid 2) {32f3062}
+      (Total messages: 0, polling=false, quitting=false)
+      Dump time: 2026-11-24 23:07:51.129 GMT+08:00
+      Package: com.example.studymixed
+      Current looper: Looper (main, tid=5866)
+      Current running message:
+        seq=137 plan=23:07:51.120 late=0ms h=android.app.ActivityThread$H w=136
+      History of long time messages on Looper (main, tid=5866):
+
+    ResourcesManager:
+      total apks: 4
+      resources: 3
+      resource impls: 2
+    1 dumpables:
+    #0: AutofillManager
+        AutofillManager:
+          sessionId: 2147483647
+          state: UNKNOWN
+          context: com.example.studymixed.EntryActivity@22196f5
+          service client: null
+          client: android.view.autofill.AutofillClientController@755e2b0 (android.os.BinderProxy@31ee634)
+          enabled: false
+          enabledAugmentedOnly: false
+          hasService: true
+          hasCallback: false
+          onInvisibleCalled false
+          last autofilled data: null
+          id of last fill UI shown: null
+          tracked views: null
+          fillable ids: null
+          entered ids: null
+          save trigger id: null
+          save on finish(): false
+          options: logLvl=0, compatMode=false, augmented=false, appDisabledExpiration=0
+          compat mode enabled:   fill dialog enabled: false
+          fill dialog enabled hints: []
+        false
+          debug: false verbose: false
+        Autofill Compat Mode: false
+    Local FragmentActivity 22196f5 State:
+      mCreated=true mResumed=true mStopped=false    Back Stack Index: 0
+    FragmentManager misc state:
+      mHost=androidx.fragment.app.FragmentActivity$HostCallbacks@3d3f0ae
+      mContainer=androidx.fragment.app.FragmentActivity$HostCallbacks@3d3f0ae
+      mCurState=7 mStateSaved=false mStopped=false mDestroyed=false

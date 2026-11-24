@@ -29,6 +29,17 @@ export function serializeDump(result, includeProperties = true) {
                 },
             }
             : {}),
+        ...(result.dumpsys
+            ? {
+                dumpsys: {
+                    activity: result.dumpsys.activity,
+                    captureMs: result.dumpsys.captureMs,
+                    fragments: result.dumpsys.fragments.map((fragment) => ({ ...fragment })),
+                    labelledNodes: result.dumpsys.labelledNodes,
+                    roots: result.dumpsys.roots.map((node) => serializeNode(node, { includeProps: includeProperties })),
+                },
+            }
+            : {}),
         ...(result.compose
             ? {
                 compose: {
@@ -62,14 +73,22 @@ export async function loadDump(path) {
 /** Returns the roots of the requested (or primary) source as diffable nodes. */
 export function snapshotRoots(dump, source) {
     const chosen = source ?? dump.source;
-    const tree = chosen === "semantics" ? dump.semantics?.roots : chosen === "compose" ? dump.compose?.roots : dump.view?.roots;
+    const tree = chosen === "semantics"
+        ? dump.semantics?.roots
+        : chosen === "compose"
+            ? dump.compose?.roots
+            : chosen === "dumpsys"
+                ? dump.dumpsys?.roots
+                : dump.view?.roots;
     if (tree)
         return tree;
     const fallback = chosen === "semantics"
         ? dump.view?.roots
         : chosen === "compose"
             ? dump.view?.roots
-            : dump.semantics?.roots;
+            : chosen === "dumpsys"
+                ? dump.semantics?.roots
+                : dump.semantics?.roots;
     return (fallback ?? []);
 }
 /**
@@ -84,9 +103,13 @@ export function chooseDiffSource(before, after, explicit) {
         ? Boolean(dump.view)
         : source === "semantics"
             ? Boolean(dump.semantics)
-            : Boolean(dump.compose);
+            : source === "dumpsys"
+                ? Boolean(dump.dumpsys)
+                : Boolean(dump.compose);
     if (before.source === after.source)
         return before.source;
+    if (has(before, "dumpsys") && has(after, "dumpsys"))
+        return "dumpsys";
     if (has(before, "compose") && has(after, "compose"))
         return "compose";
     if (has(before, "semantics") && has(after, "semantics"))

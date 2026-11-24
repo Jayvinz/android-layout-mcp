@@ -115,7 +115,7 @@ const hasXmlContent = nodes.some((node) => {
 return hasXmlContent ? "mixed" : "compose";
 ```
 
-Pure XML screens use the View tree. Pure Compose screens use semantics, because it needs no debug build and already contains the text. Mixed screens carry both trees, and search, hit testing, and taps query both.
+Pure XML screens use the View tree. Pure Compose screens use semantics, because it needs no debug build and already contains the text. Mixed screens carry both trees, and search plus hit testing query both.
 
 Why not use the Compose tree every time, since it carries the most detail? It needs a debug build, a local Studio, Java 17+, API 29+, and ten seconds. Most questions about labels, bounds, and clickability are answered by semantics in about a second.
 
@@ -125,7 +125,7 @@ When the View capture fails, for example on a release build, `auto` keeps the se
 
 Four pieces turn the tree into an answer.
 
-**Hit testing** collects every node whose visible bounds contain the point, sorts by visible area ascending, then by depth, then by draw order. The smallest control wins, which matches what a user would tap.
+**Hit testing** collects every node whose visible bounds contain the point, sorts by visible area ascending, then by depth, then by draw order. The smallest control wins, which matches what the user meant to point at.
 
 **Search** matches text, content description, resource id, class (fully qualified or short), and ref. `contains` ignores case, `exact` does not, and `/pattern/flags` compiles to a regular expression. Invisible nodes are filtered out by default.
 
@@ -147,9 +147,9 @@ The hook fails open on internal errors, so a broken gate cannot block a legitima
 
 The hook is a Claude Code feature. Move the same skills into Codex CLI, CodeBuddy, or WorkBuddy and the hard gate disappears; the Android-project rule is left as prose in each skill body. That text stays effective because the files are copied unchanged. Their frontmatter carries only `name` and `description`, the portable subset of the Agent Skills standard, and executable paths resolve through `$AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. A sync script writes the same files into `.agents/skills`, `.codebuddy/skills`, or `.workbuddy/skills`, so every agent reads the same gate text without a plugin cache.
 
-The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 14 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
+The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 11 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
 
-Keeping that matrix honest needs a test that reads the docs. `test/cross-agent-compat.test.ts` takes `MCP_CLIENT_IDS` as its source of truth and checks that all six client tables, the CLI choices, and the config shapes agree with it. Add an id in code without updating the docs and the suite fails. The three other suites cover the config envelopes, the portable skill frontmatter, and byte-identical sync copies. All 104 tests run without a device.
+Keeping that matrix honest needs a test that reads the docs. `test/cross-agent-compat.test.ts` takes `MCP_CLIENT_IDS` as its source of truth and checks that all six client tables, the CLI choices, and the config shapes agree with it. Add an id in code without updating the docs and the suite fails. The three other suites cover the config envelopes, the portable skill frontmatter, and byte-identical sync copies. All 114 tests run without a device.
 
 ### What the design costs
 

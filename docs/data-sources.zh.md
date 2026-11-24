@@ -2,15 +2,29 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`android-layout` 可以通过三个数据源抓取 Android 实时界面：
+`android-layout` 可以通过四个数据源抓取 Android 实时界面：
 
 | 数据源 | 原理 | 依赖 | 适合 |
 |---|---|---|---|
 | `view` | JDWP + ViewDebug v2 | 可调试 App | 完整 View 类名、resource-id、padding/margin、visibility、layout params |
 | `semantics` | `adb shell uiautomator dump` | 无 | 任意 App 的 Compose 文本、content-desc、点击区域 |
+| `dumpsys` | `adb shell dumpsys activity <包名>` | 无 | 不可调试 App 上的真实 View 类名、resource-id、绝对 bounds，以及 Activity/Fragment 结构；没有文本 |
 | `compose` | Android Studio transport + JVMTI | 可调试 App + Android Studio + Java 17+ | Composable 名称、`file:line`、bounds、参数、重组计数 |
 
-## 为什么需要三个数据源
+## 为什么需要四个数据源
+
+| | `view`（JDWP） | `semantics`（uiautomator） | `dumpsys`（ActivityManager） | `compose`（JVMTI） |
+|---|---|---|---|---|
+| 原理 | 与 LayoutInspectorV2-Pro 相同：JDWP + ViewDebug v2 | `uiautomator dump` 无障碍语义树 | `dumpsys activity` 打印每个 Activity 的 `View Hierarchy` 与 `Active Fragments` | 复用 Android Studio 的 transport daemon + JVMTI + Compose inspector |
+| 依赖 | 可调试 App | 无 | 无 | 可调试 App + 本机 Android Studio + Java |
+| 文本 | ✅ | ✅ | ❌ | ✅（从 Composable 参数提取） |
+| resource-id | ✅ | ⚠️ 仅无障碍 id | ✅ | ❌ |
+| Fragment 实例 | ❌ | ❌ | ✅ | ❌ |
+| 耗时 | ~100ms | ~0.5–3s | ~100–300ms | ~8–12s（含 daemon/agent 启动） |
+
+`dumpsys` 与 `semantics` 是互补而非替代：dumpsys 有真实 View 类名和 resource-id 但没有文本，semantics 有文本但只有无障碍类名。`--source dumpsys` 会同时抓两者，按几何位置合并，因此发布包也能回答"这个控件写了什么、由哪个类渲染"。
+
+## 为什么另外三个不同
 
 | | `view`（JDWP） | `semantics`（uiautomator） | `compose`（JVMTI） |
 |---|---|---|---|
@@ -25,7 +39,7 @@
 
 `--source auto`（默认）会按当前屏幕自动选择：
 
-| 屏幕类型 | 自动选择 | find / hit / tap |
+| 屏幕类型 | 自动选择 | find / hit |
 |---|---|---|
 | 纯 XML | `view` | 只查 view |
 | 纯 Compose | `semantics` | 只查 semantics |
@@ -37,7 +51,7 @@
 
 - 跨页面自动切换：XML 页面走 view、Compose 页面走 semantics，无需配置。
 - 混合页面：`dump` 会自动打印 view + semantics 两棵树；
-  `find`/`hit`/`tap --text` 在 auto 下会自动同时搜索 view + semantics。
+  `find`/`hit` 在 auto 下会自动同时搜索 view + semantics。
 - `--source both` 显式获取 view + semantics；`--source compose` 单独使用 JVMTI Compose 树。
 - `hit`/MCP 的 `hit_test` 默认同时查询 view 和 semantics。
 - `auto` 会降级而不是直接失败：某棵树抓不到时（例如 App 不可调试，或目标包未运行），跳过它并给出 warning，改用另一棵树。warning 会写入 JSON 的 `warnings` 数组并出现在文本树中；显式指定 `--source view` 时则直接报错。
@@ -81,6 +95,38 @@ s43 TextView "开拍" / s44 Button ...          ← semantics 源有真实文本
   含 Composable 名称、`file:line`、bounds、参数文本、`SYSTEM_CREATED`/`INLINED` 等 flags、
   重组/跳过计数。适合回答“这个像素属于哪个 Composable / 哪一行代码”。
 - `auto` 对 Compose 界面选择 **semantics**（零依赖）；显式 `--source compose` 才走 JVMTI。
+
+## dumpsys 数据源
+
+`--source dumpsys` 执行 `adb shell dumpsys activity <包名>`，解析其中两段：
+
+```
+View Hierarchy:
+  DecorView@37220bd[EntryActivity]
+    com.google.android.material.button.MaterialButton{2009898 VFED..C.. ........ 66,352-1014,484 #7f080067 app:id/btnXml}
+
+Active Fragments in 1cd0568:
+  #0: ReportFragment{2612d81 #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+      mState=5 mFragmentId=#0 mContainerId=#0 mAdded=true mHidden=false mDetached=false
+```
+
+**它独有的能力**
+
+- **不可调试 App 上的真实层级。** 已对系统权限弹窗验证（该应用绝不可能 `debuggable`）：512 个节点，含类名、resource-id、绝对 bounds。
+- **Fragment 实例。** 每个 Activity 的 `active`/`added` Fragment，含 tag、生命周期状态（`mState`）与 `mAdded`/`mHidden`/`mDetached`。其他数据源都拿不到。
+
+**它拿不到的**
+
+- **没有文本。** `TextView{...}` 一行不含 `mText`，只有标志位和边界。因此 `--source dumpsys` 会同时抓 `semantics`，按几何位置合并文本。
+- **没有可靠的 Compose 结构。** Compose 页面只显示 `AndroidComposeView` 就停止；内部 composable 请用 `semantics` 或 `compose`。
+- **混淆过的类名。** 开启混淆的发布包会打印 `b{4b4c2a6}` 而非 `ProfileFragment`，此时改用 tag 或宿主 Activity 判断。
+- **不能按窗口选择。** 只 dump Activity 主层级，独立窗口里的弹窗可能不出现。
+
+**标志位解码。** 花括号内的标志串按位置对应 `View.toString` 的各个 flag：`V`/`I`/`G` 可见性、`F` 聚焦、`E` 可用、`C` 可点击、`L` 可长按、`K` 可勾选/已勾选、`S` 选中。`V.E......` 表示可见+可用，`VFED..C..` 额外含聚焦与可点击。
+
+**坐标系。** dumpsys 报**窗口**坐标，uiautomator 报**屏幕**坐标，差值恒为状态栏高度。合并时从两棵树实测该偏移（对文本节点 top 差取中位数，并限制在屏幕高度 10% 以内），而非写死 80px；随后只合并"平移后矩形完全相同 **且** 类名同族"的节点（`TextView`↔`MaterialTextView` 可，`TextView`↔`ImageView` 不可），且只接受唯一匹配，避免错贴标签。
+
+**真机上的 Fragment。** 绝大多数条目是 AndroidX 的记账：`ReportFragment` 与 `LifecycleDispatcher.report_fragment_tag` 由生命周期分发自动注入，无业务含义。`notableFragments` 会把它们过滤掉，所以空列表通常意味着"单 Activity 或纯 Compose 页面"，而不是解析失败。需要看全部时用 `includeFramework`（MCP）或 `--all`（CLI）。
 
 ## Studio / JDK 版本适配
 
@@ -178,7 +224,7 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 
 ## 混合界面（XML + Compose）
 
-混合界面在 `auto` 下会自动抓取并展示 view + semantics，并让 `find`/`hit`/`tap`
+混合界面在 `auto` 下会自动抓取并展示 view + semantics，并让 `find`/`hit`
 同时搜索两棵树；MCP 也可以显式 `find_elements(both=true)`。
 
 ## 限制与边界

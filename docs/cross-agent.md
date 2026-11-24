@@ -8,7 +8,7 @@ The plugin is four layers. Only the top two cross agent boundaries.
 
 | Layer | Contents | Portability |
 |---|---|---|
-| MCP server | `dist/mcp.js`, stdio, 14 tools | Every MCP client |
+| MCP server | `dist/mcp.js`, stdio, 11 tools | Every MCP client |
 | Skills | Four `SKILL.md` files, `name` + `description` frontmatter only | Clients that read Agent Skills directories |
 | Slash commands | Five `commands/*.md`, `$ARGUMENTS` syntax | Claude Code only |
 | Subagent | `agents/ui-code-locator.md`, `model: inherit` / `color` | Claude Code only |
@@ -48,7 +48,7 @@ Four clients were exercised end to end on one machine. An "exercise" means the g
 
 | Client | Version | Verified behaviour | Gotcha worth remembering |
 |---|---|---|---|
-| OpenCode | 1.19.5 | `opencode mcp list` reports connected; `tools/list` returns all 14 tools; `opencode debug skill` finds four skills in `.agents/skills/` | Strict config validation; `type: "local"` plus a command array is the accepted shape |
+| OpenCode | 1.19.5 | `opencode mcp list` reports connected; `tools/list` returns all 11 tools; `opencode debug skill` finds four skills in `.agents/skills/` | Strict config validation; `type: "local"` plus a command array is the accepted shape |
 | CodeBuddy Code | 2.186.0 | `mcp__android-layout__list_devices` returns a real device; skills load from `.codebuddy/skills/` | Project servers need one-time approval; headless runs need `--settings '{"enableAllProjectMcpServers":true}'` and often `-y` for gated tools |
 | Codex CLI | 0.172.0 | Generated TOML parses; `codex exec` calls `list_devices` and gets a real device; skills in `.agents/skills/` are found | `codex exec` waits on stdin in a non-interactive shell, so redirect from `/dev/null`; a custom provider must use `env_key`, inline `api_key` is ignored |
 | WorkBuddy | bundled | After a restart and one-time GUI approval, `list_devices` returns a real device and `inspect-current-screen` loads from `.workbuddy/skills/` | Writing `mcp.json` alone does not expose tools; the GUI enable/trust step is mandatory |
@@ -110,4 +110,4 @@ Run them all with `npm test`. A new client id, a renamed skill directory, or a d
 - Config formats move. The table reflects November 2026; re-check a client before telling users its path is correct.
 - The skills are portable, but slash commands, the subagent, and the `PreToolUse` hook are not. Do not add agent-specific frontmatter fields to `SKILL.md`, or the sync script will ship a field another client rejects.
 - Only four clients have runtime verification. The other 16 are documented from their own schema definitions.
-- All clients get the same 14 tools. Differences are in config shape, skill discovery, and approval flows, not in tool behaviour.
+- All clients get the same 11 tools. Differences are in config shape, skill discovery, and approval flows, not in tool behaviour.

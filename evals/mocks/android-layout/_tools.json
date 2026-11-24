@@ -60,12 +60,13 @@
             "type": "string"
           },
           "source": {
-            "description": "auto (default), view, semantics, compose, or both.",
+            "description": "auto (default), view, semantics, dumpsys, compose, or both.",
             "type": "string",
             "enum": [
               "auto",
               "view",
               "semantics",
+              "dumpsys",
               "compose",
               "both"
             ]
@@ -119,7 +120,7 @@
     {
       "name": "find_elements",
       "title": "Find elements",
-      "description": "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, tap center, clickable state, and the full path for each match. This is the best way to locate an element before tapping it. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+      "description": "Search the current UI tree by text, content description, resource id, class, or node ref. Defaults to a case-insensitive contains match. Returns bounds, center, clickable state, and the full path for each match. This is the best way to locate an element and get its device coordinates. Use this when the user points at a visible control (\"看下当前“登录”按钮\", \"这个控件多大/在哪/可点击吗\", \"顶部那个图标是什么\"); the result includes bounds, center, clickable, enabled, and className. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -167,6 +168,7 @@
               "auto",
               "view",
               "semantics",
+              "dumpsys",
               "compose",
               "both"
             ]
@@ -307,6 +309,7 @@
               "auto",
               "view",
               "semantics",
+              "dumpsys",
               "compose",
               "both"
             ]
@@ -345,6 +348,7 @@
               "auto",
               "view",
               "semantics",
+              "dumpsys",
               "compose",
               "both"
             ]
@@ -397,9 +401,38 @@
       }
     },
     {
+      "name": "list_fragments",
+      "title": "List Activity and Fragment structure",
+      "description": "Report the Activity and Fragment structure of the foreground app from `dumpsys activity`: fragment class (or tag when the class is obfuscated), lifecycle state, and whether it is added/hidden/detached. Works on non-debuggable apps, where the ViewDebug source fails. Framework bookkeeping fragments (AndroidX ReportFragment, LifecycleDispatcher tags) are filtered out. Use this to answer \"which Fragment implements this page\" before scanning source. It returns no view hierarchy; pair it with dump_ui(source=\"dumpsys\") for nodes. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "serial": {
+            "type": "string"
+          },
+          "package": {
+            "description": "Package to inspect; defaults to the foreground app.",
+            "type": "string"
+          },
+          "includeFramework": {
+            "description": "Keep AndroidX lifecycle bookkeeping fragments (ReportFragment etc.).",
+            "type": "boolean"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "screenshot",
       "title": "Take a screenshot",
-      "description": "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before tapping. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
+      "description": "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before reporting a position. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -471,6 +504,7 @@
               "auto",
               "view",
               "semantics",
+              "dumpsys",
               "compose",
               "both"
             ]
@@ -554,217 +588,6 @@
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
-      "name": "tap",
-      "title": "Tap the screen",
-      "description": "Tap device coordinates, the center of an element matched by text/id/ref, or a point read from a downscaled screenshot. For screenshot coordinates use imageX/imageY plus imageWidth/imageHeight and the device size is mapped automatically (never tap image pixels directly). Provide x+y, imageX/imageY/imageWidth/imageHeight, or a selector (text, id, ref).",
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-          "x": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "y": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "imageX": {
-            "description": "x coordinate in the downscaled screenshot image.",
-            "type": "number",
-            "minimum": 0
-          },
-          "imageY": {
-            "description": "y coordinate in the downscaled screenshot image.",
-            "type": "number",
-            "minimum": 0
-          },
-          "imageWidth": {
-            "description": "Screenshot image width from the screenshot metadata.",
-            "type": "number",
-            "minimum": 1
-          },
-          "imageHeight": {
-            "description": "Screenshot image height from the screenshot metadata.",
-            "type": "number",
-            "minimum": 1
-          },
-          "text": {
-            "description": "Element text/description query.",
-            "type": "string"
-          },
-          "id": {
-            "description": "Resource id query.",
-            "type": "string"
-          },
-          "ref": {
-            "description": "Node ref from dump_ui/find_elements (v12/s12).",
-            "type": "string"
-          },
-          "by": {
-            "type": "string",
-            "enum": [
-              "any",
-              "text",
-              "desc",
-              "id",
-              "class",
-              "ref"
-            ]
-          },
-          "match": {
-            "type": "string",
-            "enum": [
-              "contains",
-              "exact",
-              "regex"
-            ]
-          },
-          "index": {
-            "description": "Match index (default 0).",
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "source": {
-            "type": "string",
-            "enum": [
-              "auto",
-              "view",
-              "semantics",
-              "compose",
-              "both"
-            ]
-          },
-          "serial": {
-            "type": "string"
-          },
-          "package": {
-            "type": "string"
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
-      "name": "swipe",
-      "title": "Swipe the screen",
-      "description": "Swipe between two screen coordinates with an optional duration in milliseconds.",
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-          "x1": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "y1": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "x2": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "y2": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "durationMs": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10000
-          },
-          "serial": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "x1",
-          "y1",
-          "x2",
-          "y2"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
-      "name": "input_text",
-      "title": "Type text",
-      "description": "Type ASCII text into the focused field using adb shell input text.",
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string"
-          },
-          "serial": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
-      },
-      "execution": {
-        "taskSupport": "forbidden"
-      }
-    },
-    {
-      "name": "press_key",
-      "title": "Press a key",
-      "description": "Send an Android key event, e.g. KEYCODE_BACK, KEYCODE_ENTER, KEYCODE_HOME, or a numeric keycode.",
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "serial": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "key"
-        ]
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "openWorldHint": true
       },
       "execution": {
         "taskSupport": "forbidden"

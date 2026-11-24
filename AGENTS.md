@@ -62,6 +62,7 @@ src/cli.ts (commander) ─┐
                         ├── src/core/* ─── adb / device
 src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 (View properties)
                                  ├── semantics : adb uiautomator XML (Compose text/controls)
+                                 ├── dumpsys : dumpsys activity (View classes/ids on any app + Fragments)
                                  └── compose : Android Studio transport + JVMTI + helper JAR
 ```
 
@@ -78,6 +79,7 @@ src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 
   - `jdwp.ts` — hand-rolled JDWP handshake + DDMS chunks (`VULW` window list, `VURT` view dump). Resumes the VM after attaching so the UI keeps running.
   - `viewdump.ts` — decodes the binary `ViewDebug.dumpv2` stream (string-key table, nested maps), maps API-33 property names with legacy aliases, accumulates absolute coordinates through scroll/translation, applies `clipChildren`, assigns refs/paths, and serializes nodes. Shared helpers (`flattenNodes`, `assignRefs`, `intersect`, `serializeNode`) live here.
   - `semantics.ts` — parses uiautomator XML into `UiNode`s, then `assignRefs(..., "s")`.
+  - `dumpsys.ts` — parses `dumpsys activity <pkg>`: the indentation-based `View Hierarchy` tree (real View classes, resource ids, absolute window bounds, positional flag string) and `Active Fragments` records. `assignRefs(..., "d")`. Carries no text, so `--source dumpsys` also captures semantics and `mergeSemanticsText` joins them by geometry — windows vs screen coordinates differ by the status bar, so the offset is measured (median of text-node top deltas, capped at 10% of screen height) instead of hard-coded, and only unique same-family class matches merge. `notableFragments` filters AndroidX `ReportFragment`/`LifecycleDispatcher` bookkeeping.
   - `compose.ts` — locates Android Studio (explicit/env → running process, cached 1h → default paths), resolves Java and the Compose inspector JAR (downloads/caches ~1.8.3 by default), lazily compiles `helper/src/aui/ComposeInspectorHelper.java` with the matching `javac` and caches by Studio build + source hash + compiler, stages transport/JVMTI artifacts and a resident daemon in `/data/local/tmp/aui-compose`, then runs the Java helper and converts its JSON to `UiNode`s. `compose-clean` tears down device artifacts.
   - `helper/src/aui/ComposeInspectorHelper.java` — standalone gRPC bridge against Android Studio's shaded protobuf/gRPC classes. A compiled fallback JAR is committed at `helper/aui-compose-helper.jar`; `npm run build:helper` regenerates it.
 - Query/reporting:

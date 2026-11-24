@@ -8,6 +8,7 @@ export type ErrorCode =
   | "JDWP_FAILED"
   | "VIEW_DUMP_FAILED"
   | "SEMANTICS_FAILED"
+  | "DUMPSYS_FAILED"
   | "COMPOSE_FAILED"
   | "SCREENSHOT_FAILED"
   | "BAD_INPUT"

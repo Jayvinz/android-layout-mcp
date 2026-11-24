@@ -24,7 +24,7 @@ Internal notes for the two Medium drafts. Not part of the articles.
 
 ## Facts used (checked against the repository at v1.0.0)
 
-- 14 MCP tools, 18 CLI subcommands, 10 analysis rules, 104 tests.
+- 14 MCP tools, 16 CLI subcommands, 10 analysis rules, 114 tests.
 - 20 MCP client configs via `--client` across seven shapes; four clients verified locally (OpenCode, CodeBuddy Code, Codex CLI, WorkBuddy).
 - Four tests in `test/cross-agent-compat.test.ts` derive expectations from `MCP_CLIENT_IDS`; details in `docs/cross-agent.md`.
 - Compose inspector default 1.8.3, API 29+, 8 to 12 seconds per capture.

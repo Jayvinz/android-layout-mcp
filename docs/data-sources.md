@@ -2,15 +2,29 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`android-layout` can capture a live Android screen through three sources:
+`android-layout` can capture a live Android screen through four sources:
 
 | Source | How it works | Requires | Best for |
 |---|---|---|---|
 | `view` | JDWP + ViewDebug v2 | A debuggable app | Full View classes, resource ids, padding/margins, visibility, layout params |
 | `semantics` | `adb shell uiautomator dump` | Nothing | Compose text, content descriptions, clickable bounds on any app |
+| `dumpsys` | `adb shell dumpsys activity <pkg>` | Nothing | Real View classes, resource ids, absolute bounds, and Activity/Fragment structure on a non-debuggable app; no text |
 | `compose` | Android Studio transport + JVMTI | Debuggable app + Android Studio + Java 17+ | Composable names, `file:line`, bounds, parameters, recomposition counts |
 
-## Why three data sources
+## Why four data sources
+
+| | `view` (JDWP) | `semantics` (uiautomator) | `dumpsys` (ActivityManager) | `compose` (JVMTI) |
+|---|---|---|---|---|
+| Principle | Same as LayoutInspectorV2-Pro: JDWP + ViewDebug v2 | `uiautomator dump` accessibility semantics tree | `dumpsys activity` prints each Activity's `View Hierarchy` and `Active Fragments` | Reuses Android Studio's transport daemon + JVMTI + Compose inspector |
+| Requires | Debuggable app | Nothing | Nothing | Debuggable app + local Android Studio + Java |
+| Text | ✅ | ✅ | ❌ | ✅ (from Composable parameters) |
+| Resource ids | ✅ | ⚠️ accessibility ids only | ✅ | ❌ |
+| Fragment instances | ❌ | ❌ | ✅ | ❌ |
+| Speed | ~100ms | ~0.5–3s | ~100–300ms | ~8–12s (including daemon/agent startup) |
+
+`dumpsys` and `semantics` complement each other: dumpsys has the real View classes and resource ids but no text, while the semantics tree has the text but reports accessibility classes. `--source dumpsys` captures both and merges them by geometry, so a release build still answers what a control says and which class renders it.
+
+## Why the other three differ
 
 | | `view` (JDWP) | `semantics` (uiautomator) | `compose` (JVMTI) |
 |---|---|---|---|
@@ -25,7 +39,7 @@
 
 `--source auto` (the default) selects per the current screen:
 
-| Screen type | Auto selection | find / hit / tap |
+| Screen type | Auto selection | find / hit |
 |---|---|---|
 | Pure XML | `view` | view only |
 | Pure Compose | `semantics` | semantics only |
@@ -34,7 +48,7 @@
 The classification comes from a heuristic over the ViewDebug tree (`classifyUi`): a `ComposeView`/`AndroidComposeView` with XML content or interop views inside `AndroidViewsHandler` → `mixed`; only framework/Compose wrapper containers → `compose`; no ComposeView → `xml`. Capture results and JSON carry `uiKind: xml|compose|mixed|unknown`.
 
 - Automatic cross-page switching: XML pages go to view, Compose pages to semantics — no configuration needed.
-- Mixed pages: `dump` prints both view + semantics trees; `find`/`hit`/`tap --text` search both trees under auto.
+- Mixed pages: `dump` prints both view + semantics trees; `find`/`hit` search both trees under auto.
 - `--source both` explicitly captures view + semantics; `--source compose` uses the JVMTI Compose tree alone.
 - `hit` / MCP `hit_test` query view and semantics together by default.
 - `auto` degrades instead of failing: when one tree cannot be captured (for example a non-debuggable app, or a package that is not running), it is skipped with a warning and the other tree is used. Warnings appear in the JSON `warnings` array and in the text tree. An explicit `--source view` fails instead.
@@ -72,6 +86,39 @@ s43 TextView "开拍" / s44 Button ...          ← the semantics source has rea
 
   Includes Composable names, `file:line`, bounds, parameter text, flags such as `SYSTEM_CREATED`/`INLINED`, and recomposition/skip counts. Ideal for answering "which Composable / which line of code does this pixel belong to".
 - `auto` picks **semantics** for Compose screens (zero dependencies); only explicit `--source compose` goes through JVMTI.
+
+## dumpsys source
+
+`--source dumpsys` runs `adb shell dumpsys activity <package>` and parses two sections of the output:
+
+```
+View Hierarchy:
+  DecorView@37220bd[EntryActivity]
+    android.widget.LinearLayout{cbfb6b2 V.E...... ........ 0,0-1080,2356}
+      com.google.android.material.button.MaterialButton{2009898 VFED..C.. ........ 66,352-1014,484 #7f080067 app:id/btnXml}
+
+Active Fragments in 1cd0568:
+  #0: ReportFragment{2612d81 #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+      mState=5 mFragmentId=#0 mContainerId=#0 mAdded=true mHidden=false mDetached=false
+```
+
+**What it gives you that nothing else does**
+
+- **A real hierarchy on a non-debuggable app.** Verified against a system permission dialog, which can never be `debuggable`: 512 nodes with class names, resource ids, and absolute bounds.
+- **Fragment instances.** `active`/`added` fragments per Activity with tag, lifecycle state (`mState`), and `mAdded`/`mHidden`/`mDetached`. No other source reports fragments.
+
+**What it does not give you**
+
+- **No text.** A `TextView{...}` line has no `mText`; the flags and bounds are there, the string is not. `--source dumpsys` therefore also captures `semantics` and merges text by geometry (see below).
+- **No reliable Compose structure.** A Compose screen shows `AndroidComposeView` and stops; use `semantics` or `compose` for the composables inside.
+- **Obfuscated names, if the app is minified.** A release build prints `b{4b4c2a6}` instead of `ProfileFragment`; match by tag or by the hosting Activity instead.
+- **No per-window selection.** It dumps the Activity's main hierarchy; popups in separate windows may not appear.
+
+**Flag decoding.** The in-brace flag string is positional, one character per `View.toString` flag: `V`/`I`/`G` visibility, `F` focused, `E` enabled, `C` clickable, `L` long-clickable, `K` checkable/checked, `S` selected. `V.E......` is visible+enabled, `VFED..C..` adds focused+clickable.
+
+**Geometry.** dumpsys reports **window** coordinates while uiautomator reports **screen** coordinates; the constant difference is the status bar. The merge measures that offset from the two trees (median of text-node top differences, bounded to 10% of screen height) instead of hard-coding 80 px, then matches nodes whose shifted rects are identical **and** whose classes are in the same family (`TextView`↔`MaterialTextView` yes, `TextView`↔`ImageView` no). Only unique matches are merged, so a coarse fit cannot attach the wrong label.
+
+**Fragments on a real device.** Most entries are AndroidX bookkeeping: `ReportFragment` and `LifecycleDispatcher.report_fragment_tag` are injected for lifecycle dispatch and carry no product meaning. `notableFragments` filters them out, so an empty list usually means "single Activity or Compose-only screen", not "the parser failed". Pass `includeFramework` (MCP) or `--all` (CLI) to see them.
 
 ## Studio / JDK compatibility
 
@@ -146,7 +193,7 @@ When locator stability matters, prefer `Modifier.semantics { contentDescription 
 
 ## Mixed screens (XML + Compose)
 
-On mixed screens `auto` captures and shows both view + semantics and makes `find`/`hit`/`tap` search both trees; MCP can also request `find_elements(both=true)` explicitly.
+On mixed screens `auto` captures and shows both view + semantics and makes `find`/`hit` search both trees; MCP can also request `find_elements(both=true)` explicitly.
 
 ## Limitations
 

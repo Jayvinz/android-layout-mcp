@@ -1,7 +1,7 @@
 ---
 name: inspect-current-screen
 description: >-
-  Android-only. Use when the user wants to look at, capture, summarize, or inspect the current Android screen or a visible control without tracing source code. Trigger on "抓取当前页面布局", "当前页面布局", "看下当前页面/界面", "当前界面有什么", "这个页面是什么", "截个图看看", "导出布局树", "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪/可点击吗/什么类型", "顶部那个图标是什么", "这个按钮为什么是灰的", "summarize the current screen". Also use for direct device interaction ("点一下", "滑到下面", "屏幕坐标 300,800", "输入 hello", "按返回键") and audits ("有没有小点击区域", "有没有重叠", "无障碍检查", "布局有没有问题"). Only in Android projects; in a non-Android repository use only when the user explicitly asks for the device screen/page or mentions Android. Do not use for source/implementation/state (locate-ui-code), whole-screen code/business analysis (analyze-screen-logic), before/after checks (verify-ui-change), or general Android questions without a live screen.
+  Android-only. Use when the user wants to look at, capture, summarize, or inspect the current Android screen or a visible control without tracing source code. Trigger on "抓取当前页面布局", "当前页面布局", "看下当前页面/界面", "当前界面有什么", "这个页面是什么", "截个图看看", "导出布局树", "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪/可点击吗/什么类型", "顶部那个图标是什么", "这个按钮为什么是灰的", "summarize the current screen". This skill is read-only: it never taps, swipes, types, or sends key events. Also use for audits ("有没有小点击区域", "有没有重叠", "无障碍检查", "布局有没有问题"). Only in Android projects; in a non-Android repository use only when the user explicitly asks for the device screen/page or mentions Android. Do not use for source/implementation/state (locate-ui-code), whole-screen code/business analysis (analyze-screen-logic), before/after checks (verify-ui-change), or general Android questions without a live screen.
 ---
 
 # Inspecting the Current Android Screen
@@ -24,7 +24,7 @@ If the user explicitly asks about a connected device screen/page but no Android 
 
 1. Confirm `adb` is available and the device is online: MCP `list_devices`, or `adb devices`. With multiple devices, pick a `serial` and pass the same one to every call.
 2. The target app should be in the foreground. Record `package` and `activity` from `get_state`; if the user names an app that is not in the foreground, say so before summarizing.
-3. MCP tools come from the `android-layout` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, `analyze_ui`, `tap`, `swipe`, `input_text`, and `press_key`.
+3. MCP tools come from the `android-layout` server. This skill uses `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `screenshot`, and `analyze_ui`. Read-only: it never drives the device.
 4. If MCP is unavailable, fall back to the CLI, where `AUI_ROOT` is the plugin root (the directory that contains `dist/`, `scripts/`, and `skills/`): `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise your plugin checkout. `android-layout` on `PATH` is equivalent:
    ```bash
    mkdir -p .aui
@@ -61,16 +61,13 @@ Report `bounds`, `center`, `clickable`, `enabled`, and `className` for the winni
 
 If nothing matches, the control may be offscreen, in another window, or labeled only by description. Check `windows` from `get_state`, retry with `by="desc"`, and scroll only if the user asked about that area.
 
-### Step 4 — Interact once, only when asked
+### Step 4 — Positional questions
 
-Direct device actions are one-shot; do not turn them into a test loop:
+This skill reads the screen; it cannot drive the device. There is no tap, swipe, text input, or key event.
 
-- `tap(text="...")` or `tap(ref="...")`; prefer a selector over blind coordinates.
-- `swipe(x1, y1, x2, y2)` for a scroll gesture. There is no semantic "scroll until visible" helper, so compute coordinates from `screen` or a screenshot.
-- `input_text(text)` types ASCII only; do not promise Chinese input.
-- `press_key(key="KEYCODE_BACK")` and other key events.
-- For screenshot coordinates, map image pixels to device coordinates with the returned `coordinateMapping.imageToDevice`, or use `tap(imageX=..., imageY=..., imageWidth=..., imageHeight=...)`. Never tap raw image pixels.
-- After an action, re-run `get_state` or `dump_ui` before making claims about the new screen; old refs are invalid.
+- For a coordinate question ("屏幕坐标 300,800 是什么"), call `hit_test(x, y)` and use `index` to cycle through overlapping candidates. Report the winning node's bounds, center, class, clickable state, and the app/window it belongs to.
+- For a screenshot position, map image pixels with the returned `coordinateMapping.imageToDevice` before reporting a device coordinate. Never present image pixels as device coordinates.
+- If the answer depends on scrolling, say the target is outside the current capture and report `screen` bounds; scrolling is the user's call.
 
 ### Step 5 — Layout and accessibility questions
 
@@ -95,7 +92,7 @@ Only when the user explicitly asks to visualize or open the screen in a browser 
 | `xml` | The view tree is enough: classes, ids, text, visibility, clickable state. |
 | `compose` | The semantics/view tree is enough for observation: text, descriptions, bounds, clickable state. Use `dump_ui(source="compose")` only when the user asks for Composable names or `file:line` (8–12s, may fail). |
 | `mixed` | Read both trees; semantics covers Compose areas, view covers XML. |
-| `unknown` | Fall back to `dump_ui(source="semantics")` and mark confidence lower. |
+| `unknown` | Fall back to `dump_ui(source="semantics")` and mark confidence lower. On a non-debuggable app, `dump_ui(source="dumpsys")` additionally gives real View classes and resource ids. |
 
 `source="view"` fails on non-debuggable apps. Use `source="semantics"` there and say that View classes and resource ids are unavailable.
 
@@ -124,7 +121,7 @@ Answer in the user's language, using this structure:
 - <offscreen / duplicate / dynamic / server-driven / non-debuggable>
 
 ## Next step (optional)
-- <tap / analyze / screenshot, or "ask locate-ui-code to trace this control">
+- <analyze / screenshot, or "ask locate-ui-code to trace this control">
 ```
 
 ## Stop conditions and handoff

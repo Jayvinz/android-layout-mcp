@@ -75,7 +75,7 @@ Client config formats move; the paths and shapes above are what these clients ac
 
 | Client | Version | What was exercised |
 |---|---|---|
-| OpenCode | 1.19.5 | `opencode.json` connects; `tools/list` returns all 14 tools; `opencode debug skill` finds the four skills in `.agents/skills/` |
+| OpenCode | 1.19.5 | `opencode.json` connects; `tools/list` returns all 11 tools; `opencode debug skill` finds the four skills in `.agents/skills/` |
 | CodeBuddy Code | 2.186.0 | `mcpServers` connects and `list_devices` returns a real device; skills load from `.codebuddy/skills/`. Headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (plus `-y` when tool calls are gated) |
 | Codex CLI | 0.172.0 | Generated TOML parses; `codex exec` calls `list_devices` and returns a real device; skills in `.agents/skills/` are discovered |
 | WorkBuddy | bundled | After a restart and one-time GUI approval of the custom server, `list_devices` returns a real device and `inspect-current-screen` loads from `.workbuddy/skills/`; writing `mcp.json` alone does not expose tools |
@@ -104,16 +104,15 @@ Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in tha
 |---|---|
 | `list_devices` | Device list |
 | `get_state` | Screen, foreground app, pid, windows |
-| `dump_ui` | Capture UI; `source=auto/view/semantics/compose/both`, `format=json/tree`, `depth`, `maxNodes`, `savePath` |
-| `find_elements` | Search by text/description/id/class/ref; returns bounds, tap center, clickable, full path |
+| `dump_ui` | Capture UI; `source=auto/view/semantics/dumpsys/compose/both`, `format=json/tree`, `depth`, `maxNodes`, `savePath` |
+| `find_elements` | Search by text/description/id/class/ref; returns bounds, center, clickable, full path |
 | `locate_code` | Scan an Android repository from UI anchors (text/desc/id/Compose file+line/class) and return string/layout/Compose definitions plus ranked `file:line` candidates |
 | `hit_test` | Coordinate hit test; returns view and semantics by default; `source=compose` reaches the Compose tree |
 | `analyze_ui` | Layout/accessibility checks (rules in [cli.md](cli.md#analysis-rules)) |
 | `screenshot` | Returns PNG image content; downscaled to 720px wide by default (`fullResolution=true` to disable); can save and produce an SVG overlay |
 | `open_viewer` | Capture once, write a self-contained offline HTML viewer (tree, screenshot overlay, details, issues), and open it in the browser |
 | `diff_ui` | Compare two JSON files written by `dump_ui(savePath)` |
-| `tap` | Tap by coordinate or by `text/id/ref`; supports `imageX/imageY/imageWidth/imageHeight` image-coordinate mapping |
-| `swipe` / `input_text` / `press_key` | Interaction |
+| `list_fragments` | Activity and Fragment structure from `dumpsys`; works on non-debuggable apps. Framework bookkeeping fragments are filtered unless `includeFramework` is set |
 
 **Android project gate.** `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer` are intended for Android projects: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository call them only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android; `locate_code` additionally needs an explicit Android/device request. A connected device does not make the repository Android.
 
@@ -129,19 +128,16 @@ Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in tha
 | `open_viewer` | `.aui/viewer.html`, 4000 nodes/tree, 1080 px | `maxNodes` 1–20000; `includeProperties` adds ViewDebug properties (off by default); `includeIssues` runs analysis (on by default); 8 MB embedded-JSON budget — properties are dropped first, then nodes are halved to a floor of 200 |
 | `diff_ui` | `tolerance=1` px | `tolerance` 0–100; one tree per run (`source`); both inputs must be dumps written by `dump_ui(savePath=...)` |
 | `hit_test` | candidate 0, visible nodes only | `index` selects among overlapping candidates at the same point |
-| `tap` | first visible match | image mapping needs all four `image*` arguments; a selector matches visible nodes only; `index` picks among matches (default 0) |
-| `swipe` | 300 ms | `durationMs` 1–10000 |
 
-`input_text` accepts ASCII only (spaces are sent as `%s`); `press_key` forwards the value to `adb shell input keyevent`, so use `KEYCODE_*` names or numeric codes. When a capture fails, tools return the error text plus a fallback screenshot as image content.
+When a capture fails, tools return the error text plus a fallback screenshot as image content.
 
 ## Recommended call order
 
 1. `get_state` → confirm the foreground app;
 2. `dump_ui(source="auto", format="tree")` or `find_elements` → view the screen / locate;
-3. `tap` → interact;
-4. `screenshot` → visual confirmation;
-5. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
-6. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
+3. `screenshot` → visual confirmation;
+4. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
+5. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
 
 `open_viewer` is outside this order: call it only on an explicit visual request such as "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", or "open the UI viewer". It opens a browser window as a visible side effect, so `dump_ui`, `find_elements`, `analyze_ui`, `screenshot`, `diff_ui`, and verification must not call it. Pass `open=false` (or set `AUI_NO_OPEN=1`) to write the HTML without launching a browser; the tool returns `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`.
 

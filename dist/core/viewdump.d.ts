@@ -24,7 +24,7 @@ export declare function intersect(a: Bounds, b: Bounds): Bounds | null;
 export declare function normalizeResourceId(value: string | null): string | null;
 export declare function simpleClassName(className: string): string;
 /** Recursively assigns short refs in pre-order; used after any tree transform. */
-export declare function assignRefs(roots: UiNode[], prefix: "v" | "s" | "c"): void;
+export declare function assignRefs(roots: UiNode[], prefix: "v" | "s" | "d" | "c"): void;
 /** Flattens a forest in pre-order. */
 export declare function flattenNodes(roots: UiNode[]): UiNode[];
 export interface SerializeNodeOptions {

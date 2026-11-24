@@ -1,4 +1,4 @@
-export type ErrorCode = "ADB_NOT_FOUND" | "ADB_FAILED" | "NO_DEVICE" | "MULTIPLE_DEVICES" | "NO_PID" | "NOT_DEBUGGABLE" | "JDWP_FAILED" | "VIEW_DUMP_FAILED" | "SEMANTICS_FAILED" | "COMPOSE_FAILED" | "SCREENSHOT_FAILED" | "BAD_INPUT" | "TIMEOUT";
+export type ErrorCode = "ADB_NOT_FOUND" | "ADB_FAILED" | "NO_DEVICE" | "MULTIPLE_DEVICES" | "NO_PID" | "NOT_DEBUGGABLE" | "JDWP_FAILED" | "VIEW_DUMP_FAILED" | "SEMANTICS_FAILED" | "DUMPSYS_FAILED" | "COMPOSE_FAILED" | "SCREENSHOT_FAILED" | "BAD_INPUT" | "TIMEOUT";
 export declare class AuiError extends Error {
     readonly code: ErrorCode;
     readonly hint?: string;

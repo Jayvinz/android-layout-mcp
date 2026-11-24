@@ -54,9 +54,8 @@ android-layout analyze
 android-layout view
 android-layout view --no-open --out .aui/viewer.html
 
-# Tap the center of an element (locates first, then taps)
-android-layout tap --text "关注"
-android-layout tap 540 2239
+# Hit-test a device coordinate (all overlapping nodes, smallest first)
+android-layout hit 540 2239 --json
 
 # Two-snapshot diff: before/after a code change or page switch
 android-layout dump --json --out before.json
@@ -98,8 +97,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-layout shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg`; `--json`, `--json --base64` |
 | `android-layout view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
 | `android-layout diff <a> <b>` | Compare two dump JSON files; `--source`, `--tolerance` (default 1 px), `--json` |
-| `android-layout tap` | Tap a device coordinate, map a screenshot coordinate via `--image-*`, or select by `--text/--id/--ref` with `--by`/`--match`/`--index`/`--source` and tap the center |
-| `android-layout swipe` / `input` / `key` | Swipe (`--duration`, default 300ms), input ASCII text, send keyevent |
+| `android-layout fragments` | Activity/Fragment structure from `dumpsys`; `--package`, `--json`, `--all` (keep AndroidX bookkeeping fragments) |
 | `android-layout studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
 | `android-layout mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
 | `android-layout compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
@@ -111,8 +109,7 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 ## Limits and defaults
 
 - **Text tree vs JSON**: `--depth`, `--max-nodes` (default 2000) and `--visible-only` shape only the human-readable tree; when it is cut, the last line says how many nodes were shown. `--json` / `--out` write the complete dump (`version: 1`, no trimming), so an agent should trim on its side or use MCP `dump_ui` with `depth`/`maxNodes`.
-- **Search**: `find`, `hit`, and `tap` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
-- **Tap**: a selector only matches visible nodes, and a hidden match is an error rather than a silent tap. Image-coordinate taps need all four `--image-*` flags; `--index` disambiguates overlapping matches. On a mixed screen, `tap --text` searches only the first tree of the selected source — pass `--source semantics` (or use `--ref` with `--source both`) when the label exists only in the Compose semantics tree.
+- **Search**: `find` and `hit` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
 - **Screenshots**: CLI `shot` keeps the native resolution unless `--max-width`/`--scale` is given; `--base64` adds data only together with `--json`. MCP `screenshot` defaults to 720px wide.
 - **Viewer budget**: the embedded JSON is capped at 8 MB. On overflow the viewer first drops `--props`, then halves `--max-nodes` (floor 200); `view --json` reports `truncated`, and the embedded payload carries `limits.budgetExceeded`. The page is a static snapshot either way.
 - **Diff**: compares one tree per run and keys nodes by identity, not pixels. `--tolerance` (default 1 px) ignores smaller bound changes; `--source` forces the tree when the two dumps disagree on the primary source.
@@ -182,7 +179,7 @@ android-layout shot --out ui.png --annotate --source compose
 
 ### Image coordinates ≠ device coordinates
 
-After downscaling, an `(x, y)` read from the image is an **image coordinate**, while `input tap` needs a **device coordinate**. Screenshot output (CLI `--json` and the MCP image text) always includes the original size and mapping factors:
+After downscaling, an `(x, y)` read from the image is an **image coordinate**; a device coordinate is what `hit` accepts and what you report to the user. Screenshot output (CLI `--json` and the MCP image text) always includes the original size and mapping factors:
 
 ```json
 {
@@ -201,29 +198,14 @@ After downscaling, an `(x, y)` read from the image is an **image coordinate**, w
 }
 ```
 
-Prefer the **image-aware tap** to avoid manual conversion:
+Convert before quoting a position or calling `hit`:
 
 ```bash
-# (360, 800) read from a 720x1600 image
-android-layout tap --image-x 360 --image-y 800 --image-width 720 --image-height 1600
-# -> image (360, 800) in 720x1600 -> device (540, 1200) on 1080x2400
+# (360, 800) read from a 720x1600 image maps to (540, 1200) on a 1080x2400 screen
+android-layout hit 540 1200 --json
 ```
 
-MCP:
-
-```json
-{
-  "name": "tap",
-  "arguments": {
-    "imageX": 360,
-    "imageY": 800,
-    "imageWidth": 720,
-    "imageHeight": 1600
-  }
-}
-```
-
-If the agent got device coordinates from `find_elements` / `hit_test`, pass them straight to `tap`'s `x/y`. `coordinateMapping` is only needed for visual/pixel-based work.
+Coordinates returned by `find` / `hit` / MCP `find_elements` / `hit_test` are already device coordinates; `coordinateMapping` is only needed for visual/pixel-based work.
 
 ## Environment variables
 

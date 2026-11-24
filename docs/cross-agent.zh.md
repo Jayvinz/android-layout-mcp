@@ -8,7 +8,7 @@
 
 | 层 | 内容 | 可移植性 |
 |---|---|---|
-| MCP Server | `dist/mcp.js`、stdio、14 个工具 | 所有 MCP 客户端 |
+| MCP Server | `dist/mcp.js`、stdio、11 个工具 | 所有 MCP 客户端 |
 | 技能 | 4 个 `SKILL.md`，frontmatter 只有 `name` + `description` | 读取 Agent Skills 目录的客户端 |
 | 斜杠命令 | 5 个 `commands/*.md`，`$ARGUMENTS` 语法 | 仅 Claude Code |
 | 子代理 | `agents/ui-code-locator.md`，`model: inherit` / `color` | 仅 Claude Code |
@@ -48,7 +48,7 @@ id 定义在 `src/core/mcp-config.ts`；CLI 的 `--client` choices 直接从该�
 
 | 客户端 | 版本 | 验证内容 | 需要记住的坑 |
 |---|---|---|---|
-| OpenCode | 1.19.5 | `opencode mcp list` 显示已连接；`tools/list` 收到全部 14 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 | 配置校验严格；`type: "local"` 加命令数组才是被接受的形状 |
+| OpenCode | 1.19.5 | `opencode mcp list` 显示已连接；`tools/list` 收到全部 11 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 | 配置校验严格；`type: "local"` 加命令数组才是被接受的形状 |
 | CodeBuddy Code | 2.186.0 | `mcp__android-layout__list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载 | 项目级 server 需要一次性审批；无交互运行要加 `--settings '{"enableAllProjectMcpServers":true}'`，工具被门禁时还要 `-y` |
 | Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 | 非交互 shell 里 `codex exec` 会等 stdin，需从 `/dev/null` 重定向；自定义 provider 必须用 `env_key`，inline `api_key` 会被忽略 |
 | WorkBuddy | 内置 | 重启并在 GUI 中一次性启用后，`list_devices` 返回真实设备，`inspect-current-screen` 从 `.workbuddy/skills/` 加载 | 只写 `mcp.json` 不会暴露工具，GUI 启用/信任步骤不能省 |
@@ -110,4 +110,4 @@ Cursor 与 VS Code 无需复制就能发现 `.claude/skills/`，因此把插件�
 - 配置格式会变。表格反映 2026 年 11 月的写法，告诉用户路径前先复核。
 - 技能可移植，但斜杠命令、子代理、`PreToolUse` hook 不可移植。不要给 `SKILL.md` 加 agent 专属 frontmatter 字段，否则同步脚本会把其他客户端不认的字段一起发出去。
 - 只有四家做了运行时验证，其余 16 家是按各自 schema 文档配置的。
-- 所有客户端拿到的是同一套 14 个工具。差异在配置形状、技能发现与审批流程，不在工具行为。
+- 所有客户端拿到的是同一套 11 个工具。差异在配置形状、技能发现与审批流程，不在工具行为。

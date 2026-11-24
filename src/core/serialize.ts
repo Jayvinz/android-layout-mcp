@@ -36,6 +36,19 @@ export function serializeDump(result: CaptureResult, includeProperties = true): 
           },
         }
       : {}),
+    ...(result.dumpsys
+      ? {
+          dumpsys: {
+            activity: result.dumpsys.activity,
+            captureMs: result.dumpsys.captureMs,
+            fragments: result.dumpsys.fragments.map((fragment) => ({ ...fragment })),
+            labelledNodes: result.dumpsys.labelledNodes,
+            roots: result.dumpsys.roots.map((node) =>
+              serializeNode(node, { includeProps: includeProperties }),
+            ) as unknown as UiNode[],
+          },
+        }
+      : {}),
     ...(result.compose
       ? {
           compose: {
@@ -76,14 +89,22 @@ export async function loadDump(path: string): Promise<DumpFile> {
 export function snapshotRoots(dump: DumpFile, source?: NodeSource): SnapshotNode[] {
   const chosen = source ?? dump.source;
   const tree =
-    chosen === "semantics" ? dump.semantics?.roots : chosen === "compose" ? dump.compose?.roots : dump.view?.roots;
+    chosen === "semantics"
+      ? dump.semantics?.roots
+      : chosen === "compose"
+        ? dump.compose?.roots
+        : chosen === "dumpsys"
+          ? dump.dumpsys?.roots
+          : dump.view?.roots;
   if (tree) return tree as unknown as SnapshotNode[];
   const fallback =
     chosen === "semantics"
       ? dump.view?.roots
       : chosen === "compose"
         ? dump.view?.roots
-        : dump.semantics?.roots;
+        : chosen === "dumpsys"
+          ? dump.semantics?.roots
+          : dump.semantics?.roots;
   return (fallback ?? []) as unknown as SnapshotNode[];
 }
 
@@ -103,8 +124,11 @@ export function chooseDiffSource(
       ? Boolean(dump.view)
       : source === "semantics"
         ? Boolean(dump.semantics)
-        : Boolean(dump.compose);
+        : source === "dumpsys"
+          ? Boolean(dump.dumpsys)
+          : Boolean(dump.compose);
   if (before.source === after.source) return before.source;
+  if (has(before, "dumpsys") && has(after, "dumpsys")) return "dumpsys";
   if (has(before, "compose") && has(after, "compose")) return "compose";
   if (has(before, "semantics") && has(after, "semantics")) return "semantics";
   if (has(before, "view") && has(after, "view")) return "view";

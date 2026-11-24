@@ -492,7 +492,7 @@ export function simpleClassName(className: string): string {
 }
 
 /** Recursively assigns short refs in pre-order; used after any tree transform. */
-export function assignRefs(roots: UiNode[], prefix: "v" | "s" | "c"): void {
+export function assignRefs(roots: UiNode[], prefix: "v" | "s" | "d" | "c"): void {
   let counter = 0;
   const walk = (node: UiNode, parent: UiNode | null, index: number, depth: number, path: string) => {
     node.ref = `${prefix}${counter++}`;
