@@ -131,12 +131,29 @@ test("analysis and serialisation include Compose nodes", () => {
   assert.equal(dump.compose!.rootViewId, 13);
   assert.equal(dump.sources[0], "compose");
 });
-test("resolveJava warns about an explicit override that does not exist, then falls back", async () => {
-  const previous = process.env.AUI_JAVA;
+/**
+ * Clears the environment variables that precede the Studio/PATH candidates so
+ * these tests assert the documented search order instead of whatever the host
+ * machine happens to export (CI images ship a `JAVA_HOME`).
+ */
+async function withCleanJavaEnv(run: () => Promise<void>): Promise<void> {
+  const saved = { AUI_JAVA: process.env.AUI_JAVA, JAVA_HOME: process.env.JAVA_HOME };
   delete process.env.AUI_JAVA;
-  const warnings: string[] = [];
-  const studio = { java: null } as unknown as Parameters<typeof resolveJava>[1];
+  delete process.env.JAVA_HOME;
   try {
+    await run();
+  } finally {
+    if (saved.AUI_JAVA === undefined) delete process.env.AUI_JAVA;
+    else process.env.AUI_JAVA = saved.AUI_JAVA;
+    if (saved.JAVA_HOME === undefined) delete process.env.JAVA_HOME;
+    else process.env.JAVA_HOME = saved.JAVA_HOME;
+  }
+}
+
+test("resolveJava warns about an explicit override that does not exist, then falls back", async () => {
+  await withCleanJavaEnv(async () => {
+    const warnings: string[] = [];
+    const studio = { java: null } as unknown as Parameters<typeof resolveJava>[1];
     const resolved = await resolveJava("C:/definitely/not/here/java.exe", studio, (message) =>
       warnings.push(message),
     );
@@ -145,35 +162,25 @@ test("resolveJava warns about an explicit override that does not exist, then fal
     assert.match(warnings[0]!, /Falling back/);
     // The last candidate is the bare binary name, resolved through PATH at exec time.
     assert.equal(resolved, process.platform === "win32" ? "java.exe" : "java");
-  } finally {
-    if (previous !== undefined) process.env.AUI_JAVA = previous;
-  }
+  });
 });
 
 test("resolveJava stays silent when no override is configured", async () => {
-  const previous = process.env.AUI_JAVA;
-  delete process.env.AUI_JAVA;
-  const warnings: string[] = [];
-  const studio = { java: process.execPath } as unknown as Parameters<typeof resolveJava>[1];
-  try {
+  await withCleanJavaEnv(async () => {
+    const warnings: string[] = [];
+    const studio = { java: process.execPath } as unknown as Parameters<typeof resolveJava>[1];
     assert.equal(await resolveJava(undefined, studio, (message) => warnings.push(message)), process.execPath);
     assert.deepEqual(warnings, []);
-  } finally {
-    if (previous !== undefined) process.env.AUI_JAVA = previous;
-  }
+  });
 });
 
 test("resolveJava labels the AUI_JAVA override and keeps searching", async () => {
-  const previous = process.env.AUI_JAVA;
-  process.env.AUI_JAVA = "C:/also/not/here/java.exe";
-  const warnings: string[] = [];
-  const studio = { java: process.execPath } as unknown as Parameters<typeof resolveJava>[1];
-  try {
+  await withCleanJavaEnv(async () => {
+    process.env.AUI_JAVA = "C:/also/not/here/java.exe";
+    const warnings: string[] = [];
+    const studio = { java: process.execPath } as unknown as Parameters<typeof resolveJava>[1];
     assert.equal(await resolveJava(undefined, studio, (message) => warnings.push(message)), process.execPath);
     assert.equal(warnings.length, 1);
     assert.match(warnings[0]!, /Ignoring AUI_JAVA: .*does not exist/);
-  } finally {
-    if (previous === undefined) delete process.env.AUI_JAVA;
-    else process.env.AUI_JAVA = previous;
-  }
+  });
 });
