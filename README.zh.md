@@ -182,6 +182,7 @@ android-ui view          # 生成交互式 HTML 查看器并在浏览器中打�
 | [docs/data-sources.zh.md](docs/data-sources.zh.md) | 三个数据源原理与对照、`auto` 选择策略、Compose JVMTI 细节 |
 | [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、限制与默认值、分析规则、截图与坐标映射、环境变量 |
 | [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、限制与默认值、推荐调用顺序 |
+| [docs/cross-agent.zh.md](docs/cross-agent.zh.md) | 在其他 agent 中使用：配置外壳、实测客户端、技能安装、兼容测试 |
 | [docs/plugin.zh.md](docs/plugin.zh.md) | Claude Code 插件组件、安装、典型流程、发布与版本号 |
 | [docs/development.zh.md](docs/development.zh.md) | 开发、测试与实现说明 |
 

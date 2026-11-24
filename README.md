@@ -190,6 +190,7 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 | [docs/data-sources.md](docs/data-sources.md) | The three data sources, `auto` selection policy, Compose JVMTI details                                   |
 | [docs/cli.md](docs/cli.md)                   | CLI installation, command table, limits and defaults, analysis rules, screenshots & coordinate mapping, environment variables |
 | [docs/mcp.md](docs/mcp.md)                   | MCP server configuration, tool table, limits and defaults, recommended call order                        |
+| [docs/cross-agent.md](docs/cross-agent.md)   | Using the plugin in other agents: config envelopes, verified clients, skill installation, compatibility tests |
 | [docs/plugin.md](docs/plugin.md)             | Claude Code plugin components, installation, workflow, release & versioning                              |
 | [docs/development.md](docs/development.md)   | Development, testing, and implementation notes                                                           |
 
