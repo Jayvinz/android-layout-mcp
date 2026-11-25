@@ -184,4 +184,4 @@ Coordinates returned by `find` / `hit` / MCP `find_elements` / `hit_test` are al
 | `ALM_JAVAC` / `ALM_JAR` | Compiler and jar tool used by `npm run build:helper` |
 | `ALM_GATE_DEBUG=1` | Append `PreToolUse` hook decisions to `alm-android-gate.log` in the temp directory |
 
-Releases 1.0.x used the `AUI_` prefix, which is no longer read: rename any `AUI_*` value to `ALM_*`. `compose-clean` still removes the 1.0.x `aui-*` device artifacts, and `.gitignore` still covers `.aui/` dumps.
+Builds before 0.9.0 used the `AUI_` prefix, which is no longer read: rename any `AUI_*` value to `ALM_*`. `compose-clean` still removes the older `aui-*` device artifacts, and `.gitignore` still covers `.aui/` dumps.

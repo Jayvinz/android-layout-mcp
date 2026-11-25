@@ -191,4 +191,4 @@ android-layout hit 540 1200 --json
 | `ALM_JAVAC` / `ALM_JAR` | `npm run build:helper` 使用的编译器与 jar 工具 |
 | `ALM_GATE_DEBUG=1` | 把 `PreToolUse` hook 的判定结果追加写入临时目录下的 `alm-android-gate.log` |
 
-1.0.x 使用 `AUI_` 前缀，本版本不再读取：已有的 `AUI_*` 配置请改名为 `ALM_*`。`compose-clean` 仍会清理 1.0.x 留下的 `aui-*` 设备产物，`.gitignore` 也仍覆盖 `.aui/` dump。
+0.9.0 之前的构建使用 `AUI_` 前缀，本版本不再读取：已有的 `AUI_*` 配置请改名为 `ALM_*`。`compose-clean` 仍会清理旧版留下的 `aui-*` 设备产物，`.gitignore` 也仍覆盖 `.aui/` dump。

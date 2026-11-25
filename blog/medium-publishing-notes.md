@@ -22,7 +22,7 @@ Internal notes for the two Medium drafts. Not part of the articles.
   3. Device staging diagram: Studio artifacts, daemon, `code_cache`, gRPC.
 - Canonical URL: the GitHub blob URL of this file once committed.
 
-## Facts used (checked against the repository at v1.0.0)
+## Facts used (checked against the repository at v0.9.0)
 
 - 9 MCP tools, 13 CLI subcommands, 12 analysis rules. (Do not quote a test count here: the suite grows with every change.)
 - 20 MCP client configs via `--client` across seven shapes; four clients verified locally (OpenCode, CodeBuddy Code, Codex CLI, WorkBuddy).
