@@ -50,12 +50,6 @@ android-layout shot --out small.png --scale 0.5
 # Layout / accessibility checks
 android-layout analyze
 
-
-# Hit-test a device coordinate (all overlapping nodes, smallest first)
-android-layout hit 540 2239 --json
-
-
-
 # Full properties of a single node
 android-layout inspect v4
 android-layout inspect 0.0.0
@@ -104,7 +98,7 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 - **Text tree vs JSON**: `--depth`, `--max-nodes` (default 2000) and `--visible-only` shape only the human-readable tree; when it is cut, the last line says how many nodes were shown. `--json` / `--out` write the complete dump (`version: 1`, no trimming), so an agent should trim on its side or use MCP `dump_ui` with `depth`/`maxNodes`.
 - **Search**: `find` and `hit` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
 - **Screenshots**: CLI `shot` keeps the native resolution unless `--max-width`/`--scale` is given; `--base64` adds data only together with `--json`. MCP `screenshot` defaults to 720px wide.
-- **Before/after**: there is no `diff` subcommand. Save a dump before and after a change (`dump --json --out .aui/before.json`, then `.aui/after.json`) and compare the two files yourself; refs are per capture, so match on source, resource id, class, text, and path. Then run `analyze` on the new capture.
+- **Before/after**: save a dump before and after a change (`dump --json --out .aui/before.json`, then `.aui/after.json`) and compare the two files yourself; refs are per capture, so match on source, resource id, class, text, and path. Then run `analyze` on the new capture.
 - **Analyze**: `deep_nesting` is skipped for the `compose` source, unknown rule names are ignored, and `small_touch_target` skips bottom-clipped accessibility nodes on ROMs that under-report the window (e.g. MIUI).
 - **Analyze reads one tree**: the one that matches the screen — View for an XML screen, semantics for a Compose screen, dumpsys for `--source dumpsys`, Compose for `--source compose`. A `mixed` screen is the exception: View and Compose regions are disjoint, so both trees are scanned. This keeps a defect from being reported once per captured tree — a `--source dumpsys` capture always carries a semantics tree too, merged in only to supply text. `overdraw` and `rtl_issues` always read the View tree when it was captured, because only it carries the raw property map.
 - **Fallbacks**: with `auto`, a tree that fails to capture is skipped with a warning and the other tree is used; when the target package is not running, view capture is skipped. Warnings surface in the text tree, in JSON (`warnings`), and on stderr for `analyze`. `--window` takes a 0-based index or a name substring and applies to the view source only.

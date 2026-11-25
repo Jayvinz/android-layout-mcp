@@ -1,6 +1,6 @@
 # How Android Layout MCP Reads a Screen: JDWP, UIAutomator, and JVMTI
 
-*Part 2 of two. [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-getting-started.md) covers installation and everyday use.*
+*Part 2 of two. [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-getting-started.md) covers installation and everyday use.*
 
 *[Figure 1: one screen captured by several sources, merged into a single tree]*
 
@@ -159,7 +159,7 @@ Four sources mean four sets of prerequisites. Two of them need a debug build, JD
 
 Those constraints appear in the output. Captures carry warnings, refs expire with the snapshot, and the JSON says which sources produced the tree. The next time an agent reports that a button sits at `(540, 2239)`, that number came from one of these paths, and the payload names it.
 
-If you want to try it, [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-getting-started.md) has the install steps.
+If you want to try it, [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-getting-started.md) has the install steps.
 
 **Resources**
 

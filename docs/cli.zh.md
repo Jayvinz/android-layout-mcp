@@ -50,12 +50,6 @@ android-layout shot --out small.png --scale 0.5
 # 布局 / 无障碍问题检查
 android-layout analyze
 
-
-# 命中测试某个设备坐标（返回全部重叠节点，面积最小的优先）
-android-layout hit 540 2239 --json
-
-
-
 # 查看某个节点的全部属性
 android-layout inspect v4
 android-layout inspect 0.0.0
@@ -105,7 +99,7 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 - **文本树与 JSON**：`--depth`、`--max-nodes`（默认 2000）和 `--visible-only` 只影响人类可读的文本树；被截断时最后一行会说明展示到多少节点。`--json` / `--out` 写出完整 dump（`version: 1`，不裁剪），agent 端需要自己裁剪，或改用 MCP `dump_ui` 的 `depth`/`maxNodes`。
 - **搜索**：`find` 与 `hit` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
 - **截图**：CLI `shot` 默认保持原生分辨率，只有指定 `--max-width`/`--scale` 才降采样；`--base64` 仅在同时带 `--json` 时生效。MCP `screenshot` 默认 720px 宽。
-- **改前/改后**：没有 `diff` 子命令。改动前后各存一份 dump（`dump --json --out .aui/before.json`，再存 `.aui/after.json`），自行比对两份文件；ref 只在单次抓取内有效，请按 source、resource id、class、text 与 path 匹配。最后对新抓取跑 `analyze`。
+- **改前/改后**：改动前后各存一份 dump（`dump --json --out .aui/before.json`，再存 `.aui/after.json`），自行比对两份文件；ref 只在单次抓取内有效，请按 source、resource id、class、text 与 path 匹配。最后对新抓取跑 `analyze`。
 - **Analyze**：`compose` 数据源不评估 `deep_nesting`；未知规则名会被忽略；在低报窗口高度的 ROM（如 MIUI）上，`small_touch_target` 会跳过底部被裁的语义节点。
 - **Analyze 只读一棵树**：与页面类型匹配的那棵 —— XML 页面读 View，Compose 页面读语义树，`--source dumpsys` 读 dumpsys，`--source compose` 读 Compose。`mixed` 页面例外：View 与 Compose 区域互不重叠，两棵树都会扫描。这样同一缺陷不会按树重复上报 —— `--source dumpsys` 的抓取总带着一棵语义树，那棵树只用于补文本。`overdraw` 与 `rtl_issues` 只要抓到了 View 树就一定读它，因为只有它带原始属性表。
 - **兜底行为**：`auto` 下某棵树抓取失败会跳过并给出 warning，改用另一棵树；目标包未运行时跳过 view 抓取。warning 会出现在文本树、JSON 的 `warnings` 字段，`analyze` 还会输出到 stderr。`--window` 接受 0 起始索引或名称子串，仅对 view 源生效。

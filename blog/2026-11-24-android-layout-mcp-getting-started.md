@@ -1,6 +1,6 @@
 # Inspect a Live Android Screen from Your Coding Agent
 
-*Part 1 of two: connect a client, read the screen, trace an element to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md) opens the implementation.*
+*Part 1 of two: connect a client, read the screen, trace an element to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-under-the-hood.md) opens the implementation.*
 
 *[Figure 1: a captured screen tree in the terminal, with bounds, centers, and refs]*
 
@@ -177,7 +177,7 @@ The five skills travel as well. Their frontmatter uses only `name` and `descript
 
 Version 1.0.0 is the first stable release under this name, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
 
-The interesting part, at least for me, is how four unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md).
+The interesting part, at least for me, is how four unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-under-the-hood.md).
 
 **Resources**
 

@@ -51,52 +51,19 @@ When installed through the Claude Code plugin no manual configuration is needed:
 
 ### Other clients
 
-The server is a plain stdio MCP server, so any client can run it; only the config envelope differs. `--client` prints the shape that client expects. The destination file goes to stderr, so stdout stays a paste-ready snippet:
+The server is a plain stdio MCP server, so any client can run it; only the config envelope differs. `--client` prints the shape that client expects, with the snippet on stdout and the destination path on stderr:
 
 ```bash
 node dist/cli.js mcp --print-config --client codex > config.toml
 ```
 
-| `--client` | File | Shape |
-|---|---|---|
-| `claude` (default), `claude-desktop`, `codebuddy`, `workbuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `generic` | client's MCP config | `mcpServers` object |
-| `vscode` | `.vscode/mcp.json` | `servers` with `type: "stdio"` |
-| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-layout]` |
-| `zed` | `settings.json` | `context_servers` with `command.path` |
-| `opencode` | `opencode.json` | `mcp` with a local command array |
-| `goose` | `~/.config/goose/config.yaml` | YAML `extensions` |
-| `amp` | `~/.config/amp/settings.json` | dotted `amp.mcpServers` key |
+The 20 ids are `claude` (default), `claude-desktop`, `codebuddy`, `workbuddy`, `cursor`, `windsurf`, `devin`, `cline`, `kiro`, `gemini`, `antigravity`, `qwen`, `trae`, `vscode`, `codex`, `zed`, `opencode`, `goose`, `amp`, and `generic`. [cross-agent.md](cross-agent.md#client-config-envelopes) has the destination file and envelope shape for each, and the skill install flags.
+
+Four clients were exercised end to end on a real machine: OpenCode, CodeBuddy Code, Codex CLI, and WorkBuddy. [cross-agent.md](cross-agent.md#verified-locally) records their versions and the per-client gotchas.
 
 The global flags (`--serial`, `--adb`, `--timeout`, `--studio`, `--java`, `--compose-version`) are carried into the snippet, so a pinned device survives the copy. `--client` reshapes the envelope only; the tools are identical everywhere.
 
-Client config formats move; the paths and shapes above are what these clients accepted in November 2026. Windows uses `%USERPROFILE%` where the table says `~`.
-
-### Verified locally
-
-| Client | Version | What was exercised |
-|---|---|---|
-| OpenCode | 1.19.5 | `opencode.json` connects; `tools/list` returns all 9 tools; `opencode debug skill` finds the five skills in `.agents/skills/` |
-| CodeBuddy Code | 2.186.0 | `mcpServers` connects and `list_devices` returns a real device; skills load from `.codebuddy/skills/`. Headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (plus `-y` when tool calls are gated) |
-| Codex CLI | 0.172.0 | Generated TOML parses; `codex exec` calls `list_devices` and returns a real device; skills in `.agents/skills/` are discovered |
-| WorkBuddy | bundled | After a restart and one-time GUI approval of the custom server, `list_devices` returns a real device and `capture-ui` loads from `.workbuddy/skills/`; writing `mcp.json` alone does not expose tools |
-
-The other clients in the table follow their documented schemas but were not exercised on this machine.
-
-### Skills in other agents
-
-The five skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads `.codebuddy/skills/`; WorkBuddy reads `.workbuddy/skills/`:
-
-```bash
-node scripts/sync-agent-skills.mjs --dest ../my-android-app           # .agents/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy  # .codebuddy/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --workbuddy   # .workbuddy/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --both       # .agents + .codebuddy
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --both --workbuddy  # all three
-node scripts/sync-agent-skills.mjs --global                            # ~/.agents/skills
-node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale
-```
-
-Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/capture`, `/trace-view`, …) are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
+Config formats move, so treat the recorded paths and shapes as a November 2026 snapshot, and use `%USERPROFILE%` on Windows where a path starts with `~`.
 
 ## Tools
 

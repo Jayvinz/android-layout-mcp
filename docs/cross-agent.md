@@ -87,7 +87,7 @@ Use this checklist so a new client does not silently rot:
 1. Add the id to `MCP_CLIENT_IDS` in `src/core/mcp-config.ts`.
 2. Add its `CLIENTS` entry with a `family` and an exact destination path. Reuse a family when possible; a new shape needs a branch in `mcpClientConfig`.
 3. Add a shape assertion to `test/mcp-config.test.ts`.
-4. Update the client table in `docs/mcp.md` and `docs/mcp.zh.md`, and the id list in both READMEs. The compatibility test below fails until all four files mention every id.
+4. Update the client table in `docs/mcp.md`, `docs/mcp.zh.md`, `docs/cross-agent.md`, and `docs/cross-agent.zh.md`. The compatibility test below fails until all four files mention every id.
 5. Update the client count in `AGENTS.md` (currently 20) and this document.
 6. If you can run the client, add a row to "Verified locally" with the exact version and what you exercised. Otherwise leave it in the unverified set.
 7. Run `npm test`. Do not bump the release version for a client-only change; the server and tools are unchanged.
@@ -108,5 +108,4 @@ Run them all with `npm test`. A new client id, a renamed skill directory, or a d
 
 - Config formats move. The table reflects November 2026; re-check a client before telling users its path is correct.
 - The skills are portable, but slash commands and the `PreToolUse` hook are not. Do not add agent-specific frontmatter fields to `SKILL.md`, or the sync script will ship a field another client rejects.
-- Only four clients have runtime verification. The other 16 are documented from their own schema definitions.
 - All clients get the same 9 tools. Differences are in config shape, skill discovery, and approval flows, not in tool behaviour.

@@ -20,8 +20,6 @@ function read(relativePath: string): string {
  * updating the docs (or vice versa) fails the suite.
  */
 const CLIENT_LIST_DOCS = [
-  "README.md",
-  "README.zh.md",
   "docs/mcp.md",
   "docs/mcp.zh.md",
   "docs/cross-agent.md",
@@ -147,7 +145,7 @@ test("the skill directory matrix matches the shipped skills", () => {
   assert.deepEqual(
     skillNames,
     ["audit-ui", "capture-ui", "inspect-view-attribute", "trace-ui-logic", "trace-view-wiring"],
-    "the documented five skills changed; update docs/cross-agent.md and both READMEs",
+    "the documented five skills changed; update docs/cross-agent.md and docs/plugin.md",
   );
 
   for (const doc of ["docs/cross-agent.md", "docs/cross-agent.zh.md"]) {

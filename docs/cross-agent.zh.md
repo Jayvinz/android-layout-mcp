@@ -87,7 +87,7 @@ Cursor 与 VS Code 无需复制就能发现 `.claude/skills/`，因此把插件�
 1. 在 `src/core/mcp-config.ts` 的 `MCP_CLIENT_IDS` 加 id。
 2. 在 `CLIENTS` 表加条目，写清 `family` 和确切目标路径。能复用形状就复用；新形状需要在 `mcpClientConfig` 里加分支。
 3. 在 `test/mcp-config.test.ts` 加一条形状断言。
-4. 更新 `docs/mcp.md` 与 `docs/mcp.zh.md` 的客户端表，以及两份 README 的 id 列表。兼容测试会要求四处都提到每个 id，否则失败。
+4. 更新 `docs/mcp.md`、`docs/mcp.zh.md`、`docs/cross-agent.md` 与 `docs/cross-agent.zh.md` 的客户端表。兼容测试会要求这四个文件都提到每个 id，否则失败。
 5. 更新 `AGENTS.md` 的客户端数量（当前 20）和本文。
 6. 如果能实际运行该客户端，在"本机实测"表加一行，写清版本与验证内容；否则留在未实测集合里。
 7. 跑 `npm test`。仅加客户端不需要升发布版本，server 与工具没变。
@@ -108,5 +108,4 @@ Cursor 与 VS Code 无需复制就能发现 `.claude/skills/`，因此把插件�
 
 - 配置格式会变。表格反映 2026 年 11 月的写法，告诉用户路径前先复核。
 - 技能可移植，但斜杠命令、`PreToolUse` hook 不可移植。不要给 `SKILL.md` 加 agent 专属 frontmatter 字段，否则同步脚本会把其他客户端不认的字段一起发出去。
-- 只有四家做了运行时验证，其余 16 家是按各自 schema 文档配置的。
 - 所有客户端拿到的是同一套 9 个工具。差异在配置形状、技能发现与审批流程，不在工具行为。

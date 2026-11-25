@@ -90,18 +90,11 @@ After installation `/mcp` should show the `android-layout` server and `/help` sh
 
 ## Typical workflow
 
-For "locate the Me button on the current screen and trace it to its related code logic":
+The tool sequence for each request type is in [mcp.md](mcp.md#recommended-call-order). What the plugin adds is routing between three kinds of request.
 
-1. `get_state` confirms the foreground package, Activity, screen, and pid;
-2. `dump_ui(source="auto", format="tree")` yields `uiKind` and the nodes;
-3. On Compose screens add `dump_ui(source="compose")` to get Composable `file:line`;
-4. `find_elements` / `hit_test` lock onto the target; record text/id/bounds/clickable;
-5. `locate_code` (or the locate script directly) returns string, layout, Compose, ViewBinding, and click-handler candidates;
-6. Open the candidate files to verify, follow 1–3 hops of business logic, and report with `file:line`.
+Capture requests ("抓取当前页面布局", "看下这个按钮", "有没有重叠") route through the `capture-ui` skill: `get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`, optionally `analyze_ui` and `screenshot`. That path stops after device evidence and never calls `locate_code`.
 
-Natural-language requests about the current screen or a visible element ("抓取当前页面布局", "看下这个按钮", "有没有重叠") route through the `capture-ui` skill instead: `get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`, optionally `analyze_ui` and `screenshot`. That path stops after device evidence and never calls `locate_code`; only source questions continue into the workflow above.
-
-Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `trace-ui-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
+Element-to-source requests route through `trace-view-wiring`, and whole-screen or dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `trace-ui-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. Both are read-only and do not edit code.
 
 **Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for all nine device-touching tools — `list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot` — and `locate_code` additionally requires an Android project or an explicit Android mention; restart Claude Code after install/update.
 
@@ -179,7 +172,7 @@ claude plugin validate --strict .
 ## Release and validation
 
 - The marketplace and plugin live in the same GitHub repository; after pushing, users can install with `/plugin marketplace add <owner>/<repo>` — no review required.
-- The repository is conventionally `Jayvinz/android-layout-mcp`; if the GitHub owner/repo differs, update `marketplace.json`'s `owner.url`, `plugin.json`'s `homepage`/`repository`, and the install commands in the READMEs together.
+- The repository is conventionally `Jayvinz/android-layout-mcp`; if the GitHub owner/repo differs, update `marketplace.json`'s `owner.url`, `plugin.json`'s `homepage`/`repository`, and the install commands here and in [mcp.md](mcp.md) together.
 - Run `claude plugin validate --strict .` before a release; the CI workflow `.github/workflows/validate.yml` runs typecheck, tests, build, verifies `dist/` matches the source, and finishes with the same validation.
 - To go further into the official Anthropic directory: submit a Plugin bundle at `claude.ai/directory/manage` — it requires a paid claude.ai plan, a GitHub repository, automated validation and security scanning, and new listings pass human review; `claude-plugins-official` itself accepts no public submissions.
 
@@ -219,11 +212,11 @@ git tag -a v1.0.0 -m "v1.0.0"
 git push origin main v1.0.0
 ```
 
-Publishing to npm stays a separate manual step: `npm publish` (`prepublishOnly` runs the version check, typecheck, tests, and build first).
+The npm package is not published to the registry; `prepublishOnly` still runs the version check, typecheck, tests, and build.
 
 ### Plugin bundle
 
-The release workflow also builds `dist-plugin/android-layout-mcp-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `README.md`, `README.zh.md`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
+The release workflow also builds `dist-plugin/android-layout-mcp-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
 
 ```bash
 claude --plugin-dir ./android-layout-mcp-<version>.zip

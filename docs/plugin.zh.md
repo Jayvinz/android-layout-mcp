@@ -100,24 +100,17 @@ claude --plugin-dir E:/repo/android-layout-mcp
 
 ## 典型流程
 
-以“定位当前页面中的 个人页 按钮，以及其相关代码逻辑”为例：
+各类请求的工具顺序见 [mcp.zh.md](mcp.zh.md#推荐调用顺序)；插件多出来的是路由。
 
-1. `get_state` 确认前台包、Activity、屏幕与 pid；
-2. `dump_ui(source="auto", format="tree")` 得到 `uiKind` 和节点；
-3. Compose 页面追加 `dump_ui(source="compose")`，取得 Composables 的 `file:line`；
-4. `find_elements` / `hit_test` 锁定目标，记录 text/id/bounds/clickable；
-5. `locate_code`（或直接运行定位脚本）得到字符串、布局、Compose、ViewBinding、点击处理等候选；
-6. 打开候选文件验证，追 1–3 跳业务链路，输出带 `file:line` 的报告。
+“抓取当前页面布局”“看下这个按钮”“有没有重叠”这类关于当前页面或可见控件的请求走 `capture-ui`
+skill：`get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`，必要时再看
+`analyze_ui` 和 `screenshot`。这条路径只做设备取证，不会调用 `locate_code`。
 
-“抓取当前页面布局”“看下这个按钮”“有没有重叠”这类关于当前页面或可见控件的自然语言请求会走
-`capture-ui` skill：`get_state` → `dump_ui(format="tree")` → `find_elements` /
-`hit_test`，必要时再看 `analyze_ui` 和 `screenshot`。这条路径只做设备取证，不会调用
-`locate_code`；只有用户明确追问源码时才进入上面的定位流程。
-
-整页/弹窗请求（“分析当前界面的代码和业务逻辑”“分析这个弹窗的数据从哪来”）会走
-`trace-ui-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）→ 判断页面/弹窗/底部弹层并列出区块
-（独立窗口时按窗口 dump）→ 确定 Activity/Fragment/Composable/route/弹窗类 → 区块映射到 `file:line`
-→ 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
+控件到源码的请求走 `trace-view-wiring`；整页/弹窗请求（“分析当前界面的代码和业务逻辑”
+“分析这个弹窗的数据从哪来”）走 `trace-ui-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）
+→ 判断页面/弹窗/底部弹层并列出区块（独立窗口时按窗口 dump）→ 确定
+Activity/Fragment/Composable/route/弹窗类 → 区块映射到 `file:line` → 追 ViewModel/状态
+→ Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。两者全程只读，不修改代码。
 
 **Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
@@ -212,7 +205,7 @@ claude plugin validate --strict .
   `/plugin marketplace add <owner>/<repo>` 安装，无需任何审核。
 - 仓库约定为 `Jayvinz/android-layout-mcp`；如果 GitHub owner/repo 不同，同步修改
   `marketplace.json` 的 `owner.url`、`plugin.json` 的 `homepage`/`repository`
-  和 README 中的安装命令。
+  和 [mcp.zh.md](mcp.zh.md) 中的安装命令。
 - 发布前运行 `claude plugin validate --strict .`；CI 工作流
   `.github/workflows/validate.yml` 会跑 typecheck、测试、build，并验证
   `dist/` 与源码一致，最后执行同一校验。
@@ -257,11 +250,11 @@ git tag -a v1.0.0 -m "v1.0.0"
 git push origin main v1.0.0
 ```
 
-发布到 npm 仍是独立的手动步骤：`npm publish`（`prepublishOnly` 会先跑版本检查、typecheck、测试和 build）。
+这个 npm 包不单独发布到 registry；`prepublishOnly` 仍会跑版本检查、typecheck、测试和 build。
 
 ### 插件包
 
-release workflow 还会构建 `dist-plugin/android-layout-mcp-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`README.md`、`README.zh.md`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
+release workflow 还会构建 `dist-plugin/android-layout-mcp-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
 
 ```bash
 claude --plugin-dir ./android-layout-mcp-<version>.zip

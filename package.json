@@ -18,8 +18,6 @@
   "main": "dist/core/index.js",
   "files": [
     "dist",
-    "README.md",
-    "README.zh.md",
     "docs",
     "LICENSE",
     "NOTICE",

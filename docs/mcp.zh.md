@@ -56,60 +56,24 @@ MCP Server 也接受 Compose 相关参数：`--studio <path>`、`--java <path>`�
 ### 其他客户端
 
 这个 Server 就是一个普通的 stdio MCP Server，任何客户端都能拉起；差别只在配置外壳。`--client`
-会按目标客户端的格式输出，目标文件路径写到 stderr，因此 stdout 可以直接粘贴或重定向：
+按目标客户端的格式输出，片段走 stdout，目标文件路径走 stderr：
 
 ```bash
 node dist/cli.js mcp --print-config --client codex > config.toml
 ```
 
-| `--client` | 文件 | 形状 |
-|---|---|---|
-| `claude`（默认）、`claude-desktop`、`codebuddy`、`workbuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`generic` | 各客户端的 MCP 配置 | `mcpServers` 对象 |
-| `vscode` | `.vscode/mcp.json` | `servers`，带 `type: "stdio"` |
-| `codex` | `~/.codex/config.toml` | TOML `[mcp_servers.android-layout]` |
-| `zed` | `settings.json` | `context_servers`，命令放在 `command.path` |
-| `opencode` | `opencode.json` | `mcp`，本地命令用数组 |
-| `goose` | `~/.config/goose/config.yaml` | YAML `extensions` |
-| `amp` | `~/.config/amp/settings.json` | 点号键 `amp.mcpServers` |
+20 个 id 是 `claude`（默认）、`claude-desktop`、`codebuddy`、`workbuddy`、`cursor`、`windsurf`、
+`devin`、`cline`、`kiro`、`gemini`、`antigravity`、`qwen`、`trae`、`vscode`、`codex`、`zed`、
+`opencode`、`goose`、`amp` 与 `generic`。各客户端的目标文件与外壳形状、技能安装参数，见
+[cross-agent.zh.md](cross-agent.zh.md#客户端配置外壳)。
+
+有 4 个客户端在本机做过完整验证：OpenCode、CodeBuddy Code、Codex CLI 与 WorkBuddy。版本与
+逐个客户端的坑见 [cross-agent.zh.md](cross-agent.zh.md#本机实测)。
 
 全局参数（`--serial`、`--adb`、`--timeout`、`--studio`、`--java`、`--compose-version`）会一并写进片段，
 固定设备的选择不会在复制时丢失。`--client` 只改外壳，工具集完全相同。
 
-客户端配置格式会变；上表的路径与形状是这些客户端在 2026 年 11 月接受的写法。Windows 上
-表中 `~` 对应 `%USERPROFILE%`。
-
-### 本机实测
-
-| 客户端 | 版本 | 实测内容 |
-|---|---|---|
-| OpenCode | 1.19.5 | 生成的 `opencode.json` 可连接；`tools/list` 收到全部 9 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 5 个技能 |
-| CodeBuddy Code | 2.186.0 | `mcpServers` 可连接、`list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载。无交互运行需加 `--settings '{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`） |
-| Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 |
-| WorkBuddy | 内置 | 重启并在 GUI 中一次性启用/信任自定义 server 后，`list_devices` 返回真实设备，`capture-ui` 从 `.workbuddy/skills/` 加载；只写 `mcp.json` 不会暴露工具 |
-
-表中其余客户端按各自官方文档的 schema 配置，但未在本机实测。
-
-### 在其他 agent 中使用技能
-
-五个技能在 Claude Code 之外也能跑：frontmatter 只用了 `name` 与 `description`（Agent Skills 标准的可移植子集），
-正文里的 CLI 兜底路径用 `AUI_ROOT` 而不是 `${CLAUDE_PLUGIN_ROOT}`。Cursor 与 VS Code 会直接读
-`.claude/skills/`；Codex CLI、Gemini CLI、Cline、Goose 读 `.agents/skills/`；CodeBuddy 读
-`.codebuddy/skills/`；WorkBuddy 读 `.workbuddy/skills/`：
-
-```bash
-node scripts/sync-agent-skills.mjs --dest ../my-android-app            # .agents/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --codebuddy # .codebuddy/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --workbuddy  # .workbuddy/skills
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --both      # .agents + .codebuddy 两处
-node scripts/sync-agent-skills.mjs --dest ../my-android-app --both --workbuddy # 三处都写
-node scripts/sync-agent-skills.mjs --global                             # ~/.agents/skills
-node scripts/sync-agent-skills.mjs --dest . --check                      # 副本过期时退出码 1
-```
-
-在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-layout` 放进 `PATH`），CLI 兜底才能生效。
-斜杠命令（`/capture`、`/trace-view` 等）是 Claude Code 专属；其他客户端通过技能与
-工具描述走同样的流程。`PreToolUse` 门禁 hook 同样是 Claude Code 专属，其他环境里 Android 工程门禁
-只是技能正文中的软约束。
+客户端配置格式会变；把上面记下的路径与形状当作 2026 年 11 月的快照，Windows 上路径开头的 `~` 对应 `%USERPROFILE%`。
 
 ## 工具
 

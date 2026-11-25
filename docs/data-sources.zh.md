@@ -2,14 +2,7 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`android-layout` 可以通过四个数据源抓取 Android 实时界面：
-
-| 数据源 | 原理 | 依赖 | 适合 |
-|---|---|---|---|
-| `view` | JDWP + ViewDebug v2 | 可调试 App | 完整 View 类名、resource-id、padding/margin、visibility、layout params |
-| `semantics` | `adb shell uiautomator dump` | 无 | 任意 App 的 Compose 文本、content-desc、点击区域 |
-| `dumpsys` | `adb shell dumpsys activity <包名>` | 无 | 不可调试 App 上的真实 View 类名、resource-id、绝对 bounds，以及 Activity/Fragment 结构；没有文本 |
-| `compose` | Android Studio transport + JVMTI | 可调试 App + Android Studio + Java 17+ | Composable 名称、`file:line`、bounds、参数、重组计数 |
+`android-layout` 可以通过四个数据源抓取 Android 实时界面。下面这张矩阵就是完整对照：
 
 ## 为什么需要四个数据源
 
@@ -19,21 +12,13 @@
 | 依赖 | 可调试 App | 无 | 无 | 可调试 App + 本机 Android Studio + Java |
 | 文本 | ✅ | ✅ | ❌ | ✅（从 Composable 参数提取） |
 | resource-id | ✅ | ⚠️ 仅无障碍 id | ✅ | ❌ |
+| Compose 结构 | ❌ 停在 `AndroidComposeView` | ⚠️ 只有无障碍语义 | ❌ | ✅ Composable 名称、`file:line`、bounds |
+| View 属性 | ✅ 完整 | ⚠️ 部分 | ✅ 类名、id、flag 字符串，没有属性表 | ❌ |
 | Fragment 实例 | ❌ | ❌ | ✅ | ❌ |
 | 耗时 | ~100ms | ~0.5–3s | ~100–300ms | ~8–12s（含 daemon/agent 启动） |
+| 适合 | 完整 View 类名、resource-id、padding/margin、visibility、layout params | 任意 App 的 Compose 文本、content-desc、点击区域 | 发布包上的真实 View 类名、resource-id、绝对 bounds 与 Activity/Fragment 结构，但没有文本 | Composable 名称、`file:line`、bounds、参数、重组计数 |
 
 `dumpsys` 与 `semantics` 是互补而非替代：dumpsys 有真实 View 类名和 resource-id 但没有文本，semantics 有文本但只有无障碍类名。`--source dumpsys` 会同时抓两者，按几何位置合并，因此发布包也能回答"这个控件写了什么、由哪个类渲染"。
-
-## 为什么另外三个不同
-
-| | `view`（JDWP） | `semantics`（uiautomator） | `compose`（JVMTI） |
-|---|---|---|---|
-| 原理 | 与 LayoutInspectorV2-Pro 相同：JDWP + ViewDebug v2 | `uiautomator dump` 无障碍语义树 | 复用 Android Studio 的 transport daemon + JVMTI + Compose inspector |
-| 依赖 | 可调试 App | 无 | 可调试 App + 本机 Android Studio + Java |
-| Jetpack Compose 结构 | ❌ 停在 `AndroidComposeView` | ⚠️ 只有无障碍语义（类名/文本） | ✅ Composable 名称、文件/行号、bounds、参数、重组计数 |
-| View 属性 | ✅ 完整 | ⚠️ 部分 | ❌ |
-| Compose 文本 | ❌ | ✅ | ✅（从 Composable 参数提取） |
-| 速度 | ~100ms | ~0.5–3s | ~8–12s（含 daemon/agent 启动） |
 
 ## auto 选择策略
 
@@ -221,11 +206,6 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 `@OptIn(ExperimentalComposeUiApi::class)`）。
 对 locator 稳定性要求高时，优先加 `Modifier.semantics { contentDescription = "..." }`
 或 `testTag`，不要依赖文本（文本会随语言/大小写变化）。
-
-## 混合界面（XML + Compose）
-
-混合界面在 `auto` 下会自动抓取并展示 view + semantics，并让 `find`/`hit`
-同时搜索两棵树；MCP 也可以显式 `find_elements(both=true)`。
 
 ## 限制与边界
 

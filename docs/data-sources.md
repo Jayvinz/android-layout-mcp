@@ -2,14 +2,7 @@
 
 [English](data-sources.md) | [简体中文](data-sources.zh.md)
 
-`android-layout` can capture a live Android screen through four sources:
-
-| Source | How it works | Requires | Best for |
-|---|---|---|---|
-| `view` | JDWP + ViewDebug v2 | A debuggable app | Full View classes, resource ids, padding/margins, visibility, layout params |
-| `semantics` | `adb shell uiautomator dump` | Nothing | Compose text, content descriptions, clickable bounds on any app |
-| `dumpsys` | `adb shell dumpsys activity <pkg>` | Nothing | Real View classes, resource ids, absolute bounds, and Activity/Fragment structure on a non-debuggable app; no text |
-| `compose` | Android Studio transport + JVMTI | Debuggable app + Android Studio + Java 17+ | Composable names, `file:line`, bounds, parameters, recomposition counts |
+`android-layout` can capture a live Android screen through four sources. The matrix below is the whole comparison:
 
 ## Why four data sources
 
@@ -19,21 +12,13 @@
 | Requires | Debuggable app | Nothing | Nothing | Debuggable app + local Android Studio + Java |
 | Text | ✅ | ✅ | ❌ | ✅ (from Composable parameters) |
 | Resource ids | ✅ | ⚠️ accessibility ids only | ✅ | ❌ |
+| Compose structure | ❌ stops at `AndroidComposeView` | ⚠️ accessibility semantics only | ❌ | ✅ Composable names, `file:line`, bounds |
+| View properties | ✅ complete | ⚠️ partial | ✅ classes, ids, and flag string, no property map | ❌ |
 | Fragment instances | ❌ | ❌ | ✅ | ❌ |
 | Speed | ~100ms | ~0.5–3s | ~100–300ms | ~8–12s (including daemon/agent startup) |
+| Best for | Full View classes, resource ids, padding/margins, visibility, layout params | Compose text, content descriptions, clickable bounds on any app | Real View classes, ids, bounds, and Activity/Fragment structure on a release build, no text | Composable names, `file:line`, bounds, parameters, recomposition counts |
 
 `dumpsys` and `semantics` complement each other: dumpsys has the real View classes and resource ids but no text, while the semantics tree has the text but reports accessibility classes. `--source dumpsys` captures both and merges them by geometry, so a release build still answers what an element says and which class renders it.
-
-## Why the other three differ
-
-| | `view` (JDWP) | `semantics` (uiautomator) | `compose` (JVMTI) |
-|---|---|---|---|
-| Principle | Same as LayoutInspectorV2-Pro: JDWP + ViewDebug v2 | `uiautomator dump` accessibility semantics tree | Reuses Android Studio's transport daemon + JVMTI + Compose inspector |
-| Requires | Debuggable app | Nothing | Debuggable app + local Android Studio + Java |
-| Jetpack Compose structure | ❌ stops at `AndroidComposeView` | ⚠️ accessibility semantics only (class names/text) | ✅ Composable names, `file:line`, bounds, parameters, recomposition counts |
-| View properties | ✅ complete | ⚠️ partial | ❌ |
-| Compose text | ❌ | ✅ | ✅ (extracted from Composable parameters) |
-| Speed | ~100ms | ~0.5–3s | ~8–12s (including daemon/agent startup) |
 
 ## auto selection policy
 
@@ -190,10 +175,6 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 
 Then `find --by id submit` can locate it (older Compose versions may need `@OptIn(ExperimentalComposeUiApi::class)`).
 When locator stability matters, prefer `Modifier.semantics { contentDescription = "..." }` or `testTag` over text (text changes with locale and casing).
-
-## Mixed screens (XML + Compose)
-
-On mixed screens `auto` captures and shows both view + semantics and makes `find`/`hit` search both trees; MCP can also request `find_elements(both=true)` explicitly.
 
 ## Limitations
 

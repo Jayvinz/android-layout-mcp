@@ -45,8 +45,6 @@ const INCLUDED = [
   "commands",
   "scripts/locate-code.mjs",
   "package.json",
-  "README.md",
-  "README.zh.md",
   "LICENSE",
   "NOTICE",
 ];
