@@ -15,8 +15,6 @@ Coding agents read repositories well but cannot look at the phone. This project 
 - Does the layout have issues? → `analyze_ui` with 12 rules
 - Which Compose or XML file, and which business logic, renders it? → `locate_code` plus the bundled skills
 
-It is read-only: it observes the device, never taps, swipes, or types. Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro).
-
 ## Highlights
 
 | Highlight | What it means for you |

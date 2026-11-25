@@ -15,8 +15,6 @@
 - 布局有没有问题？→ `analyze_ui`（12 条规则）
 - 这块 UI 由哪个 Compose / XML 文件渲染，业务逻辑在哪？→ `locate_code` + 内置技能
 
-全程只读：只观察设备，不点击、不滑动、不输入。灵感来自 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
-
 ## 亮点
 
 | 亮点 | 对使用者意味着什么 |
