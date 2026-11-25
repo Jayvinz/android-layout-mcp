@@ -3,7 +3,7 @@
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
 仓库根目录同时是一个 Claude Code marketplace（`jayvinz-tools`）和 plugin（`android-layout`），
-把 CLI、MCP Server、UI→代码定位脚本和一套 skill/command/agent 打包在一起。本页讲的是 Claude Code
+把 CLI、MCP Server、UI→代码定位脚本和一套 skill/command 打包在一起。本页讲的是 Claude Code
 的打包形态；MCP Server 与技能在其他 agent 中同样可用，见[跨 agent 指南](cross-agent.zh.md)。
 它面向的典型任务是：
 
@@ -28,19 +28,19 @@
 
 | 组件 | 路径 | 作用 |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `analyze_ui` 等 |
+| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供全部 9 个工具：`list_devices` / `get_state` / `dump_ui` / `find_elements` / `hit_test` / `analyze_ui` / `screenshot` / `list_fragments` / `locate_code` |
 | Skill | `skills/capture-ui/` | 屏幕事实：结构、Activity、`uiKind`、可见入口、坐标，以及存下的 json/png/xml 产物 |
 | Skill | `skills/inspect-view-attribute/` | 单个控件的原始布局与样式值：内外边距、padding、实测尺寸、文字度量、背景、RTL |
 | Skill | `skills/trace-view-wiring/` | 单个控件 → 实现类、点击处理、显隐控制、文本/图片/背景注入 |
 | Skill | `skills/trace-ui-to-logic/` | 某一块区域的 UI → 状态持有者 → 数据源链路（只读） |
 | Skill | `skills/audit-ui/` | 12 条布局与无障碍规则给出的缺陷判决 |
-| Commands | `commands/capture.md`、`inspect.md`、`locate.md`、`analyze.md`、`audit.md` | `/android-layout:capture`、`:inspect`、`:locate`、`:analyze`、`:audit` |
-| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`；安装或更新插件后需重启 Claude Code |
+| Commands | `commands/capture.md`、`inspect-view.md`、`trace-view.md`、`trace-logic.md`、`ui2logic.md`、`audit.md` | `/android-layout:capture`、`:inspect-view`、`:trace-view`、`:trace-logic`（别名 `:ui2logic`）、`:audit` |
+| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截全部 9 个接触设备的工具（`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`）；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Script | `scripts/sync-agent-skills.mjs` | 把 `skills/` 复制到 `.agents/skills/`（Codex CLI、Gemini CLI、Cline、Goose）、`.codebuddy/skills/`（CodeBuddy，`--codebuddy`）或 `.workbuddy/skills/`（WorkBuddy，`--workbuddy`） |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
 
-能跨 agent 复用的只有技能与 MCP Server；命令、子代理与 hook 是 Claude Code 专属。各客户端配置与技能安装方式见 [mcp.zh.md](mcp.zh.md#其他客户端)。
+能跨 agent 复用的只有技能与 MCP Server；命令与 hook 是 Claude Code 专属。各客户端配置与技能安装方式见 [mcp.zh.md](mcp.zh.md#其他客户端)。
 
 ## 安装
 
@@ -96,7 +96,7 @@ claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
 安装后 `/mcp` 应能看到 `android-layout` server；`/help` 中会出现
-`/android-layout:capture`、`:inspect`、`:locate`、`:analyze`、`:audit`。
+`/android-layout:capture`、`:inspect-view`、`:trace-view`、`:trace-logic`（别名 `:ui2logic`）、`:audit`。
 
 ## 典型流程
 
@@ -122,8 +122,10 @@ claude --plugin-dir E:/repo/android-layout-mcp
 **Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
 `AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android
-时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对
-`get_state`/`dump_ui`/`find_elements`/`locate_code` 强制执行同一门槛；安装或更新后需重启 Claude Code。
+时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对全部 9 个接触设备的工具
+（`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/
+`screenshot`）强制执行同一门槛，其中 `locate_code` 还额外要求 Android 工程或明确提到 Android；
+安装或更新后需重启 Claude Code。
 
 也可以直接调用命令：
 
@@ -160,11 +162,6 @@ node scripts/locate-code.mjs --root . \
 
 脚本只负责“候选排序”，最终结论仍需打开文件确认；它不会修改仓库。
 
-## Agent
-
-`capture-ui` 是只读子代理，适合让子上下文完成“抓屏 → 找节点 → 扫描候选 → 读代码”的
-多步工作，主会话只接收结论。它默认不执行编辑、构建、安装或点击。
-
 ## 环境变量
 
 插件 manifest 的 `mcpServers` 默认不注入环境变量，MCP 进程继承用户 shell 环境；需要固定
@@ -173,8 +170,8 @@ serial/adb/Studio 参数时，优先用环境变量，或在项目级 `.mcp.json
 
 ## 只读与权限
 
-- 所有技能与该子代理都是只读的：插件观察和分析设备，但从不点击、滑动、输入文本或发送按键。
-- 定位/验证过程会在仓库内写 `.aui/before.json`、`.aui/after.json`、`.aui/*.png`；
+- 所有技能都是只读的：插件观察和分析设备，但从不点击、滑动、输入文本或发送按键。
+- 抓取流程会在仓库内写 `.aui/capture.json`、`.aui/capture.png`、`.aui/capture.xml`；
   建议把 `.aui/` 加入 `.gitignore`（本仓库已加入）。
 - 不要提交 dump：其中可能包含设备序列号、前台包名和界面文本。
 
@@ -264,7 +261,7 @@ git push origin main v1.0.0
 
 ### 插件包
 
-release workflow 还会构建 `dist-plugin/android-layout-mcp-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`agents/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`README.md`、`README.zh.md`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
+release workflow 还会构建 `dist-plugin/android-layout-mcp-<version>.zip` 并附加到 GitHub Release。压缩包根目录就是插件目录（`.claude-plugin/plugin.json`、`dist/`、`helper/`、`hooks/`、`skills/`、`commands/`、`scripts/locate-code.mjs`、`package.json`、`package-lock.json`、生产依赖 `node_modules/`、`README.md`、`README.zh.md`、`LICENSE`、`NOTICE`），可直接作为插件加载，无需解压；开发用文件（`src/`、`docs/`、`test/`、`evals/`、CI 配置、dev 依赖）不会打包进去：
 
 ```bash
 claude --plugin-dir ./android-layout-mcp-<version>.zip

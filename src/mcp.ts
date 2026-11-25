@@ -4,26 +4,23 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson, type RuleName } from "./core/analyze.js";
 import { capture, treesFor, type CaptureOptions } from "./core/capture.js";
-import { allFragments, notableFragments, parseDumpsys } from "./core/dumpsys.js";
 import { AuiError, errorMessage } from "./core/errors.js";
-import { JdwpClient } from "./core/jdwp.js";
-import type { CaptureResult, NodeSource, SourceMode, UiNode } from "./core/model.js";
+import { readFragments } from "./core/fragments.js";
+import type { CaptureResult, SourceMode, UiNode } from "./core/model.js";
 import { findNodes, hitTest, nodePath, nodeSummary, type FindBy, type MatchMode } from "./core/query.js";
 import { renderCapture, renderSource } from "./core/render.js";
 import {
-  renderAnnotatedSvg,
   saveScreenshot,
   screenshotMetadata,
   takeScreenshot,
-  type Screenshot,
+  writeAnnotatedSvgFromCapture,
 } from "./core/screenshot.js";
+import { captureState } from "./core/state.js";
 import { serializeNode } from "./core/viewdump.js";
 import { saveDump } from "./core/serialize.js";
 import { PACKAGE_VERSION } from "./core/version.js";
@@ -45,8 +42,8 @@ export interface McpServerOptions {
   composeVersion?: string;
 }
 
-const sourceSchema = z.enum(["auto", "view", "semantics", "dumpsys", "compose", "both"]);
-const ruleSchema = z.enum([
+export const sourceSchema = z.enum(["auto", "view", "semantics", "dumpsys", "compose", "both"]);
+export const ruleSchema = z.enum([
   "zero_size",
   "offscreen",
   "small_touch_target",
@@ -57,6 +54,8 @@ const ruleSchema = z.enum([
   "overlap",
   "clipped",
   "outside_parent",
+  "overdraw",
+  "rtl_issues",
 ]);
 
 export async function startMcpServer(options: McpServerOptions = {}): Promise<void> {
@@ -130,7 +129,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "List Android devices",
       description:
-        "List connected Android devices with model, Android version, and SDK level. Use the serial in other tools when multiple devices are connected.",
+        "List connected Android devices with model, Android version, and SDK level. Use the serial in other tools when multiple devices are connected. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -158,25 +157,15 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     },
     async ({ serial, package: packageName }) => {
       try {
-        const adb = adbFor(serial);
-        const device = await adb.resolveDevice();
-        const [screen, foreground] = await Promise.all([adb.screenInfo(), adb.foregroundApp()]);
-        const effectivePackage = packageName || foreground.packageName;
-        const pids = effectivePackage ? await adb.packagePids(effectivePackage) : [];
-        let windows: unknown = [];
-        if (pids[0]) {
-          try {
-            const client = await JdwpClient.open(adb, pids[0], { requestTimeoutMs: 8000 });
-            try {
-              windows = await client.listWindows();
-            } finally {
-              await client.close();
-            }
-          } catch (error) {
-            windows = { error: errorMessage(error) };
-          }
-        }
-        return jsonResult({ device, screen, foreground, package: effectivePackage, pids, windows });
+        const state = await captureState(adbFor(serial), { packageName });
+        return jsonResult({
+          device: state.device,
+          screen: state.screen,
+          foreground: state.foreground,
+          package: state.package,
+          pids: state.pids,
+          windows: state.windows,
+        });
       } catch (error) {
         return errorResultWithScreenshot(error);
       }
@@ -222,55 +211,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
           });
           return textResult(text + (args.savePath ? `\n\ndump saved to ${args.savePath}` : ""));
         }
-        const maxNodes = args.maxNodes ?? 800;
-        const tree = (roots: UiNode[]) => {
-          const treeCounter = { value: 0 };
-          return roots.map((root) =>
-            serializeNode(root, {
-              depth: args.depth,
-              includeProps: args.includeProperties,
-              maxNodes,
-              counter: treeCounter,
-            }),
-          );
-        };
-        const payload = {
-          device: {
-            serial: result.device.serial,
-            model: result.device.model,
-            androidRelease: result.device.androidRelease,
-            sdk: result.device.sdk,
-          },
-          target: {
-            packageName: result.target.packageName,
-            pid: result.target.pid,
-            activity: result.target.activity,
-            debuggable: result.target.debuggable,
-            window: result.target.selectedWindow,
-            windows: result.target.windows?.map((window) => window.name),
-          },
-          screen: result.screen,
-          source: result.source,
-          sources: result.sources,
-          uiKind: result.uiKind,
-          warnings: result.warnings,
-          ...(result.view ? { view: { window: result.view.window, roots: tree(result.view.roots) } } : {}),
-          ...(result.semantics ? { semantics: { rotation: result.semantics.rotation, roots: tree(result.semantics.roots) } } : {}),
-          ...(result.compose
-            ? {
-                compose: {
-                  rootViewId: result.compose.rootViewId,
-                  roots: tree(result.compose.roots),
-                },
-              }
-            : {}),
-          ...(args.savePath ? { savedTo: args.savePath } : {}),
-          hint:
-            result.source === "semantics"
-              ? "Compose semantics nodes are identified by ref (s*). Use find_elements or hit_test to locate elements."
-              : "View nodes are identified by ref (v*). Use find_elements or hit_test to locate elements.",
-        };
-        return jsonResult(payload);
+        return jsonResult(buildDumpUiPayload(result, args));
       } catch (error) {
         return errorResultWithScreenshot(error);
       }
@@ -423,7 +364,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Hit-test a screen point",
       description:
-        "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index.",
+        "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {
         x: z.number().int().min(0),
         y: z.number().int().min(0),
@@ -436,26 +377,9 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     },
     async (args) => {
       try {
-        const captureSource: SourceMode =
-          args.source === "view" || args.source === "semantics" || args.source === "compose"
-            ? args.source
-            : "both";
+        const captureSource = hitTestSource(args.source);
         const result = await captureFor({ serial: args.serial, package: args.package, source: captureSource });
-        const index = args.index ?? 0;
-        const reports = treesFor(result, captureSource, captureSource === "both").map(([treeSource, roots]) => {
-          const candidates = hitTest(roots, args.x, args.y).candidates;
-          return {
-            tree: treeSource,
-            selected: candidates[index]
-              ? { index, ...nodeSummary(candidates[index]), path: nodePath(candidates[index]) }
-              : null,
-            candidates: candidates.slice(0, 12).map((node, i) => ({
-              index: i,
-              ...nodeSummary(node),
-              path: nodePath(node),
-            })),
-          };
-        });
+        const reports = buildHitTestReports(result, args);
         return jsonResult({
           point: { x: args.x, y: args.y },
           reports,
@@ -474,12 +398,18 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Analyze layout issues",
       description:
-        "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\".",
+        "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\". Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {
         source: sourceSchema.optional(),
         rules: z.array(ruleSchema).optional().describe("Subset of rules; default all."),
         minTouchTargetDp: z.number().min(1).max(200).optional().describe("Minimum touch target in dp (default 48)."),
         maxDepth: z.number().int().min(1).max(100).optional().describe("Deep nesting threshold (default 14)."),
+        includeProperties: z
+          .boolean()
+          .optional()
+          .describe(
+            "Capture raw View properties (default true); overdraw and rtl_issues need them. Pass false for a faster, smaller capture.",
+          ),
         serial: z.string().optional(),
         package: z.string().optional(),
       },
@@ -487,7 +417,12 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     },
     async (args) => {
       try {
-        const result = await captureFor({ serial: args.serial, package: args.package, source: args.source as SourceMode | undefined });
+        const result = await captureFor({
+          serial: args.serial,
+          package: args.package,
+          source: args.source as SourceMode | undefined,
+          ...analyzeCaptureArgs(args),
+        });
         const analysis = analyzeCapture(result, {
           rules: args.rules as RuleName[] | undefined,
           minTouchTargetDp: args.minTouchTargetDp,
@@ -523,37 +458,17 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     },
     async (args) => {
       try {
-        const adb = adbFor(args.serial);
-        const pkg = args.package ?? (await adb.foregroundApp()).packageName;
-        if (!pkg) throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.");
-        const output = await adb.shell(`dumpsys activity ${pkg}`, { timeoutMs: 30_000 });
-        const parsed = parseDumpsys(output, { packageName: pkg });
-        const fragments = args.includeFramework
-          ? allFragments(parsed)
-          : notableFragments(allFragments(parsed));
+        const structure = await readFragments(adbFor(args.serial), {
+          packageName: args.package,
+          includeFramework: args.includeFramework,
+          timeoutMs: 30_000,
+        });
         return jsonResult({
-          package: pkg,
-          activities: parsed.activities.map((activity) => ({
-            activity: activity.activity,
-            pid: activity.pid,
-            fragments: activity.fragments
-              .filter((fragment) =>
-                args.includeFramework ? true : notableFragments([fragment]).length > 0,
-              )
-              .map((fragment) => ({
-                className: fragment.className,
-                shortClassName: fragment.shortClassName,
-                tag: fragment.tag,
-                state: fragment.state,
-                added: fragment.added,
-                hidden: fragment.hidden,
-                detached: fragment.detached,
-                containerId: fragment.containerId,
-              })),
-          })),
-          fragments,
+          package: structure.package,
+          activities: structure.activities,
+          fragments: structure.fragments,
           hint:
-            fragments.length === 0
+            structure.fragments.length === 0
               ? "No product Fragments found. The screen may be a single Activity, Compose-only, or a Fragment with an obfuscated name."
               : undefined,
         });
@@ -568,7 +483,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
     {
       title: "Take a screenshot",
       description:
-        "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before reporting a position. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
+        "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before reporting a position. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       inputSchema: {
         savePath: z.string().optional().describe("Write the PNG here (e.g. screenshot.png)."),
         annotate: z.boolean().optional().describe("Also write an .annotated.svg with node boxes next to savePath."),
@@ -592,19 +507,8 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
           await saveScreenshot(shot, args.savePath);
           if (args.annotate) {
             const result = await captureFor({ serial: args.serial, package: args.package });
-            const trees = treesFor(result, undefined, false);
-            const [treeSource, roots] = trees[0];
-            annotatedPath = args.savePath.replace(/\.png$/i, "") + ".annotated.svg";
-            await writeFile(
-              annotatedPath,
-              renderAnnotatedSvg(roots, {
-                pngFileName: args.savePath.split(/[\\/]/).pop() ?? "screenshot.png",
-                width: shot.width,
-                height: shot.height,
-                uiScale: shot.scale,
-                title: `${treeSource} ${shot.width}x${shot.height}`,
-              }),
-            );
+            const [treeSource, roots] = treesFor(result, undefined, false)[0];
+            annotatedPath = await writeAnnotatedSvgFromCapture(shot, roots, treeSource, args.savePath);
           }
         }
         const meta = {
@@ -630,6 +534,137 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
 
   await server.connect(new StdioServerTransport());
   console.error(`[android-layout] MCP server ready${options.serial ? ` (serial ${options.serial})` : ""}`);
+}
+
+export interface DumpUiPayloadOptions {
+  depth?: number;
+  includeProperties?: boolean;
+  maxNodes?: number;
+  savePath?: string;
+}
+
+/** Builds the `dump_ui` JSON payload; one tree per captured source. */
+export function buildDumpUiPayload(
+  result: CaptureResult,
+  options: DumpUiPayloadOptions = {},
+): Record<string, unknown> {
+  const maxNodes = options.maxNodes ?? 800;
+  const tree = (roots: UiNode[]) => {
+    const treeCounter = { value: 0 };
+    return roots.map((root) =>
+      serializeNode(root, {
+        depth: options.depth,
+        includeProps: options.includeProperties,
+        maxNodes,
+        counter: treeCounter,
+      }),
+    );
+  };
+  return {
+    device: {
+      serial: result.device.serial,
+      model: result.device.model,
+      androidRelease: result.device.androidRelease,
+      sdk: result.device.sdk,
+    },
+    target: {
+      packageName: result.target.packageName,
+      pid: result.target.pid,
+      activity: result.target.activity,
+      debuggable: result.target.debuggable,
+      window: result.target.selectedWindow,
+      windows: result.target.windows?.map((window) => window.name),
+    },
+    screen: result.screen,
+    source: result.source,
+    sources: result.sources,
+    uiKind: result.uiKind,
+    warnings: result.warnings,
+    ...(result.view ? { view: { window: result.view.window, roots: tree(result.view.roots) } } : {}),
+    ...(result.semantics
+      ? { semantics: { rotation: result.semantics.rotation, roots: tree(result.semantics.roots) } }
+      : {}),
+    ...(result.dumpsys
+      ? {
+          dumpsys: {
+            activity: result.dumpsys.activity,
+            captureMs: result.dumpsys.captureMs,
+            labelledNodes: result.dumpsys.labelledNodes,
+            fragments: result.dumpsys.fragments,
+            roots: tree(result.dumpsys.roots),
+          },
+        }
+      : {}),
+    ...(result.compose
+      ? { compose: { rootViewId: result.compose.rootViewId, roots: tree(result.compose.roots) } }
+      : {}),
+    ...(options.savePath ? { savedTo: options.savePath } : {}),
+    hint: refHint(result.source),
+  };
+}
+
+/**
+ * Capture options for `analyze_ui`. overdraw and rtl_issues read raw View
+ * properties, so they are requested by default; includeProperties=false opts
+ * out, mirroring the CLI's `--no-props`.
+ */
+export function analyzeCaptureArgs(args: { includeProperties?: boolean }): { includeProperties: boolean } {
+  return { includeProperties: args.includeProperties !== false };
+}
+
+/**
+ * The tree(s) `hit_test` queries. `auto` means "both" (the View class plus the
+ * accessibility node for the same point); every other requested source is
+ * passed through unchanged, so `hit_test(source="dumpsys")` hit-tests dumpsys.
+ */
+export function hitTestSource(source?: SourceMode): SourceMode {
+  return source === undefined || source === "auto" ? "both" : source;
+}
+
+/**
+ * Builds the per-tree reports `hit_test` returns. The `both` argument is derived
+ * here from the requested source, so the handler cannot query a second tree by
+ * accident; `treesFor` owns the actual source-to-trees policy.
+ */
+export function buildHitTestReports(
+  result: CaptureResult,
+  args: { x: number; y: number; index?: number; source?: SourceMode },
+) {
+  const captureSource = hitTestSource(args.source);
+  const index = args.index ?? 0;
+  return treesFor(result, captureSource, captureSource === "both").map(([treeSource, roots]) => {
+    const candidates = hitTest(roots, args.x, args.y).candidates;
+    return {
+      tree: treeSource,
+      selected: candidates[index]
+        ? { index, ...nodeSummary(candidates[index]), path: nodePath(candidates[index]) }
+        : null,
+      candidates: candidates.slice(0, 12).map((node, i) => ({
+        index: i,
+        ...nodeSummary(node),
+        path: nodePath(node),
+      })),
+    };
+  });
+}
+
+/** Ref prefixes are per source, so the hint must name the captured one. */
+export function refHint(source: CaptureResult["source"]): string {
+  const prefix: Record<CaptureResult["source"], string> = {
+    view: "v*",
+    semantics: "s*",
+    dumpsys: "d*",
+    compose: "c*",
+  };
+  const tree =
+    source === "semantics"
+      ? "Compose semantics nodes"
+      : source === "dumpsys"
+        ? "dumpsys nodes (real View classes and resource ids, no text of their own)"
+        : source === "compose"
+          ? "Compose nodes"
+          : "View nodes";
+  return `${tree} are identified by ref (${prefix[source]}). Use find_elements or hit_test to locate elements.`;
 }
 
 function emptyHint(result: CaptureResult): string {

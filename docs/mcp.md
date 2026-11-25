@@ -96,7 +96,7 @@ node scripts/sync-agent-skills.mjs --global                            # ~/.agen
 node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale
 ```
 
-Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/capture`, `/locate`, …) are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
+Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/capture`, `/trace-view`, …) are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
 
 ## Tools
 
@@ -104,26 +104,26 @@ Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in tha
 |---|---|
 | `list_devices` | Device list |
 | `get_state` | Screen, foreground app, pid, windows |
-| `dump_ui` | Capture UI; `source=auto/view/semantics/dumpsys/compose/both`, `format=json/tree`, `depth`, `maxNodes`, `savePath` |
+| `dump_ui` | Capture UI; `source=auto/view/semantics/dumpsys/compose/both`, `format=json/tree`, `depth`, `maxNodes`, `includeProperties`, `visibleOnly`, `window`, `savePath`. JSON carries one key per captured tree (`view`, `semantics`, `dumpsys`, `compose`); `source=dumpsys` adds a `dumpsys` object with `activity`, `captureMs`, `labelledNodes`, `fragments`, and `roots` |
 | `find_elements` | Search by text/description/id/class/ref; returns bounds, center, clickable, full path |
 | `locate_code` | Scan an Android repository from UI anchors (text/desc/id/Compose file+line/class) and return string/layout/Compose definitions plus ranked `file:line` candidates |
-| `hit_test` | Coordinate hit test; returns view and semantics by default; `source=compose` reaches the Compose tree |
-| `analyze_ui` | Layout/accessibility checks (rules in [cli.md](cli.md#analysis-rules)) |
+| `hit_test` | Coordinate hit test; the default (`source=auto`) queries view and semantics together; any explicit `source` — `view`, `semantics`, `dumpsys`, or `compose` — is honoured and hit-tests only that tree |
+| `analyze_ui` | Layout/accessibility checks over all 12 rules (see [cli.md](cli.md#analysis-rules)); raw View properties are captured by default so `overdraw` and `rtl_issues` can run; it scans the tree matching the screen (both trees for a mixed screen), so one defect is never reported per tree |
 | `screenshot` | Returns PNG image content; downscaled to 720px wide by default (`fullResolution=true` to disable); can save and produce an SVG overlay |
 | `list_fragments` | Activity and Fragment structure from `dumpsys`; works on non-debuggable apps. Framework bookkeeping fragments are filtered unless `includeFramework` is set |
 
-**Android project gate.** `get_state`, `dump_ui`, `find_elements`, and `locate_code` are intended for Android projects: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository call them only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android; `locate_code` additionally needs an explicit Android/device request. A connected device does not make the repository Android.
+**Android project gate.** All nine tools touch a device and are gated the same way: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, `screenshot`. They are intended for Android projects: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository, every device-touching tool is denied unless the user explicitly asks to inspect the device screen/page or explicitly mentions Android; `locate_code` is stricter and needs an Android project or an explicit Android mention, because a device cue alone does not justify source scanning. A connected device does not make the repository Android. Each of the nine tool descriptions repeats the rule in one line: "Android repos only; non-Android: call only on an explicit device/screen request or Android mention." The `PreToolUse` hook enforces the same nine-tool gate, so the hook and the descriptions cannot drift apart.
 
 ## Limits and defaults
 
 | Tool | Defaults | Caps and behavior |
 |---|---|---|
-| `dump_ui` | JSON; JSON `maxNodes=800`, tree `maxNodes=1500` | `depth` 0–100; `maxNodes` 1–5000; `includeProperties` embeds every ViewDebug property; `savePath` writes the full untrimmed dump; `visibleOnly` affects `format=tree` only; `window` selects a ViewRootImpl (view source only) |
+| `dump_ui` | JSON; JSON `maxNodes=800`, tree `maxNodes=1500` | `depth` 0–100; `maxNodes` 1–5000; `includeProperties` embeds every ViewDebug property; `savePath` writes the full untrimmed dump; `visibleOnly` affects `format=tree` only; `window` selects a ViewRootImpl (view source only). The JSON `hint` names the ref prefix of the captured source: `v*` view, `s*` semantics, `c*` compose, `d*` dumpsys |
 | `find_elements` | `limit=30`, visible nodes, primary tree | `limit` 1–200; `includeInvisible` adds hidden views; `both=true` searches view + semantics; `match=contains/exact/regex`, and `/pattern/flags` is accepted as regex |
 | `locate_code` | `limit=25` candidates | `limit` 1–200; `exclude` / `includeTests` scope the scan; read-only |
-| `analyze_ui` | all 10 rules, 48 dp, depth 14 | `minTouchTargetDp` 1–200; `maxDepth` 1–100; `deep_nesting` is skipped for the compose source |
+| `analyze_ui` | all 12 rules, 48 dp, depth 14, `includeProperties=true` | `minTouchTargetDp` 1–200; `maxDepth` 1–100; `deep_nesting` is skipped for the compose source; `includeProperties=false` skips the raw View capture, and `overdraw`/`rtl_issues` are then reported under `skipped`; it scans the tree the `source` selects (both trees for a mixed screen), so one defect is never reported per tree |
 | `screenshot` | 720 px wide | `maxWidth` 1–4000; `scale` 0.05–1; `fullResolution=true` bypasses the 720 default; `annotate` only writes the SVG when `savePath` is also set |
-| `hit_test` | candidate 0, visible nodes only | `index` selects among overlapping candidates at the same point |
+| `hit_test` | candidate 0, visible nodes only, `source=auto` (view + semantics) | `index` selects among overlapping candidates at the same point; an explicit `source` restricts the search to that one tree |
 
 When a capture fails, tools return the error text plus a fallback screenshot as image content.
 

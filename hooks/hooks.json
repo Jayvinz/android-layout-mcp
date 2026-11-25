@@ -1,9 +1,9 @@
 {
-  "description": "Android-project gate for the android-layout MCP tools. In a non-Android workspace, denies get_state/dump_ui/find_elements/locate_code/open_viewer unless the user explicitly asks about a connected device screen/page or mentions Android; locate_code always requires an Android project.",
+  "description": "Android-project gate for the nine device-touching android-layout MCP tools (list_devices, get_state, dump_ui, find_elements, locate_code, hit_test, analyze_ui, list_fragments, screenshot). In a non-Android workspace, denies them unless the user explicitly asks about a connected device screen/page or mentions Android; locate_code additionally requires an explicit Android mention.",
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__.*__(get_state|dump_ui|find_elements|locate_code|open_viewer)",
+        "matcher": "mcp__.*__(list_devices|get_state|dump_ui|find_elements|locate_code|hit_test|analyze_ui|list_fragments|screenshot)",
         "hooks": [
           {
             "type": "command",

@@ -190,7 +190,7 @@ function parseActivities(
     }
 
     if (mode === "hierarchy") {
-      const view = parseViewLine(text, current.packageName, screen);
+      const view = parseViewLine(text, screen);
       if (!view) {
         // The hierarchy block ends at the first non-view line.
         if (stack.length > 0 || current.roots.length > 0) mode = "none";
@@ -276,11 +276,7 @@ interface ParsedViewLine {
  *
  * The root `DecorView@hash[title]` form has no bounds; it inherits the screen.
  */
-function parseViewLine(
-  text: string,
-  packageName: string,
-  screen?: ScreenInfo,
-): ParsedViewLine | null {
+function parseViewLine(text: string, screen?: ScreenInfo): ParsedViewLine | null {
   const decor = /^([A-Za-z0-9_.$]+)@([0-9a-f]+)\[(.*)\]$/.exec(text);
   if (decor) {
     // The DecorView line has no bounds of its own; the window fills the screen.
@@ -392,11 +388,6 @@ function viewNode(view: ParsedViewLine, depth: number): UiNode {
     parent: null,
   };
   return node;
-}
-
-/** Flattened node count for progress/log messages. */
-export function countDumpsysNodes(result: DumpsysParseResult): number {
-  return flattenNodes(result.roots).length;
 }
 
 /**

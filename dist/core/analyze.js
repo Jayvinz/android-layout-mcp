@@ -1,3 +1,4 @@
+import { AuiError } from "./errors.js";
 import { flattenNodes, intersect } from "./viewdump.js";
 import { nodePath } from "./query.js";
 export function analyzeCapture(result, options = {}) {
@@ -31,7 +32,7 @@ export function analyzeCapture(result, options = {}) {
         bounds,
         path: nodePath(node),
     });
-    const analyzeSource = (roots, source) => {
+    const analyzeSource = (roots, source, ruleSet = rules) => {
         const nodes = flattenNodes(roots);
         nodeCount += nodes.length;
         const screen = {
@@ -42,7 +43,7 @@ export function analyzeCapture(result, options = {}) {
             width: result.screen.width,
             height: result.screen.height,
         };
-        if (rules.has("zero_size")) {
+        if (ruleSet.has("zero_size")) {
             for (const node of nodes) {
                 if (node.view?.visibility === "gone")
                     continue;
@@ -55,7 +56,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("offscreen")) {
+        if (ruleSet.has("offscreen")) {
             for (const node of nodes) {
                 if (!node.view || node.view.visibility !== "visible")
                     continue;
@@ -67,7 +68,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("small_touch_target")) {
+        if (ruleSet.has("small_touch_target")) {
             const rootBottom = roots[0]?.bounds.bottom ?? result.screen.height;
             const clippedByDump = source === "semantics" && result.screen.height > rootBottom + 1;
             for (const node of nodes) {
@@ -93,7 +94,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("invisible_clickable")) {
+        if (ruleSet.has("invisible_clickable")) {
             for (const node of nodes) {
                 if (!node.clickable)
                     continue;
@@ -103,7 +104,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("unlabeled_clickable")) {
+        if (ruleSet.has("unlabeled_clickable")) {
             for (const node of nodes) {
                 if (!node.clickable || !node.visible)
                     continue;
@@ -112,7 +113,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("duplicate_id")) {
+        if (ruleSet.has("duplicate_id")) {
             const byId = new Map();
             for (const node of nodes) {
                 if (!node.resourceId || !node.visible)
@@ -127,14 +128,14 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("deep_nesting") && source !== "compose") {
+        if (ruleSet.has("deep_nesting") && source !== "compose") {
             for (const node of nodes) {
                 if (node.depth >= maxDepth && node.visible) {
                     add(issueFor(node, "deep_nesting", "info", `Depth ${node.depth} exceeds ${maxDepth}; consider flattening the hierarchy.`));
                 }
             }
         }
-        if (rules.has("overdraw")) {
+        if (ruleSet.has("overdraw")) {
             // A node whose parent already paints an opaque background paints the same
             // pixels twice. Only same-tree, direct parent/child pairs are considered,
             // and only when the child fully covers the parent's visible area.
@@ -170,7 +171,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("rtl_issues")) {
+        if (ruleSet.has("rtl_issues")) {
             // A hardcoded left/right offset does not mirror in RTL. The dump exposes
             // layout:left/right (resolved) and layoutParams.startMargin/endMargin
             // (Integer.MIN_VALUE when unset), so an absolute value with no start/end
@@ -195,7 +196,7 @@ export function analyzeCapture(result, options = {}) {
                 add(issueFor(node, "rtl_issues", "warning", `Hardcoded ${side} without start/end; it will not mirror in RTL. Use marginStart/marginEnd.`));
             }
         }
-        if (rules.has("clipped")) {
+        if (ruleSet.has("clipped")) {
             for (const node of nodes) {
                 if (!node.visible || !node.visibleBounds)
                     continue;
@@ -208,7 +209,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("outside_parent")) {
+        if (ruleSet.has("outside_parent")) {
             for (const node of nodes) {
                 const parent = node.parent;
                 if (!parent || !node.visible || !node.visibleBounds || !parent.visibleBounds)
@@ -220,7 +221,7 @@ export function analyzeCapture(result, options = {}) {
                 }
             }
         }
-        if (rules.has("overlap")) {
+        if (ruleSet.has("overlap")) {
             for (const node of nodes) {
                 if (node.children.length < 2)
                     continue;
@@ -246,18 +247,35 @@ export function analyzeCapture(result, options = {}) {
             }
         }
     };
-    if (result.view)
-        analyzeSource(result.view.roots, "view");
-    if (result.semantics)
-        analyzeSource(result.semantics.roots, "semantics");
-    if (result.compose)
-        analyzeSource(result.compose.roots, "compose");
+    // Analyze exactly the tree(s) a caller reads instead of every tree the capture
+    // happens to hold: `--source dumpsys` also captures semantics (for text) and
+    // `auto` also captures both trees on some screens, so walking all of them
+    // reported the same on-screen element once per tree, under a different ref.
+    const trees = treesToAnalyze(result);
+    // A tree-less capture would otherwise return an empty issue list, which reads
+    // as a clean screen. `capture()` already throws in this case; this keeps a
+    // hand-built or future capture from producing a false "no issues" verdict.
+    if (trees.length === 0) {
+        throw new AuiError("VIEW_DUMP_FAILED", "No UI tree to analyze.", "Re-capture with --source semantics (works on any app) or --source view.");
+    }
+    for (const [source, roots] of trees)
+        analyzeSource(roots, source, rules);
+    // overdraw and rtl_issues read raw View properties, so they can only fire on
+    // a View tree. When the analyzed tree is not the View tree (a Compose screen,
+    // a dumpsys capture), still run those two rules on the View tree if the
+    // capture holds one, restricted to the requested property rules.
+    if (result.view && !trees.some(([source]) => source === "view")) {
+        const propertyRules = new Set(PROPERTY_RULES.filter((rule) => rules.has(rule)));
+        if (propertyRules.size > 0)
+            analyzeSource(result.view.roots, "view", propertyRules);
+    }
     const counts = {};
     for (const issue of issues)
         counts[issue.rule] = (counts[issue.rule] ?? 0) + 1;
     const skipped = [];
     if (needsProperties && result.view && !hasViewProperties(result.view.roots)) {
-        skipped.push("overdraw, rtl_issues (raw View properties were not captured; add --props)");
+        skipped.push("overdraw, rtl_issues (raw View properties were not captured; " +
+            "capture with includeProperties=true (MCP) or --props (CLI))");
     }
     if (needsProperties && !result.view) {
         skipped.push("overdraw, rtl_issues (need a debuggable app for raw View properties)");
@@ -265,6 +283,86 @@ export function analyzeCapture(result, options = {}) {
     const severityOrder = { error: 0, warning: 1, info: 2 };
     issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity] || a.rule.localeCompare(b.rule));
     return { issues, counts, dp, nodeCount, ...(skipped.length ? { skipped } : {}) };
+}
+/** The two rules that read raw View properties, so they need a View tree. */
+const PROPERTY_RULES = ["overdraw", "rtl_issues"];
+/** Last-resort order when the capture has no tree matching its own source. */
+const TREE_FALLBACK_ORDER = ["view", "semantics", "dumpsys", "compose"];
+/**
+ * The tree(s) `analyze` inspects. This follows the same intent as `treesFor`
+ * (report the tree a caller actually reads) without copying it verbatim: for
+ * `--source both` on a Compose screen `treesFor` returns the view tree too, but
+ * that tree only carries Compose wrappers here.
+ *
+ *  - An explicit `dumpsys`/`compose` capture is reported from that one tree.
+ *  - A mixed screen reports the view and semantics trees: ViewDebug stops at
+ *    `AndroidComposeView`, so the view tree holds the XML regions and the
+ *    semantics tree holds the Compose regions — they cover disjoint areas, so
+ *    this is not a duplicate. The Compose tree is never added here: a Compose
+ *    capture sets `source = "compose"`, so it cannot coexist with a view tree,
+ *    and including it would only repeat the semantics nodes.
+ *  - Otherwise the uiKind decides: `xml` screens are fully described by the view
+ *    tree, while on a `compose` screen the view tree carries only the Compose
+ *    wrappers, so analyzing it would report wrapper noise and miss the real
+ *    nodes — the semantics tree is the complete one there.
+ *  - Anything else (a hand-built or `unknown` capture) uses the tree matching
+ *    `result.source`, then the first tree present.
+ */
+function treesToAnalyze(result) {
+    const trees = [];
+    const push = (source) => {
+        const roots = rootsOf(result, source);
+        if (roots)
+            trees.push([source, roots]);
+    };
+    if (result.source === "dumpsys") {
+        push("dumpsys");
+    }
+    else if (result.source === "compose") {
+        push("compose");
+    }
+    else if (result.uiKind === "mixed" && result.view && result.semantics) {
+        // ViewDebug stops at AndroidComposeView and uiautomator reports the
+        // accessibility side, so these two trees cover disjoint regions of a mixed
+        // screen and cannot double-report. The Compose tree is not added: a Compose
+        // capture sets `source = "compose"` and never coexists with a view tree, so
+        // including it here could only duplicate the semantics nodes.
+        push("view");
+        push("semantics");
+    }
+    else if (result.uiKind === "compose") {
+        // ViewDebug stops at AndroidComposeView, so the semantics tree is complete here.
+        if (result.semantics)
+            push("semantics");
+        else
+            push("view");
+    }
+    else if (result.uiKind === "xml") {
+        push("view");
+    }
+    if (trees.length === 0)
+        push(result.source);
+    if (trees.length === 0) {
+        for (const source of TREE_FALLBACK_ORDER) {
+            push(source);
+            if (trees.length > 0)
+                break;
+        }
+    }
+    return trees;
+}
+/** Roots of one source tree, or `null` when the capture does not hold it. */
+function rootsOf(result, source) {
+    switch (source) {
+        case "view":
+            return result.view?.roots ?? null;
+        case "semantics":
+            return result.semantics?.roots ?? null;
+        case "dumpsys":
+            return result.dumpsys?.roots ?? null;
+        case "compose":
+            return result.compose?.roots ?? null;
+    }
 }
 const RULES = {
     zero_size: true,

@@ -4,14 +4,13 @@
 
 ## 哪些能迁移，哪些不能
 
-插件分四层，只有前两层跨越 agent 边界。
+插件分三层，只有前两层跨越 agent 边界。
 
 | 层 | 内容 | 可移植性 |
 |---|---|---|
 | MCP Server | `dist/mcp.js`、stdio、9 个工具 | 所有 MCP 客户端 |
-| 技能 | 4 个 `SKILL.md`，frontmatter 只有 `name` + `description` | 读取 Agent Skills 目录的客户端 |
-| 斜杠命令 | 5 个 `commands/*.md`，`$ARGUMENTS` 语法 | 仅 Claude Code |
-| 子代理 | `agents/capture-ui.md`，`model: inherit` / `color` | 仅 Claude Code |
+| 技能 | 5 个 `SKILL.md`，frontmatter 只有 `name` + `description` | 读取 Agent Skills 目录的客户端 |
+| 斜杠命令 | 6 个 `commands/*.md`，`$ARGUMENTS` 语法 | 仅 Claude Code |
 | 门禁与分发 | `hooks/hooks.json` 的 `PreToolUse`、`plugin.json`、marketplace | 仅 Claude Code |
 
 技能可移植靠两个性质：frontmatter 只用 `name` 与 `description`；CLI 兜底路径用 `$AUI_ROOT/dist/cli.js`，而不是 `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`。在 Claude Code 里 `AUI_ROOT` 就是 `${CLAUDE_PLUGIN_ROOT}`；其他地方它是你的插件 checkout，或者把 `android-layout` 放进 `PATH`。技能的可执行命令里不会硬编码 Claude 专属路径，`test/agent-portability.test.ts` 强制这一点。
@@ -108,6 +107,6 @@ Cursor 与 VS Code 无需复制就能发现 `.claude/skills/`，因此把插件�
 ## 已知限制
 
 - 配置格式会变。表格反映 2026 年 11 月的写法，告诉用户路径前先复核。
-- 技能可移植，但斜杠命令、子代理、`PreToolUse` hook 不可移植。不要给 `SKILL.md` 加 agent 专属 frontmatter 字段，否则同步脚本会把其他客户端不认的字段一起发出去。
+- 技能可移植，但斜杠命令、`PreToolUse` hook 不可移植。不要给 `SKILL.md` 加 agent 专属 frontmatter 字段，否则同步脚本会把其他客户端不认的字段一起发出去。
 - 只有四家做了运行时验证，其余 16 家是按各自 schema 文档配置的。
 - 所有客户端拿到的是同一套 9 个工具。差异在配置形状、技能发现与审批流程，不在工具行为。

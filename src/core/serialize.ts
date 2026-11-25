@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { CaptureResult, DumpFile, NodeSource, UiNode } from "./model.js";
+import type { CaptureResult, DumpFile, UiNode } from "./model.js";
 import { serializeNode } from "./viewdump.js";
 
 export function serializeDump(result: CaptureResult, includeProperties = true): DumpFile {

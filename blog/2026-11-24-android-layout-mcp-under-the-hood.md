@@ -2,19 +2,21 @@
 
 *Part 2 of two. [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-getting-started.md) covers installation and everyday use.*
 
-*[Figure 1: one screen captured by three sources, merged into a single tree]*
+*[Figure 1: one screen captured by several sources, merged into a single tree]*
 
-Android has no single API that answers "what is on this screen". There is the View hierarchy, reachable through the debugger; the accessibility tree, exposed by `uiautomator`; and the Compose inspector, which lives inside Android Studio and speaks gRPC. Each returns different data at a different cost.
+Android has no single API that answers "what is on this screen". There is the View hierarchy, reachable through the debugger or through `dumpsys activity`; the accessibility tree, exposed by `uiautomator`; and the Compose inspector, which lives inside Android Studio and speaks gRPC. Each returns different data at a different cost.
 
-[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) uses all three and normalizes them into one node tree with short refs. This post follows each path, shows where the raw data changes shape, and explains the decisions that keep the output usable by a coding agent.
+[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) uses all four and normalizes them into one node tree with short refs. This post follows each path, shows where the raw data changes shape, and explains the decisions that keep the output usable by a coding agent.
 
-### Three answers to one question
+### Four answers to one question
 
 The View hierarchy is the most detailed source. Every `View` reports its class, resource id, bounds, padding, margins, visibility, and layout params. On a Compose screen it stops at `AndroidComposeView`, which is a container with no children.
 
 The accessibility tree is the cheapest source. `adb shell uiautomator dump` writes an XML file describing what accessibility services see. Compose text, content descriptions, and clickable bounds show up on any app, debug or release. Layout params and custom View classes do not.
 
 The Compose tree reaches inside the composition. It returns Composable names, source file and line, bounds, parameter text, and recomposition counts. Getting it requires a running Android Studio, a debuggable app, and about ten seconds per capture.
+
+The fourth path needs neither a debugger nor accessibility: `dumpsys activity <package>` prints an indented `View Hierarchy` and the `Active Fragments` records. It gives real View classes, resource ids, and window bounds on a release build, but no text, so the tool captures semantics alongside it and joins the two by geometry.
 
 ### The view tree over JDWP
 
@@ -69,7 +71,7 @@ node.visibleBounds = visible && clip ? intersect(raw, clip) : null;
 const childClip = details.clipChildren && clip ? intersect(clip, raw) : clip;
 ```
 
-`visibleBounds` is the part of a node that survives ancestor clipping. The analyzer sizes touch targets from it, and the viewer draws it as the node box. A node clipped away entirely has `visibleBounds: null` while its raw `bounds` stay intact.
+`visibleBounds` is the part of a node that survives ancestor clipping. The analyzer sizes touch targets from it, and the screenshot overlay draws it as the node box. A node clipped away entirely has `visibleBounds: null` while its raw `bounds` stay intact.
 
 Refs (`v0`, `v1`, ...) are assigned during the same walk. They are short because agents pass them between tool calls, and disposable because the next capture renumbers them.
 
@@ -129,9 +131,9 @@ Four pieces turn the tree into an answer.
 
 **Search** matches text, content description, resource id, class (fully qualified or short), and ref. `contains` ignores case, `exact` does not, and `/pattern/flags` compiles to a regular expression. Invisible nodes are filtered out by default.
 
-**Analysis** runs ten rules over the normalized tree: small touch targets, sibling overlap, clipping, children outside a non-scrollable parent, offscreen views, invisible clickables, zero sizes, unlabeled clickables, duplicate ids, and deep nesting. `deep_nesting` is skipped for the Compose source, where wrapper depth is an artifact of the framework.
+**Analysis** runs twelve rules over the normalized tree: small touch targets, sibling overlap, clipping, children outside a non-scrollable parent, offscreen views, invisible clickables, zero sizes, unlabeled clickables, duplicate ids, deep nesting, overdraw, and RTL mirroring gaps. `deep_nesting` is skipped for the Compose source, where wrapper depth is an artifact of the framework; `overdraw` and `rtl_issues` read raw View properties, so the analyzer requests them by default.
 
-**The viewer** serializes the tree, a downscaled screenshot, node details, and the issues into one HTML file. The embedded JSON has an 8 MB budget. If a capture exceeds it, the viewer drops View properties first, then halves the node budget down to 200, and flags the result as truncated.
+**Verifying a change** is a diff the agent performs, not a tool the server owns. Save a dump before the change and one after (`dump_ui(savePath=".aui/before.json")` / `.aui/after.json`, or `android-layout dump --json --out`), then compare the two JSON files. Refs expire with each capture, so the comparison keys on source, resource id, class, text, and path instead of `v12`/`s43`. `analyze_ui` then re-runs the rule set on the new capture.
 
 Source tracing is a separate pass. `locate_code` reads the repository, extracts string and layout anchors, finds `@Composable` definitions and call sites, follows layout includes, and scores candidates: 100 for a Composable definition matched by name or line, 90 for the file the inspector reported, 80 for an id usage next to a click listener, 78 for the layout that defines the id, 45 for a call site. Build output, generated code, and tests are excluded unless asked for.
 
@@ -139,21 +141,21 @@ Source tracing is a separate pass. `locate_code` reads the repository, extracts 
 
 An agent can activate a device tool in the wrong repository. The plugin uses two mechanisms to prevent that in Claude Code, and a portable version of the same rule in every other client.
 
-Every skill and command body starts with a hard gate on Android project markers. A [`PreToolUse` hook](https://code.claude.com/docs/en/hooks) enforces the same rule at the tool layer: it walks up to ten directories looking for `settings.gradle(.kts)`, `gradlew`, an `AndroidManifest.xml`, or a module build file that applies `com.android.*`. If none exists, it denies `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer` unless the latest user message explicitly asks about a device screen or mentions Android.
+Every skill and command body starts with a hard gate on Android project markers. A [`PreToolUse` hook](https://code.claude.com/docs/en/hooks) enforces the same rule at the tool layer: it walks up to ten directories looking for `settings.gradle(.kts)`, `gradlew`, an `AndroidManifest.xml`, or a module build file that applies `com.android.*`. If none exists, it denies `get_state`, `dump_ui`, `find_elements`, and `locate_code` unless the latest user message explicitly asks about a device screen or mentions Android.
 
-The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The skills divide work as well: `inspect-current-screen` answers what is on screen and never calls `locate_code`; `trace-view-wiring` traces one control; `trace-ui-to-logic` maps a whole screen or dialog to code and data flow; `verify-ui-change` owns before and after. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
+The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The five skills divide work as well: `capture-ui` answers what is on screen and never calls `locate_code`; `inspect-view-attribute` reads one control's raw layout and style values; `trace-view-wiring` traces one control's implementation; `trace-ui-to-logic` maps one block's UI → state → data chain; `audit-ui` owns defect judgments from the rule set. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
 
 ### When the agent is not Claude Code
 
 The hook is a Claude Code feature. Move the same skills into Codex CLI, CodeBuddy, or WorkBuddy and the hard gate disappears; the Android-project rule is left as prose in each skill body. That text stays effective because the files are copied unchanged. Their frontmatter carries only `name` and `description`, the portable subset of the Agent Skills standard, and executable paths resolve through `$AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. A sync script writes the same files into `.agents/skills`, `.codebuddy/skills`, or `.workbuddy/skills`, so every agent reads the same gate text without a plugin cache.
 
-The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 11 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
+The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 9 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
 
-Keeping that matrix honest needs a test that reads the docs. `test/cross-agent-compat.test.ts` takes `MCP_CLIENT_IDS` as its source of truth and checks that all six client tables, the CLI choices, and the config shapes agree with it. Add an id in code without updating the docs and the suite fails. The three other suites cover the config envelopes, the portable skill frontmatter, and byte-identical sync copies. All 114 tests run without a device.
+Keeping that matrix honest needs a test that reads the docs. `test/cross-agent-compat.test.ts` takes `MCP_CLIENT_IDS` as its source of truth and checks that all six client tables, the CLI choices, and the config shapes agree with it. Add an id in code without updating the docs and the suite fails. The three other suites cover the config envelopes, the portable skill frontmatter, and byte-identical sync copies. The whole suite runs without a device.
 
 ### What the design costs
 
-Three sources mean three sets of prerequisites. Two of them need a debug build, JDWP allows one debugger at a time, Composable-level detail needs a local Android Studio, and a Compose capture takes ten seconds. Release builds get semantics only. Content drawn to a canvas, a `SurfaceView`, or a `WebView` has no text to find. Nothing here monitors the screen continuously; every command is a new snapshot.
+Four sources mean four sets of prerequisites. Two of them need a debug build, JDWP allows one debugger at a time, Composable-level detail needs a local Android Studio, and a Compose capture takes ten seconds. Release builds get semantics and dumpsys. Content drawn to a canvas, a `SurfaceView`, or a `WebView` has no text to find. Nothing here monitors the screen continuously; every command is a new snapshot.
 
 Those constraints appear in the output. Captures carry warnings, refs expire with the snapshot, and the JSON says which sources produced the tree. The next time an agent reports that a button sits at `(540, 2239)`, that number came from one of these paths, and the payload names it.
 

@@ -53,7 +53,7 @@
 - 混合页面：`dump` 会自动打印 view + semantics 两棵树；
   `find`/`hit` 在 auto 下会自动同时搜索 view + semantics。
 - `--source both` 显式获取 view + semantics；`--source compose` 单独使用 JVMTI Compose 树。
-- `hit`/MCP 的 `hit_test` 默认同时查询 view 和 semantics。
+- `hit`/MCP 的 `hit_test` 默认同时查询 view 和 semantics；显式指定 `--source`/`source`（`view`、`semantics`、`dumpsys`、`compose`）时只查那一棵树。
 - `auto` 会降级而不是直接失败：某棵树抓不到时（例如 App 不可调试，或目标包未运行），跳过它并给出 warning，改用另一棵树。warning 会写入 JSON 的 `warnings` 数组并出现在文本树中；显式指定 `--source view` 时则直接报错。
 
 ## 实测能力对照（Android 13 / API 33 真机）
@@ -229,7 +229,7 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 
 ## 限制与边界
 
-- `view` 要求 App `android:debuggable=true`；Release/未开启调试的包只能用 `semantics`。
+- `view` 要求 App `android:debuggable=true`；Release/未开启调试的包可以用 `semantics` 或 `dumpsys`（结构 + id，没有文本）。
 - JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
 - `compose` 额外要求：本机 Android Studio、Java 17+、App 在前台、Compose inspector jar 版本匹配；
   单次抓取约 8–12s，且会在设备上常驻一个 transport daemon（`android-layout compose-clean` 可清理）。

@@ -16,7 +16,7 @@ evals/
 └── manual-gate-*/                    # non-Android refusal prompts for manual/installed-plugin runs
 ```
 
-Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180`, and `tags: [trigger]`. The MCP server is mocked, so no device, adb, or Android Studio is needed.
+There are 15 `trigger-*` cases, one `scaffold-*` case, and two `manual-gate-*` prompts. Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 180`, and `tags: [trigger]`. The MCP server is mocked, so no device, adb, or Android Studio is needed.
 
 `mocks/android-layout/_tools.json` is a saved `tools/list` snapshot; it gives the mocked server the real tool names, descriptions, and schemas. Regenerate it after any `src/mcp.ts` change (rebuild `dist/` first) so the eval sees the shipped descriptions. If the file is absent, mocked tools fall back to a permissive schema with no description.
 
@@ -26,7 +26,7 @@ Trigger cases set `runs: 1`, `allowed_tools`, `max_turns: 8`, `timeout_seconds: 
 # one case (smoke)
 claude plugin eval . --case 'trigger-dump-current-screen' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 1
 
-# whole suite (16 cases)
+# whole trigger suite (15 cases)
 claude plugin eval . --case 'trigger-*' --runs 1 --ablation none --trust-plugin --no-publish --max-cost-usd 6
 ```
 
@@ -44,7 +44,7 @@ The eval workspace is empty, so it is not an Android project. Existing positive 
 
 ## Runtime gate
 
-`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/aui-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/aui-android-gate.mjs`) for all nine device-touching tools: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, and `screenshot`. In a non-Android workspace it denies every one of them unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
 
 ## Scaffolded Android workspace
 
@@ -58,7 +58,7 @@ The script runs host-side as `bash` with the empty workspace as cwd (Git Bash on
 
 ## Cost
 
-About $4–$7 for this 15-case suite at `--runs 1` (the analyze cases are the most expensive because they explore several files; a single smoke case is roughly $0.15–$0.30). A `--runs 3` stability pass costs roughly 3×. The `--max-cost-usd` ceiling is checked before each run launches; a low ceiling stops the run early rather than failing a case.
+About $4–$7 for the 15 `trigger-*` cases at `--runs 1` (the analyze cases are the most expensive because they explore several files; a single smoke case is roughly $0.15–$0.30). The `scaffold-*` case is a separate run with its own ceiling, and the two `manual-gate-*` prompts are run by hand in an installed plugin session. A `--runs 3` stability pass costs roughly 3×. The `--max-cost-usd` ceiling is checked before each run launches; a low ceiling stops the run early rather than failing a case.
 
 ## Windows
 

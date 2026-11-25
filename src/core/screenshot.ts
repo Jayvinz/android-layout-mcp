@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { basename } from "node:path";
 import { PNG } from "pngjs";
 import type { Adb } from "./adb.js";
 import { AuiError } from "./errors.js";
@@ -99,6 +100,33 @@ export function imageToDevicePoint(
 
 export async function saveScreenshot(screenshot: Screenshot, path: string): Promise<void> {
   await writeFile(path, screenshot.buffer);
+}
+
+/**
+ * Writes the `<png>.annotated.svg` overlay next to a saved screenshot and
+ * returns its path. The SVG references the PNG by file name, so both must stay
+ * in the same directory. Shared by the CLI `shot --annotate` and the MCP
+ * `screenshot annotate` flows so the file name and SVG content cannot diverge.
+ */
+export async function writeAnnotatedSvgFromCapture(
+  shot: Screenshot,
+  roots: UiNode[],
+  treeSource: string,
+  pngPath: string,
+  title?: string,
+): Promise<string> {
+  const svgPath = pngPath.replace(/\.png$/i, "") + ".annotated.svg";
+  await writeFile(
+    svgPath,
+    renderAnnotatedSvg(roots, {
+      pngFileName: basename(pngPath),
+      width: shot.width,
+      height: shot.height,
+      uiScale: shot.scale,
+      title: title ?? `${treeSource} ${shot.width}x${shot.height}`,
+    }),
+  );
+  return svgPath;
 }
 
 /**

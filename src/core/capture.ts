@@ -12,7 +12,8 @@ import type {
   UiNode,
   WindowInfo,
 } from "./model.js";
-import { allFragments, mergeSemanticsText, notableFragments, parseDumpsys } from "./dumpsys.js";
+import { mergeSemanticsText, parseDumpsys } from "./dumpsys.js";
+import { fragmentsFromDump } from "./fragments.js";
 import { parseSemanticsXml } from "./semantics.js";
 import { flattenNodes, parseViewHierarchy } from "./viewdump.js";
 
@@ -405,16 +406,7 @@ async function captureDumpsys(
       "Some system apps hide their hierarchy; try source=semantics.",
     );
   }
-  const fragments = notableFragments(allFragments(parsed)).map((fragment) => ({
-    className: fragment.className,
-    shortClassName: fragment.shortClassName,
-    tag: fragment.tag,
-    state: fragment.state,
-    added: fragment.added,
-    hidden: fragment.hidden,
-    detached: fragment.detached,
-    activity: fragment.activity,
-  }));
+  const fragments = fragmentsFromDump(parsed).fragments;
   return {
     activity: parsed.activity,
     roots: parsed.roots,

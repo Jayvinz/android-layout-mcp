@@ -2,7 +2,7 @@
 
 [English](plugin.md) | [简体中文](plugin.zh.md)
 
-The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-layout`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills/commands/agents. This page covers the Claude Code packaging; the MCP server and skills also work in other agents, described in the [cross-agent guide](cross-agent.md). The typical task it targets:
+The repository is simultaneously a Claude Code marketplace (`jayvinz-tools`) and a plugin (`android-layout`). It bundles the CLI, the MCP server, a UI→code locator script, and a set of skills and commands. This page covers the Claude Code packaging; the MCP server and skills also work in other agents, described in the [cross-agent guide](cross-agent.md). The typical task it targets:
 
 > "Locate the **Me** button on the current screen and trace it to its related code logic."
 
@@ -25,14 +25,14 @@ server key, and CLI command are the shorter `android-layout`.
 
 | Component | Path | Purpose |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `analyze_ui` and more |
+| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing all 9 tools: `list_devices` / `get_state` / `dump_ui` / `find_elements` / `hit_test` / `analyze_ui` / `screenshot` / `list_fragments` / `locate_code` |
 | Skill | `skills/capture-ui/` | Screen facts — structure, Activity, `uiKind`, entry points, coordinates — plus the saved json/png/xml artifacts |
 | Skill | `skills/inspect-view-attribute/` | One control's raw layout and style values: margins, padding, measured size, text metrics, background, RTL |
 | Skill | `skills/trace-view-wiring/` | One control → implementation, click handler, visibility control, and text/image/background injection |
 | Skill | `skills/trace-ui-to-logic/` | One section's UI → state holder → data source chain (read-only) |
 | Skill | `skills/audit-ui/` | Defect judgments from 12 layout and accessibility rules |
-| Commands | `commands/capture.md`, `inspect.md`, `locate.md`, `analyze.md`, `audit.md` | `/android-layout:capture`, `:inspect`, `:locate`, `:analyze`, `:audit` |
-| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`; restart Claude Code after installing or updating the plugin |
+| Commands | `commands/capture.md`, `inspect-view.md`, `trace-view.md`, `trace-logic.md`, `ui2logic.md`, `audit.md` | `/android-layout:capture`, `:inspect-view`, `:trace-view`, `:trace-logic` (alias `:ui2logic`), `:audit` |
+| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for all nine device-touching tools (`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`); restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
 | Script | `scripts/sync-agent-skills.mjs` | Copies `skills/` into `.agents/skills/` (Codex CLI, Gemini CLI, Cline, Goose), `.codebuddy/skills/` (CodeBuddy, `--codebuddy`), or `.workbuddy/skills/` (WorkBuddy, `--workbuddy`) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
@@ -86,7 +86,7 @@ Or load for the current session only:
 claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
-After installation `/mcp` should show the `android-layout` server and `/help` should list `/android-layout:capture`, `:inspect`, `:locate`, `:analyze`, `:audit`.
+After installation `/mcp` should show the `android-layout` server and `/help` should list `/android-layout:capture`, `:inspect-view`, `:trace-view`, `:trace-logic` (alias `:ui2logic`), `:audit`.
 
 ## Typical workflow
 
@@ -103,7 +103,7 @@ Natural-language requests about the current screen or a visible control ("抓取
 
 Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `trace-ui-to-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
 
-**Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`; restart Claude Code after install/update.
+**Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for all nine device-touching tools — `list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot` — and `locate_code` additionally requires an Android project or an explicit Android mention; restart Claude Code after install/update.
 
 Or call the commands directly:
 
@@ -136,17 +136,13 @@ node scripts/locate-code.mjs --root . \
 
 The script only ranks candidates — always open the files to confirm. It never modifies the repository.
 
-## Agent
-
-`capture-ui` is a read-only subagent suited to "capture screen → find node → scan candidates → read code" multi-step work, so the main session only receives the conclusion. It performs no edits, builds, installs, or device input.
-
 ## Environment variables
 
 The plugin manifest's `mcpServers` injects no environment variables; the MCP process inherits the user's shell environment. To pin serial/adb/Studio parameters, prefer environment variables or start a separate server via a project-level `.mcp.json`. The full variable table lives in [cli.md](cli.md#environment-variables).
 
 ## Read-only and permissions
 
-- Every skill and the agent are read-only: the plugin observes and analyzes a device but never taps, swipes, types, or sends key events.
+- Every skill is read-only: the plugin observes and analyzes a device but never taps, swipes, types, or sends key events.
 - The capture workflow writes `.aui/capture.json`, `.aui/capture.png`, and `.aui/capture.xml` inside the repository; add `.aui/` to `.gitignore` (this repo already does).
 - Do not commit dumps: they may contain device serials, foreground package names, and screen text.
 
@@ -227,7 +223,7 @@ Publishing to npm stays a separate manual step: `npm publish` (`prepublishOnly` 
 
 ### Plugin bundle
 
-The release workflow also builds `dist-plugin/android-layout-mcp-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `agents/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `README.md`, `README.zh.md`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
+The release workflow also builds `dist-plugin/android-layout-mcp-<version>.zip` and attaches it to the GitHub Release. The archive root is the plugin folder (`.claude-plugin/plugin.json`, `dist/`, `helper/`, `hooks/`, `skills/`, `commands/`, `scripts/locate-code.mjs`, `package.json`, `package-lock.json`, production `node_modules/`, `README.md`, `README.zh.md`, `LICENSE`, `NOTICE`), so it loads as a plugin without unzipping. Development-only files (`src/`, `docs/`, `test/`, `evals/`, CI config, dev dependencies) are not bundled:
 
 ```bash
 claude --plugin-dir ./android-layout-mcp-<version>.zip

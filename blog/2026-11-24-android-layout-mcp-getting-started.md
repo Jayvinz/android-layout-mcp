@@ -2,7 +2,7 @@
 
 *Part 1 of two: connect a client, read the screen, trace a control to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md) opens the implementation.*
 
-*[Figure 1: the self-contained HTML viewer showing the node tree, screenshot overlay, and layout issues]*
+*[Figure 1: a captured screen tree in the terminal, with bounds, centers, and refs]*
 
 Coding agents read repositories well. Ask why a button is disabled and the agent will open the ViewModel, the state holder, the theme, and the click handler. What it cannot do on its own is look at the phone.
 
@@ -12,19 +12,19 @@ By the end of this post you will have a client connected, a first inspection run
 
 ### What it does
 
-The tool captures the current screen through up to three data sources and normalizes them into one node tree. The default mode, `auto`, picks per screen: the debug View hierarchy for XML layouts, the accessibility semantics tree for Compose screens, and both for screens that mix the two. The third source, Compose inspection, is opt-in with `--source compose` and talks to Android Studio's Compose inspector for Composable names and `file:line`.
+The tool captures the current screen through up to four data sources and normalizes them into one node tree. The default mode, `auto`, picks per screen: the debug View hierarchy for XML layouts, the accessibility semantics tree for Compose screens, and both for screens that mix the two. Two more are explicit: `--source dumpsys` reads the View hierarchy and Activity/Fragment structure on a release build, and `--source compose` talks to Android Studio's Compose inspector for Composable names and `file:line`.
 
-On top of that tree it exposes 10 MCP tools:
+On top of that tree it exposes 9 MCP tools:
 
 - capture and inspection (`list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`)
-- verification (`analyze_ui` with 10 layout and accessibility rules, `diff_ui`, `screenshot`, `open_viewer`)
-- source tracing (`locate_code`)
+- verification (`analyze_ui` with 12 layout and accessibility rules, `screenshot`)
+- source tracing (`locate_code`, `list_fragments`)
 
 Every tool is read-only: the plugin observes the device, it never drives it.
 
-There is also a self-contained HTML viewer, a suite of 114 tests that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
+There is also a test suite that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
 
-Why not let the model read a screenshot instead? Pixels give labels and positions but no resource ids, clickable bounds, or source lines. A tree gives the agent values it can query, compare, and diff between captures.
+Why not let the model read a screenshot instead? Pixels give labels and positions but no resource ids, clickable bounds, or source lines. A tree gives the agent values it can query and compare between captures.
 
 ### Connect a client
 
@@ -32,7 +32,7 @@ You need Node.js 20 or newer, `adb` on your `PATH` (or `AUI_ADB` set to its path
 
 Pick the path for the agent you use.
 
-**Claude Code** has the fullest install: skills, slash commands, the subagent, and the gate hook come with the plugin. Add the marketplace and install:
+**Claude Code** has the fullest install: skills, slash commands, and the gate hook come with the plugin. Add the marketplace and install:
 
 ```text
 /plugin marketplace add Jayvinz/android-layout-mcp
@@ -71,11 +71,11 @@ android-layout state
 
 `state` reports the device model and API level, the screen size and density, the foreground package, the Activity, the pid, and the JDWP windows, including dialogs and popups. Every later claim about bounds or clickability is anchored to that target.
 
-If the app is a release build, only the semantics source will work. That is enough for labels and clickable bounds, but the View classes and layout parameters stay unavailable.
+If the app is a release build, the `view` and `compose` sources fail. `semantics` still gives labels and clickable bounds, and `--source dumpsys` adds real View classes, resource ids, and Activity/Fragment structure, but no text.
 
 ### Ask for the screen
 
-In Claude Code you can ask in plain language: "capture the current screen layout", "summarize the current screen", or "why is this button grayed out". The `inspect-current-screen` skill maps those requests to `get_state`, `dump_ui`, and the query tools, and it stops at device evidence without opening the repository.
+In Claude Code you can ask in plain language: "capture the current screen layout", "summarize the current screen", or "why is this button grayed out". The `capture-ui` skill maps those requests to `get_state`, `dump_ui`, and the query tools, and it stops at device evidence without opening the repository.
 
 From a terminal, the same path looks like this:
 
@@ -110,7 +110,7 @@ JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and th
 This is the part a coding agent cannot do from a screenshot. The `trace-view-wiring` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
 
 ```text
-/android-layout:locate "Sign in"
+/android-layout:trace-view "Sign in"
 ```
 
 The scan returns string resources, layout definitions, Compose definitions and call sites, ViewBinding usage, and click handlers, each with a score, a reason, and a code snippet. A ranking of 100 marks a `@Composable` definition matched by name or line; 78 marks a layout that defines the resource id; 45 marks a call site. Test sources, `build/`, `.gradle/`, and generated code are excluded by default.
@@ -121,19 +121,18 @@ The tool is read-only. It ranks files; you or the agent still open them and foll
 
 ### Verify a change
 
-Before and after a UI change, capture the same page twice and compare:
+Before and after a UI change, capture the same page twice and compare the two dumps yourself:
 
 ```bash
 android-layout dump --json --out .aui/before.json
 # rebuild, install, return to the same page and scroll position
 android-layout dump --json --out .aui/after.json
-android-layout diff .aui/before.json .aui/after.json
 android-layout analyze
 ```
 
-The diff matches nodes by identity (source, resource id, class, text, and path), because refs change between captures. It reports added, removed, and moved or resized nodes, and `--tolerance` (1 px by default) ignores small bound changes. `analyze` runs the rule set: small touch targets, overlapping clickables, clipped nodes, invisible clickables, duplicate ids, deep nesting, and four more.
+Refs change between captures, so match nodes by source, resource id, class, text, and path rather than by `v12`/`s43`. The two JSON files are the same format the MCP `dump_ui(savePath=...)` tool writes, so an agent can save `.aui/before.json`, apply the change, save `.aui/after.json`, and read both. `analyze` then runs the rule set: small touch targets, overlapping clickables, clipped nodes, invisible clickables, duplicate ids, deep nesting, overdraw, RTL mirroring gaps, and four more.
 
-*[Figure 3: a before/after diff with one added button and one resized row]*
+*[Figure 3: two saved dumps side by side, with one added button and one resized row]*
 
 Keep `.aui/` in your `.gitignore`. Dumps contain the device serial, the package name, and the text on screen.
 
@@ -160,13 +159,13 @@ Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cli
 }
 ```
 
-`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 11 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
+`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 9 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
 
-The four skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands, the subagent, and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
+The five skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
 
 ### Where it stops
 
-- `view` and `compose` need a debuggable app; release builds can only use semantics.
+- `view` and `compose` need a debuggable app; release builds fall back to `semantics` and `dumpsys`.
 - JDWP usually allows one debugger at a time. Attaching may fail while Android Studio is debugging.
 - `compose` needs a local Android Studio, Java 17+, API 29+, and 8 to 12 seconds per capture. It leaves a resident transport daemon on the device; `android-layout compose-clean` removes it.
 - The semantics tree only sees what the app exposes to accessibility. Text drawn directly to a canvas, a `SurfaceView`, or a `WebView` has no text or children to find.
@@ -178,7 +177,7 @@ The four skills travel as well. Their frontmatter uses only `name` and `descript
 
 Version 1.0.0 is the first stable release under this name, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
 
-The interesting part, at least for me, is how three unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md).
+The interesting part, at least for me, is how four unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md).
 
 **Resources**
 

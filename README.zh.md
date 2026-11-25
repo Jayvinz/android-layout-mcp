@@ -6,7 +6,7 @@
 [![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org/)
 [![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml)
 
-**Android Layout MCP，面向 coding agent。** 基于 ADB 的布局抓取与 UI 代码定位：读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍问题排查、改码前后布局对比，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
+**Android Layout MCP，面向 coding agent。** 基于 ADB 的布局抓取与 UI 代码定位：读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍问题排查，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
 
 参考 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
 
@@ -15,7 +15,7 @@
 - **数据源自适应** —— `auto` 按页面选择正确的数据树：XML 用 ViewDebug v2，Compose 用无障碍语义树，混合页面两者并用；需要 Composable 名称与 `file:line` 时可显式启用 Compose JVMTI 树。
 - **查找与命中测试** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的全部元素（按面积从小到大排序）。全程只读，不点击、不滑动、不输入。
 - **可视化验证** —— 截图支持 SVG 节点标注与图片坐标→设备坐标的自动映射；结构化抓取失败时会自动保存一张兜底截图。
-- **检查与对比** —— 10 条布局/无障碍规则，以及围绕代码改动的 identity-keyed 改前/改后 diff。
+- **检查与回归** —— 12 条布局/无障碍规则；改码前后各存一份 dump，自行比对两份 JSON，再重跑检查。
 - **UI → 源码定位** —— 以 UI 锚点扫描仓库，返回排序后的 `file:line` 候选、string/layout/Compose 定义与点击处理逻辑。全程只读，不修改仓库。
 - **一个内核，两个前端** —— CLI 与 MCP server 共享同一套 `capture()` / `treesFor()` 流程，行为不会分叉。
 
@@ -67,7 +67,7 @@ MCP Server ────────────────────┘      
 
 | 组件 | 内容 |
 |---|---|
-| MCP server `android-layout` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`list_fragments`、`get_state` 等工具 |
+| MCP server `android-layout` | 共 9 个工具：`list_devices`、`get_state`、`dump_ui`、`find_elements`、`hit_test`、`analyze_ui`、`screenshot`、`list_fragments`、`locate_code` |
 | Slash 命令 | `/android-layout:capture`（UI 事实+产物）、`:inspect-view`（控件属性）、`:trace-view`（控件→源码）、`:trace-logic` / `:ui2logic`（区块→数据链）、`:audit`（布局缺陷+对应源码） |
 | Skills | `capture-ui`、`inspect-view-attribute`、`trace-view-wiring`、`trace-ui-to-logic`、`audit-ui` |
 
@@ -113,7 +113,7 @@ node dist/cli.js mcp --print-config --client cursor
 支持技能加载的客户端还能复用这 5 个技能：`node scripts/sync-agent-skills.mjs --dest ../my-android-app`
 会把它们写入 `.agents/skills/`；CodeBuddy 要加 `--codebuddy` 写入 `.codebuddy/skills/`，WorkBuddy 加
 `--workbuddy` 写入 `.workbuddy/skills/`，`--both` 写 `.agents/skills/` 与 `.codebuddy/skills/` 两处，
-再叠加 `--workbuddy` 则三处都写（Cursor 与 VS Code 直接读 `.claude/skills/`）。斜杠命令、子代理与
+再叠加 `--workbuddy` 则三处都写（Cursor 与 VS Code 直接读 `.claude/skills/`）。斜杠命令与
 门禁 hook 仍然只在 Claude Code 中可用。
 
 工具清单、参数、推荐调用顺序与[本机实测的客户端矩阵](docs/mcp.zh.md#本机实测)见
@@ -151,7 +151,7 @@ android-layout shot          # 保存截图，可附节点标注
 
 如果要追的是一整块区域而不是单个控件，可以说“分析这块区域的业务逻辑”，或运行 `/android-layout:trace-logic`（别名 `:ui2logic`）：它把该区块映射到源码，再追 ViewModel、数据源与两者的连接。
 
-**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
+**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对全部 9 个接触设备的工具（`list_devices`、`get_state`、`dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`list_fragments`、`screenshot`）强制执行同一门槛，其中 `locate_code` 还额外要求 Android 工程或明确提到 Android。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
 
 ## 能做什么
 
@@ -180,7 +180,7 @@ android-layout shot          # 保存截图，可附节点标注
 
 | 文档 | 内容 |
 |---|---|
-| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 三个数据源原理与对照、`auto` 选择策略、Compose JVMTI 细节 |
+| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 四个数据源原理与对照、`auto` 选择策略、Compose JVMTI 细节 |
 | [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、限制与默认值、分析规则、截图与坐标映射、环境变量 |
 | [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、限制与默认值、推荐调用顺序 |
 | [docs/cross-agent.zh.md](docs/cross-agent.zh.md) | 在其他 agent 中使用：配置外壳、实测客户端、技能安装、兼容测试 |
@@ -189,12 +189,11 @@ android-layout shot          # 保存截图，可附节点标注
 
 ## 限制
 
-- `view` / `compose` 要求 App `android:debuggable=true`；release 包只能用 `semantics`。
+- `view` / `compose` 要求 App `android:debuggable=true`；release 包可以用 `semantics` 或 `dumpsys`（结构 + id，没有文本）。
 - JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
 - `compose` 额外需要本机 Android Studio 与 Java 17+，单次抓取约 8–12s。
 - `input text` 只可靠支持 ASCII；每次命令都是全新快照，没有实时监听。
 - 文本输出默认截断到 2000 节点（`--max-nodes`/`--depth`/`--visible-only` 只影响文本树）；`--json`/`--out` 写出完整 dump，MCP `dump_ui` 的 JSON 默认上限 800 节点，可调高 `maxNodes`。
-- HTML 查看器最多嵌入 8 MB；超限会先丢弃 View 属性，再把节点预算折半至 200，并标记 `truncated`。
 - `find`/`hit` 的选择器只匹配可见节点。涉及坐标时需要截图元数据（`coordinateMapping`）把图片像素换算成设备坐标。MCP `screenshot` 默认 720px 宽，CLI `shot` 保持原生分辨率。
 - 直接画到 `Canvas` 上的内容（自定义 View、`SurfaceView`、`WebView` 像素）没有文本和子节点；语义树只能看到 App 暴露给无障碍的信息。
 - 激活面向 Android 工程；在其他仓库中需要用户明确要求查看设备页面/界面，或明确提到 Android。

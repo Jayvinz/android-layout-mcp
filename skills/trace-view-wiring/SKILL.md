@@ -223,7 +223,7 @@ Use a compact evidence report; do not paste entire files. The template is in `re
 3. **Code anchors**: string/layout/Compose definitions.
 4. **Chain**: numbered steps, each with `file:line` and `confirmed|inferred`.
 5. **Uncertainties**: multiple flavors, dynamic text, server-driven content, missing call sites.
-6. **Next steps**: files to read/change first and how to verify (MCP `dump_ui` + `diff_ui` + `analyze_ui`, or CLI `dump`/`diff`/`analyze`, plus unit tests).
+6. **Next steps**: files to read/change first and how to verify (MCP `dump_ui(savePath=...)` before/after + `analyze_ui`, or CLI `dump --out` twice + `analyze`, plus unit tests).
 
 ## Quality rules
 

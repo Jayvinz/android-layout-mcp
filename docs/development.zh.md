@@ -18,10 +18,9 @@ npx tsx src/cli.ts dump             # 不构建直接从源码运行 CLI
 测试 fixture 位于 `test/fixtures/`：API 33 的 `ViewDebug.dumpv2` 二进制（Compose 应用一份、
 传统 XML View 应用一份）、uiautomator XML、截图，以及 Compose JVMTI helper 的树输出 JSON。
 
-## 激活、查看器与门禁测试
+## 激活与门禁测试
 
-- `test/skills.test.ts` 守护四个 skill 描述（1024 字符上限、中文触发词、Android 门禁、路由边界）以及 command/agent 文案。
-- `test/viewer.test.ts` 覆盖自包含 HTML 查看器、payload 上限、转义、缺失截图与浏览器启动开关。
+- `test/skills.test.ts` 守护五个 skill 描述（1024 字符上限、中文触发词、Android 门禁、路由边界）以及 command 文案。
 - `test/android-gate.test.ts` 覆盖 `PreToolUse` Android 工程 hook。
 
 `evals/` 是无设备的 mock 路由用例：`trigger-*` 测 skill/tool 选择，`scaffold-android-workspace-analyze` 用 `--scaffold` 测真实 Android 工作区，`manual-gate-*` 测非 Android 拒绝。命令与成本见 [evals/README.md](../evals/README.md)。评测环境不加载插件 hooks；修改 `hooks/` 后需重启 Claude Code。

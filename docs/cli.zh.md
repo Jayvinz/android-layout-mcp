@@ -80,18 +80,20 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | 命令 | 说明 |
 |---|---|
 | `android-layout devices` | 列出设备、型号、Android/SDK 版本；`--json` |
-| `android-layout state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口；`--json` |
-| `android-layout windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现）；`--package`、`--pid`、`--json` |
-| `android-layout dump` | 抓取 UI，`--source auto/view/semantics/compose/both`、`--depth`、`--max-nodes`（文本，默认 2000）、`--visible-only`、`--props`、`--package`、`--pid`、`--window`（view 源）、`--json`、`--out` |
-| `android-layout find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both`、`--source`、`--limit`（默认 50）、`--json` |
-| `android-layout hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先；`--source`、`--index`（默认 0）、`--json` |
-| `android-layout inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性）；`--source`、`--json` |
-| `android-layout analyze` | 布局/无障碍检查；`--rules`、`--min-touch-dp`（48）、`--max-depth`（14）、`--paths`、`--json` |
-| `android-layout shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg`；`--json`、`--json --base64` |
+| `android-layout state` | 设备、屏幕、前台 App、pid、ViewRootImpl 窗口；`--package` 指定目标 App，`--json` |
+| `android-layout windows` | 仅列出 JDWP 窗口（弹窗/对话框也会出现）；`--package`、`--pid`、`--json`。刻意保留：`--pid` 可指定任意进程，不只是前台 App，因此不是 `state` 的重复 |
+| `android-layout dump` | 抓取 UI，`--source auto/view/semantics/dumpsys/compose/both`、`--depth`、`--max-nodes`（文本，默认 2000）、`--visible-only`、`--props`、`--package`、`--pid`、`--window`（view 源）、`--json`、`--out` |
+| `android-layout find <query>` | `--by any/text/desc/id/class/ref`、`--match contains/exact/regex`、`--clickable`、`--both`、`--source auto/view/semantics/dumpsys/compose/both`、`--limit`（默认 50）、`--json` |
+| `android-layout hit <x> <y>` | 命中测试；返回同一坐标下的所有候选，最小面积优先；`--source auto/view/semantics/dumpsys/compose/both`、`--index`（默认 0）、`--json` |
+| `android-layout inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性）；`--source auto/view/semantics/dumpsys/compose/both`、`--json` |
+| `android-layout analyze` | 布局/无障碍检查；`--source auto/view/semantics/dumpsys/compose/both`、`--rules`、`--min-touch-dp`（48）、`--max-depth`（14）、`--no-props`、`--paths`、`--json` |
+| `android-layout shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 用 `--source auto/view/semantics/dumpsys/compose/both` 的树生成 `*.annotated.svg`；`--json`、`--json --base64` |
 | `android-layout fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；`--package`、`--json`、`--all`（保留 AndroidX 记账型 Fragment） |
 | `android-layout studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
 | `android-layout mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
 | `android-layout compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
+
+所有读取树的命令都接受同一组 `--source` 取值（`auto`、`view`、`semantics`、`dumpsys`、`compose`、`both`），默认统一为 `auto`。
 
 全局选项：`-s, --serial`、`--adb <path>`、`--timeout <ms>`、`-v, --verbose`。
 Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
@@ -103,10 +105,10 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 - **文本树与 JSON**：`--depth`、`--max-nodes`（默认 2000）和 `--visible-only` 只影响人类可读的文本树；被截断时最后一行会说明展示到多少节点。`--json` / `--out` 写出完整 dump（`version: 1`，不裁剪），agent 端需要自己裁剪，或改用 MCP `dump_ui` 的 `depth`/`maxNodes`。
 - **搜索**：`find` 与 `hit` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
 - **截图**：CLI `shot` 默认保持原生分辨率，只有指定 `--max-width`/`--scale` 才降采样；`--base64` 仅在同时带 `--json` 时生效。MCP `screenshot` 默认 720px 宽。
-- **Diff**：每次只比较一棵树，按节点身份而非像素对比。`--tolerance`（默认 1px）忽略更小的边界变化；两个 dump 的主来源不一致时用 `--source` 指定。
+- **改前/改后**：没有 `diff` 子命令。改动前后各存一份 dump（`dump --json --out .aui/before.json`，再存 `.aui/after.json`），自行比对两份文件；ref 只在单次抓取内有效，请按 source、resource id、class、text 与 path 匹配。最后对新抓取跑 `analyze`。
 - **Analyze**：`compose` 数据源不评估 `deep_nesting`；未知规则名会被忽略；在低报窗口高度的 ROM（如 MIUI）上，`small_touch_target` 会跳过底部被裁的语义节点。
+- **Analyze 只读一棵树**：与页面类型匹配的那棵 —— XML 页面读 View，Compose 页面读语义树，`--source dumpsys` 读 dumpsys，`--source compose` 读 Compose。`mixed` 页面例外：View 与 Compose 区域互不重叠，两棵树都会扫描。这样同一缺陷不会按树重复上报 —— `--source dumpsys` 的抓取总带着一棵语义树，那棵树只用于补文本。`overdraw` 与 `rtl_issues` 只要抓到了 View 树就一定读它，因为只有它带原始属性表。
 - **兜底行为**：`auto` 下某棵树抓取失败会跳过并给出 warning，改用另一棵树；目标包未运行时跳过 view 抓取。warning 会出现在文本树、JSON 的 `warnings` 字段，`analyze` 还会输出到 stderr。`--window` 接受 0 起始索引或名称子串，仅对 view 源生效。
-- **输入与按键**：`input` 仅支持 ASCII（空格发送为 `%s`）；`key` 原样转发给 `adb shell input keyevent`，请使用 `KEYCODE_*` 名称或数字码，其他值会在设备侧失败。
 - **`mcp --register-view-attributes`**：启动 server 前写入全局 `debug_view_attributes 1`（会重启 App），用于获得更丰富的 ViewDebug 属性，日常使用不需要。
 
 ## 分析规则
@@ -127,6 +129,9 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 | `rtl_issues` | 硬编码 `leftMargin`/`rightMargin` 且没有对应的 `startMargin`/`endMargin`，RTL 下不会镜像 |
 
 规则可按需开启：`android-layout analyze --rules small_touch_target,overlap`。
+
+`overdraw` 与 `rtl_issues` 读取原始 View 属性表，因此 `analyze` 默认抓取属性。用 `--no-props`
+可跳过；此时 JSON 会把这两条列在 `skipped` 中，而不是报告一个“干净”的界面。
 
 ## 截图与兜底
 

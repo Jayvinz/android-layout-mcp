@@ -7,9 +7,9 @@ Internal notes for the two Medium drafts. Not part of the articles.
 - Subtitle: Part 1 of two: connect a client, read the screen, trace a control to source.
 - Tags: Android, AI Coding Agents, MCP, Developer Tools, Mobile Development.
 - Figures to capture (replace the italic placeholders):
-  1. `.aui/viewer.html` open in a browser, with the node tree and screenshot overlay visible.
+  1. A terminal running `android-layout dump`, showing the node tree with bounds, centers, and refs.
   2. A Claude Code session showing a `find_elements` result with bounds, center, and clickable state.
-  3. A `diff_ui` run with one added button and one resized row.
+  3. Two saved dumps (`.aui/before.json` and `.aui/after.json`) side by side, with one added button and one resized row.
 - Canonical URL: the GitHub blob URL of this file once committed.
 
 ## Post 2: "How Android Layout MCP Reads a Screen: JDWP, UIAutomator, and JVMTI"
@@ -17,19 +17,18 @@ Internal notes for the two Medium drafts. Not part of the articles.
 - Subtitle: Part 2 of two.
 - Tags: Android, Reverse Engineering, Debugging, Jetpack Compose, Developer Tools.
 - Figures:
-  1. Architecture diagram: view / semantics / compose sources into one `UiNode` tree.
+  1. Architecture diagram: view / semantics / dumpsys / compose sources into one `UiNode` tree.
   2. Sequence diagram: handshake, `VULW`, `VURT`, `dumpv2` reply.
   3. Device staging diagram: Studio artifacts, daemon, `code_cache`, gRPC.
 - Canonical URL: the GitHub blob URL of this file once committed.
 
 ## Facts used (checked against the repository at v1.0.0)
 
-- 14 MCP tools, 16 CLI subcommands, 10 analysis rules, 114 tests.
+- 9 MCP tools, 13 CLI subcommands, 12 analysis rules. (Do not quote a test count here: the suite grows with every change.)
 - 20 MCP client configs via `--client` across seven shapes; four clients verified locally (OpenCode, CodeBuddy Code, Codex CLI, WorkBuddy).
-- Four tests in `test/cross-agent-compat.test.ts` derive expectations from `MCP_CLIENT_IDS`; details in `docs/cross-agent.md`.
+- `test/cross-agent-compat.test.ts` derives its expectations from `MCP_CLIENT_IDS`; details in `docs/cross-agent.md`.
 - Compose inspector default 1.8.3, API 29+, 8 to 12 seconds per capture.
 - Text output truncated at 2000 nodes; MCP JSON default 800, max 5000.
-- Viewer budget 8 MB, minimum 200 nodes.
 - Locator scores: 100 compose definition, 90 compose location, 80 strong id usage, 78 layout id, 45 call site.
 - Release bundle: about 6 MB, includes production `node_modules` and `package-lock.json`.
 

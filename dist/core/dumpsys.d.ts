@@ -67,8 +67,6 @@ export declare function allFragments(result: DumpsysParseResult): FragmentInfo[]
  * meaning and only add noise to a report.
  */
 export declare function notableFragments(fragments: FragmentInfo[]): FragmentInfo[];
-/** Flattened node count for progress/log messages. */
-export declare function countDumpsysNodes(result: DumpsysParseResult): number;
 /**
  * Fills `text`/`contentDescription` on dumpsys nodes by matching geometry
  * against a semantics tree.

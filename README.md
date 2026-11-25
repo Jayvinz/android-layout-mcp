@@ -10,7 +10,7 @@
 
 ![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)
 
-**Android Layout MCP for coding agents.** Layout capture and UI-to-code location over ADB: read the live screen of a real device or emulator, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, diff before/after layouts, and trace any control back to its Compose/XML source and business logic.
+**Android Layout MCP for coding agents.** Layout capture and UI-to-code location over ADB: read the live screen of a real device or emulator, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, and trace any control back to its Compose/XML source and business logic.
 
 Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro).
 
@@ -19,7 +19,7 @@ Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-l
 - **Adaptive data sources** — `auto` picks the right tree per screen: ViewDebug v2 for XML, accessibility semantics for Compose, and both for mixed screens. Opt into the Compose JVMTI tree for Composable names and `file:line`.
 - **Find and hit-test** — search by text / content-description / resource-id / class / ref, and resolve every element under a coordinate (smallest area first). Read-only: it never taps, swipes, or types.
 - **Visual verification** — screenshots with SVG node overlays and automatic image→device coordinate mapping; a fallback screenshot is saved automatically when structured capture fails.
-- **Checks and diffs** — 10 layout/accessibility rules and identity-keyed before/after diffs around a code change.
+- **Checks and regressions** — 12 layout/accessibility rules; save a dump before and after a code change, compare the two JSON files yourself, then re-run the checks.
 - **UI → source locator** — turn UI anchors into ranked `file:line` candidates, string/layout/Compose definitions, and click handlers. Read-only: it never edits the repo.
 - **One core, two front ends** — the CLI and the MCP server share the same `capture()` / `treesFor()` pipeline, so behavior does not diverge.
 
@@ -72,7 +72,7 @@ After installation you get:
 
 | Component               | Content                                                                                                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MCP server `android-layout` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `list_fragments`, `get_state`, and more                                          |
+| MCP server `android-layout` | all 9 tools: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `analyze_ui`, `screenshot`, `list_fragments`, `locate_code`                        |
 | Slash commands          | `/android-layout:capture` (UI facts + artifacts), `:inspect-view` (control attributes), `:trace-view` (control → source), `:trace-logic` / `:ui2logic` (block → data chain), `:audit` (layout defects + their source) |
 | Skills                  | `capture-ui`, `inspect-view-attribute`, `trace-view-wiring`, `trace-ui-to-logic`, `audit-ui` |
 
@@ -118,11 +118,11 @@ object:
 }
 ```
 
-Clients with skill support can also load the four bundled skills: `node scripts/sync-agent-skills.mjs
+Clients with skill support can also load the five bundled skills: `node scripts/sync-agent-skills.mjs
 --dest ../my-android-app` writes them to `.agents/skills/`; add `--codebuddy` for CodeBuddy's
 `.codebuddy/skills/`, `--workbuddy` for WorkBuddy's `.workbuddy/skills/`, or `--both` for the first two
 (`.agents/skills` + `.codebuddy/skills`); add `--workbuddy` too to write all three (Cursor and VS Code
-read `.claude/skills/` directly). Slash commands, the subagent, and the gate hook stay Claude Code only.
+read `.claude/skills/` directly). Slash commands and the gate hook stay Claude Code only.
 
 See [docs/mcp.md](docs/mcp.md) for the tool list, parameters, recommended call order, and the
 [locally verified client matrix](docs/mcp.md#verified-locally) (OpenCode, CodeBuddy Code, Codex CLI,
@@ -159,7 +159,7 @@ The tools confirm the foreground app → capture the UI tree → lock onto the t
 
 To trace one block instead of one control, say "分析这块区域的业务逻辑" or run `/android-layout:trace-logic` (alias `:ui2logic`): it maps the block to source, then follows the ViewModel, data source, and the wiring between them.
 
-**Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
+**Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for all nine device-touching tools — `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, `screenshot` — with `locate_code` additionally requiring an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
 
 ## What you can do
 
@@ -188,7 +188,7 @@ To trace one block instead of one control, say "分析这块区域的业务逻�
 
 | Document                                     | Content                                                                                                  |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [docs/data-sources.md](docs/data-sources.md) | The three data sources, `auto` selection policy, Compose JVMTI details                                   |
+| [docs/data-sources.md](docs/data-sources.md) | The four data sources, `auto` selection policy, Compose JVMTI details                                    |
 | [docs/cli.md](docs/cli.md)                   | CLI installation, command table, limits and defaults, analysis rules, screenshots & coordinate mapping, environment variables |
 | [docs/mcp.md](docs/mcp.md)                   | MCP server configuration, tool table, limits and defaults, recommended call order                        |
 | [docs/cross-agent.md](docs/cross-agent.md)   | Using the plugin in other agents: config envelopes, verified clients, skill installation, compatibility tests |

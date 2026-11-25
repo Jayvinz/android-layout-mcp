@@ -51,6 +51,13 @@ export declare function imageToDevicePoint(imageX: number, imageY: number, image
 };
 export declare function saveScreenshot(screenshot: Screenshot, path: string): Promise<void>;
 /**
+ * Writes the `<png>.annotated.svg` overlay next to a saved screenshot and
+ * returns its path. The SVG references the PNG by file name, so both must stay
+ * in the same directory. Shared by the CLI `shot --annotate` and the MCP
+ * `screenshot annotate` flows so the file name and SVG content cannot diverge.
+ */
+export declare function writeAnnotatedSvgFromCapture(shot: Screenshot, roots: UiNode[], treeSource: string, pngPath: string, title?: string): Promise<string>;
+/**
  * Downscales a PNG screenshot with a box filter (area average). This keeps the
  * payload small for MCP/agent consumers while remaining readable.
  */

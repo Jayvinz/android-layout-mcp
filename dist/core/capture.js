@@ -1,7 +1,8 @@
 import { captureComposeTree } from "./compose.js";
 import { AuiError, errorMessage } from "./errors.js";
 import { JdwpClient } from "./jdwp.js";
-import { allFragments, mergeSemanticsText, notableFragments, parseDumpsys } from "./dumpsys.js";
+import { mergeSemanticsText, parseDumpsys } from "./dumpsys.js";
+import { fragmentsFromDump } from "./fragments.js";
 import { parseSemanticsXml } from "./semantics.js";
 import { flattenNodes, parseViewHierarchy } from "./viewdump.js";
 const STRUCTURAL_CONTAINER_CLASSES = new Set([
@@ -334,16 +335,7 @@ async function captureDumpsys(adb, packageName, target, screen, options) {
     if (parsed.roots.length === 0) {
         throw new AuiError("DUMPSYS_FAILED", "dumpsys reported no view hierarchy for this app.", "Some system apps hide their hierarchy; try source=semantics.");
     }
-    const fragments = notableFragments(allFragments(parsed)).map((fragment) => ({
-        className: fragment.className,
-        shortClassName: fragment.shortClassName,
-        tag: fragment.tag,
-        state: fragment.state,
-        added: fragment.added,
-        hidden: fragment.hidden,
-        detached: fragment.detached,
-        activity: fragment.activity,
-    }));
+    const fragments = fragmentsFromDump(parsed).fragments;
     return {
         activity: parsed.activity,
         roots: parsed.roots,

@@ -55,12 +55,12 @@ Run the full rule set unless the user names specific rules.
 |---|---|---|
 | `small_touch_target` | clickable area below 48dp | warning |
 | `overlap` | sibling clickables whose bounds intersect | warning |
-| `clipped` | child cut off by an ancestor or the screen | warning |
+| `clipped` | child cut off by an ancestor or the screen | info |
 | `outside_parent` | node outside a non-scrollable parent | warning |
-| `offscreen` | visible node entirely off-screen | info |
-| `invisible_clickable` | clickable but not visible | error |
+| `offscreen` | visible node entirely off-screen | warning |
+| `invisible_clickable` | clickable but not visible | warning |
 | `zero_size` | visible-flagged node with zero size | warning |
-| `unlabeled_clickable` | clickable with no text/desc/id | warning |
+| `unlabeled_clickable` | clickable with no text/desc/id | info |
 | `duplicate_id` | the same resource id on several nodes | warning |
 | `deep_nesting` | depth beyond the threshold | info |
 | `overdraw` | nested opaque backgrounds over the same area | info |

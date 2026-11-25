@@ -17,10 +17,9 @@ npx tsx src/cli.ts dump             # run the CLI from source without building
 
 Test fixtures live in `test/fixtures/`: API 33 `ViewDebug.dumpv2` binaries (one Compose app, one traditional XML View app), uiautomator XML, a screenshot, and the Compose JVMTI helper's tree output JSON.
 
-## Activation, viewer, and gate tests
+## Activation and gate tests
 
-- `test/skills.test.ts` guards the four skill descriptions (1024-character limit, Chinese triggers, Android gate, routing boundaries) and the command/agent copy.
-- `test/viewer.test.ts` covers the self-contained HTML viewer, payload caps, escaping, missing screenshots, and browser-launch opt-out.
+- `test/skills.test.ts` guards the five skill descriptions (1024-character limit, Chinese triggers, Android gate, routing boundaries) and the command copy.
 - `test/android-gate.test.ts` covers the `PreToolUse` Android-project hook.
 
 `evals/` contains mocked routing cases (no device): `trigger-*` for skill/tool selection, `scaffold-android-workspace-analyze` for a real Android workspace (`--scaffold`), and `manual-gate-*` for non-Android refusal. See [evals/README.md](../evals/README.md) for commands and costs. The eval harness does not load plugin hooks; restart Claude Code after changing `hooks/`.

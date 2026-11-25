@@ -1,12 +1,16 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   downscalePng,
   imageToDevicePoint,
   pngSize,
   renderAnnotatedSvg,
   screenshotMetadata,
+  writeAnnotatedSvgFromCapture,
 } from "../src/core/screenshot.js";
 import type { UiNode } from "../src/core/model.js";
 
@@ -95,4 +99,62 @@ test("reports how to map image coordinates back to device coordinates", () => {
   assert.equal(metadata.coordinateMapping.imageToDevice.y, 1.5);
   assert.deepEqual(imageToDevicePoint(360, 800, 720, 1600, 1080, 2400), { x: 540, y: 1200 });
   assert.deepEqual(imageToDevicePoint(100, 200, 1080, 2400, 1080, 2400), { x: 100, y: 200 });
+});
+
+test("writes <png>.annotated.svg next to the screenshot with the same content as renderAnnotatedSvg", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "aui-svg-"));
+  try {
+    const pngPath = join(dir, "shot.png");
+    await writeFile(pngPath, original);
+    const shot = {
+      buffer: original,
+      width,
+      height,
+      originalWidth: width,
+      originalHeight: height,
+      scale: 1,
+    };
+    const node: UiNode = {
+      id: "0",
+      ref: "v0",
+      source: "view",
+      index: 0,
+      depth: 0,
+      className: "android.widget.Button",
+      shortClassName: "Button",
+      packageName: "p",
+      resourceId: null,
+      text: "OK",
+      contentDescription: null,
+      bounds: { left: 10, top: 20, right: 110, bottom: 70, width: 100, height: 50 },
+      visibleBounds: { left: 10, top: 20, right: 110, bottom: 70, width: 100, height: 50 },
+      center: { x: 60, y: 45 },
+      visible: true,
+      enabled: true,
+      clickable: true,
+      longClickable: false,
+      focusable: false,
+      focused: false,
+      scrollable: false,
+      checkable: false,
+      checked: false,
+      selected: false,
+      password: false,
+      children: [],
+    };
+    const svgPath = await writeAnnotatedSvgFromCapture(shot, [node], "view", pngPath);
+    assert.equal(svgPath, join(dir, "shot.annotated.svg"));
+    const written = await readFile(svgPath, "utf8");
+    const expected = renderAnnotatedSvg([node], {
+      pngFileName: "shot.png",
+      width,
+      height,
+      uiScale: 1,
+      title: `view ${width}x${height}`,
+    });
+    assert.equal(written, expected);
+    assert.match(written, /<image href="shot.png"/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

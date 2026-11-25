@@ -167,6 +167,8 @@ export interface FragmentSummary {
   added: boolean;
   hidden: boolean;
   detached: boolean;
+  /** Container view id as printed; usually `#0`, so it does not identify a subtree. */
+  containerId: number | null;
   activity: string | null;
 }
 

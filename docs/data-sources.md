@@ -50,7 +50,7 @@ The classification comes from a heuristic over the ViewDebug tree (`classifyUi`)
 - Automatic cross-page switching: XML pages go to view, Compose pages to semantics — no configuration needed.
 - Mixed pages: `dump` prints both view + semantics trees; `find`/`hit` search both trees under auto.
 - `--source both` explicitly captures view + semantics; `--source compose` uses the JVMTI Compose tree alone.
-- `hit` / MCP `hit_test` query view and semantics together by default.
+- `hit` / MCP `hit_test` query view and semantics together by default; an explicit `--source`/`source` (`view`, `semantics`, `dumpsys`, `compose`) queries only that tree.
 - `auto` degrades instead of failing: when one tree cannot be captured (for example a non-debuggable app, or a package that is not running), it is skipped with a warning and the other tree is used. Warnings appear in the JSON `warnings` array and in the text tree. An explicit `--source view` fails instead.
 
 ## Measured results (Android 13 / API 33 real device)
@@ -197,7 +197,7 @@ On mixed screens `auto` captures and shows both view + semantics and makes `find
 
 ## Limitations
 
-- `view` requires `android:debuggable=true`; release/non-debuggable builds can only use `semantics`.
+- `view` requires `android:debuggable=true`; release/non-debuggable builds can use `semantics` or `dumpsys` (structure and ids, no text).
 - JDWP usually allows one debugger at a time; attach may fail while Android Studio is debugging.
 - `compose` additionally requires a local Android Studio, Java 17+, the app in the foreground, and a matching Compose inspector jar; each capture takes about 8–12s and leaves a resident transport daemon on the device (`android-layout compose-clean` cleans it up).
 - Without Android Studio, Compose is still available via `semantics` (zero dependencies; text/click semantics work).

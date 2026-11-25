@@ -80,18 +80,20 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | Command | Description |
 |---|---|
 | `android-layout devices` | List devices, models, Android/SDK versions; `--json` |
-| `android-layout state` | Device, screen, foreground app, pid, ViewRootImpl windows; `--json` |
-| `android-layout windows` | List JDWP windows only (popups/dialogs included); `--package`, `--pid`, `--json` |
-| `android-layout dump` | Capture UI: `--source auto/view/semantics/compose/both`, `--depth`, `--max-nodes` (text, default 2000), `--visible-only`, `--props`, `--package`, `--pid`, `--window` (view source), `--json`, `--out` |
-| `android-layout find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both`, `--source`, `--limit` (default 50), `--json` |
-| `android-layout hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first; `--source`, `--index` (default 0), `--json` |
-| `android-layout inspect <ref>` | Full JSON of a single node (including View properties); `--source`, `--json` |
-| `android-layout analyze` | Layout/accessibility checks; `--rules`, `--min-touch-dp` (48), `--max-depth` (14), `--paths`, `--json` |
-| `android-layout shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg`; `--json`, `--json --base64` |
+| `android-layout state` | Device, screen, foreground app, pid, ViewRootImpl windows; `--package` targets a specific app, `--json` |
+| `android-layout windows` | List JDWP windows only (popups/dialogs included); `--package`, `--pid`, `--json`. Kept on purpose: `--pid` targets any process, not just the foreground app, so it is not a duplicate of `state` |
+| `android-layout dump` | Capture UI: `--source auto/view/semantics/dumpsys/compose/both`, `--depth`, `--max-nodes` (text, default 2000), `--visible-only`, `--props`, `--package`, `--pid`, `--window` (view source), `--json`, `--out` |
+| `android-layout find <query>` | `--by any/text/desc/id/class/ref`, `--match contains/exact/regex`, `--clickable`, `--both`, `--source auto/view/semantics/dumpsys/compose/both`, `--limit` (default 50), `--json` |
+| `android-layout hit <x> <y>` | Hit test; returns all candidates at the coordinate, smallest visible area first; `--source auto/view/semantics/dumpsys/compose/both`, `--index` (default 0), `--json` |
+| `android-layout inspect <ref>` | Full JSON of a single node (including View properties); `--source auto/view/semantics/dumpsys/compose/both`, `--json` |
+| `android-layout analyze` | Layout/accessibility checks; `--source auto/view/semantics/dumpsys/compose/both`, `--rules`, `--min-touch-dp` (48), `--max-depth` (14), `--no-props`, `--paths`, `--json` |
+| `android-layout shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg` from `--source auto/view/semantics/dumpsys/compose/both`; `--json`, `--json --base64` |
 | `android-layout fragments` | Activity/Fragment structure from `dumpsys`; `--package`, `--json`, `--all` (keep AndroidX bookkeeping fragments) |
 | `android-layout studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
 | `android-layout mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
 | `android-layout compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
+
+Every command that reads a tree takes the same `--source` values (`auto`, `view`, `semantics`, `dumpsys`, `compose`, `both`); `auto` is the default everywhere.
 
 Global options: `-s, --serial`, `--adb <path>`, `--timeout <ms>`, `-v, --verbose`.
 Compose JVMTI options: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
@@ -102,10 +104,10 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 - **Text tree vs JSON**: `--depth`, `--max-nodes` (default 2000) and `--visible-only` shape only the human-readable tree; when it is cut, the last line says how many nodes were shown. `--json` / `--out` write the complete dump (`version: 1`, no trimming), so an agent should trim on its side or use MCP `dump_ui` with `depth`/`maxNodes`.
 - **Search**: `find` and `hit` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
 - **Screenshots**: CLI `shot` keeps the native resolution unless `--max-width`/`--scale` is given; `--base64` adds data only together with `--json`. MCP `screenshot` defaults to 720px wide.
-- **Diff**: compares one tree per run and keys nodes by identity, not pixels. `--tolerance` (default 1 px) ignores smaller bound changes; `--source` forces the tree when the two dumps disagree on the primary source.
+- **Before/after**: there is no `diff` subcommand. Save a dump before and after a change (`dump --json --out .aui/before.json`, then `.aui/after.json`) and compare the two files yourself; refs are per capture, so match on source, resource id, class, text, and path. Then run `analyze` on the new capture.
 - **Analyze**: `deep_nesting` is skipped for the `compose` source, unknown rule names are ignored, and `small_touch_target` skips bottom-clipped accessibility nodes on ROMs that under-report the window (e.g. MIUI).
+- **Analyze reads one tree**: the one that matches the screen — View for an XML screen, semantics for a Compose screen, dumpsys for `--source dumpsys`, Compose for `--source compose`. A `mixed` screen is the exception: View and Compose regions are disjoint, so both trees are scanned. This keeps a defect from being reported once per captured tree — a `--source dumpsys` capture always carries a semantics tree too, merged in only to supply text. `overdraw` and `rtl_issues` always read the View tree when it was captured, because only it carries the raw property map.
 - **Fallbacks**: with `auto`, a tree that fails to capture is skipped with a warning and the other tree is used; when the target package is not running, view capture is skipped. Warnings surface in the text tree, in JSON (`warnings`), and on stderr for `analyze`. `--window` takes a 0-based index or a name substring and applies to the view source only.
-- **Input and keys**: `input` is ASCII-only (spaces are sent as `%s`); `key` is forwarded to `adb shell input keyevent` unchanged, so use `KEYCODE_*` names or numeric codes — anything else fails on the device.
 - **`mcp --register-view-attributes`**: writes the global `debug_view_attributes 1` setting (which restarts the app) before starting the server; it enriches ViewDebug properties but is not required for normal use.
 
 ## Analysis rules

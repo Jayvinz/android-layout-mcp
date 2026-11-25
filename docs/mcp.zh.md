@@ -91,7 +91,7 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 ### 在其他 agent 中使用技能
 
-四个技能在 Claude Code 之外也能跑：frontmatter 只用了 `name` 与 `description`（Agent Skills 标准的可移植子集），
+五个技能在 Claude Code 之外也能跑：frontmatter 只用了 `name` 与 `description`（Agent Skills 标准的可移植子集），
 正文里的 CLI 兜底路径用 `AUI_ROOT` 而不是 `${CLAUDE_PLUGIN_ROOT}`。Cursor 与 VS Code 会直接读
 `.claude/skills/`；Codex CLI、Gemini CLI、Cline、Goose 读 `.agents/skills/`；CodeBuddy 读
 `.codebuddy/skills/`；WorkBuddy 读 `.workbuddy/skills/`：
@@ -107,7 +107,7 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 ```
 
 在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-layout` 放进 `PATH`），CLI 兜底才能生效。
-斜杠命令（`/capture`、`/locate` 等）是 Claude Code 专属；其他客户端通过技能与
+斜杠命令（`/capture`、`/trace-view` 等）是 Claude Code 专属；其他客户端通过技能与
 工具描述走同样的流程。`PreToolUse` 门禁 hook 同样是 Claude Code 专属，其他环境里 Android 工程门禁
 只是技能正文中的软约束。
 
@@ -117,29 +117,33 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 |---|---|
 | `list_devices` | 设备列表 |
 | `get_state` | 屏幕、前台 App、pid、窗口 |
-| `dump_ui` | 抓 UI；`source=auto/view/semantics/compose/both`、`format=json/tree`、`depth`、`maxNodes`、`savePath` |
+| `dump_ui` | 抓 UI；`source=auto/view/semantics/dumpsys/compose/both`、`format=json/tree`、`depth`、`maxNodes`、`includeProperties`、`visibleOnly`、`window`、`savePath`。JSON 按抓到的树各给一个键（`view`、`semantics`、`dumpsys`、`compose`）；`source=dumpsys` 时额外返回 `dumpsys` 对象，含 `activity`、`captureMs`、`labelledNodes`、`fragments`、`roots` |
 | `find_elements` | 按文本/描述/id/类/ref 搜索；返回 bounds、中心点、clickable、完整路径 |
 | `locate_code` | 根据 UI 锚点（text/desc/id/Compose file+line/class）扫描 Android 仓库，返回字符串/布局/Compose 定义和排序后的 `file:line` 候选 |
-| `hit_test` | 坐标命中；默认同时返回 view 与 semantics；`source=compose` 可查 Compose 树 |
-| `analyze_ui` | 布局/无障碍问题检查（规则见 [cli.zh.md](cli.zh.md#分析规则)） |
+| `hit_test` | 坐标命中；默认（`source=auto`）同时查 view 与 semantics；显式指定 `source`（`view`、`semantics`、`dumpsys` 或 `compose`）时只命中该棵树 |
+| `analyze_ui` | 布局/无障碍问题检查，覆盖全部 12 条规则（见 [cli.zh.md](cli.zh.md#分析规则)）；默认抓取原始 View 属性，`overdraw` 与 `rtl_issues` 才能生效；只扫描 `source` 选中的那棵树（`mixed` 页面两棵都扫），同一缺陷不会按树重复报
 | `screenshot` | 返回 PNG image content；默认降采样到 720px 宽（`fullResolution=true` 关闭），可保存并生成 SVG 叠加层 |
 | `list_fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；不可调试 App 同样可用。默认过滤 AndroidX 记账型 Fragment，`includeFramework` 可保留 |
 
-**Android 工程门槛。** `get_state`、`dump_ui`、`find_elements`、`locate_code` 面向 Android 工程：
+**Android 工程门槛。** 全部 9 个工具都会接触设备，门槛完全一致：`list_devices`、`get_state`、`dump_ui`、
+`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`list_fragments`、`screenshot`。它们面向 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
-`AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才调用；
-`locate_code` 还要求明确提到 Android 或设备。连接了设备并不代表仓库是 Android 工程。
+`AndroidManifest.xml`。在非 Android 仓库中，所有接触设备的工具都会被拒绝，只有用户明确要求查看设备页面/界面
+或明确提到 Android 时才放行；`locate_code` 更严格，需要 Android 工程或明确提到 Android，因为仅有设备线索
+不足以支撑源码扫描。连接了设备并不代表仓库是 Android 工程。9 个工具的描述里都重复了这一行规则：
+“Android repos only; non-Android: call only on an explicit device/screen request or Android mention.”
+`PreToolUse` hook 执行的是同一套 9 个工具的门槛，因此 hook 与工具描述不会走偏。
 
 ## 限制与默认值
 
 | 工具 | 默认值 | 上限与行为 |
 |---|---|---|
-| `dump_ui` | JSON；JSON `maxNodes=800`，tree `maxNodes=1500` | `depth` 0–100；`maxNodes` 1–5000；`includeProperties` 嵌入全部 ViewDebug 属性；`savePath` 写入未裁剪的完整 dump；`visibleOnly` 只影响 `format=tree`；`window` 指定 ViewRootImpl（仅 view 源） |
+| `dump_ui` | JSON；JSON `maxNodes=800`，tree `maxNodes=1500` | `depth` 0–100；`maxNodes` 1–5000；`includeProperties` 嵌入全部 ViewDebug 属性；`savePath` 写入未裁剪的完整 dump；`visibleOnly` 只影响 `format=tree`；`window` 指定 ViewRootImpl（仅 view 源）。JSON 的 `hint` 会给出本次数据源的 ref 前缀：view `v*`、semantics `s*`、compose `c*`、dumpsys `d*` |
 | `find_elements` | `limit=30`，仅可见节点，主树 | `limit` 1–200；`includeInvisible` 可包含隐藏 View；`both=true` 同时搜索 view + semantics；`match=contains/exact/regex`，也支持 `/模式/标志` 正则 |
 | `locate_code` | `limit=25` 条候选 | `limit` 1–200；`exclude` / `includeTests` 控制扫描范围；全程只读 |
-| `analyze_ui` | 全部 10 条规则、48dp、深度 14 | `minTouchTargetDp` 1–200；`maxDepth` 1–100；`compose` 数据源不评估 `deep_nesting` |
+| `analyze_ui` | 全部 12 条规则、48dp、深度 14、`includeProperties=true` | `minTouchTargetDp` 1–200；`maxDepth` 1–100；`compose` 数据源不评估 `deep_nesting`；`includeProperties=false` 跳过原始 View 抓取，`overdraw`/`rtl_issues` 会列在 `skipped` 中 |
 | `screenshot` | 720px 宽 | `maxWidth` 1–4000；`scale` 0.05–1；`fullResolution=true` 绕过 720 默认值；`annotate` 只在同时给了 `savePath` 时才写出 SVG |
-| `hit_test` | 候选 0，仅可见节点 | `index` 用于在同一坐标的多个重叠候选中选择 |
+| `hit_test` | 候选 0，仅可见节点，`source=auto`（view + semantics） | `index` 用于在同一坐标的多个重叠候选中选择；显式指定 `source` 时只查那一棵树 |
 
 抓取失败时，工具会返回错误文本和一张兜底截图（image content）。
 

@@ -1,19 +1,18 @@
 #!/usr/bin/env node
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeFile } from "node:fs/promises";
 import { Command, Option } from "commander";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
 import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js";
 import { AuiError, errorMessage } from "./core/errors.js";
-import { JdwpClient } from "./core/jdwp.js";
-import { allFragments, notableFragments, parseDumpsys } from "./core/dumpsys.js";
+import { readFragments } from "./core/fragments.js";
 import { MCP_CLIENT_IDS, mcpClientConfig, isMcpClient } from "./core/mcp-config.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderIssues, renderSource } from "./core/render.js";
-import { renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
+import { saveScreenshot, screenshotMetadata, takeScreenshot, writeAnnotatedSvgFromCapture, } from "./core/screenshot.js";
+import { captureState, readWindows } from "./core/state.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
 import { saveDump, serializeDump } from "./core/serialize.js";
 import { PACKAGE_VERSION } from "./core/version.js";
@@ -59,30 +58,18 @@ program
 program
     .command("state")
     .description("show device, screen, foreground app, and windows")
+    .option("--package <package>", "package name (defaults to foreground app)")
+    .option("--pid <pid>", "process id to probe for windows")
     .option("--json", "output JSON")
     .action(async (options, command) => {
     const adb = makeAdb(command);
-    const device = await adb.resolveDevice();
-    const [screen, foreground] = await Promise.all([adb.screenInfo(), adb.foregroundApp()]);
-    const pids = foreground.packageName ? await adb.packagePids(foreground.packageName) : [];
-    let windows = [];
-    if (pids[0]) {
-        try {
-            const client = await JdwpClient.open(adb, pids[0], { requestTimeoutMs: 5000 });
-            try {
-                windows = await client.listWindows();
-            }
-            finally {
-                await client.close();
-            }
-        }
-        catch (error) {
-            windows = { error: errorMessage(error) };
-        }
-    }
-    const result = { device, screen, foreground, pids, windows };
+    const state = await captureState(adb, {
+        packageName: options.package,
+        pid: options.pid ? parsePositiveInt(options.pid) : undefined,
+    });
+    const { device, screen, foreground, pids, windows } = state;
     if (options.json) {
-        printJson(result);
+        printJson({ device, screen, foreground, package: state.package, pids, windows });
         return;
     }
     console.log(`device: ${device.serial} (${device.model ?? "?"}) android ${device.androidRelease ?? "?"} sdk ${device.sdk ?? "?"}`);
@@ -142,19 +129,26 @@ program
     const target = await resolvePackage(adb, options.package, options.pid);
     if (target.pid === null)
         throw new AuiError("NO_PID", `No running process for ${target.packageName}.`);
-    const client = await JdwpClient.open(adb, target.pid, { requestTimeoutMs: 10_000 });
-    try {
-        const windows = await client.listWindows();
-        if (options.json) {
-            printJson({ package: target.packageName, pid: target.pid, windows });
-            return;
-        }
-        for (const window of windows)
-            console.log(`${window.index}: ${window.name}`);
+    // `windows` only needs the pid, so it skips the screen/foreground probes of
+    // `state`. Rethrowing the original AuiError keeps its code and hint (a
+    // JDWP timeout must not be flattened into JDWP_FAILED).
+    const result = await readWindows(adb, {
+        packageName: target.packageName ?? undefined,
+        pid: target.pid,
+        requestTimeoutMs: 10_000,
+    });
+    const windows = result.windows;
+    if (!Array.isArray(windows)) {
+        if (result.error instanceof AuiError)
+            throw result.error;
+        throw new AuiError("JDWP_FAILED", windows.error);
     }
-    finally {
-        await client.close();
+    if (options.json) {
+        printJson({ package: target.packageName, pid: target.pid, windows });
+        return;
     }
+    for (const window of windows)
+        console.log(`${window.index}: ${window.name}`);
 });
 program
     .command("fragments")
@@ -164,30 +158,14 @@ program
     .option("--all", "include AndroidX lifecycle bookkeeping fragments")
     .action(async (options, command) => {
     const adb = makeAdb(command);
-    const pkg = options.package ?? (await adb.foregroundApp()).packageName;
-    if (!pkg)
-        throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.");
-    const output = await adb.shell(`dumpsys activity ${pkg}`, { timeoutMs: 30_000 });
-    const parsed = parseDumpsys(output, { packageName: pkg });
-    const picked = options.all ? allFragments(parsed) : notableFragments(allFragments(parsed));
+    const structure = await readFragments(adb, {
+        packageName: options.package,
+        includeFramework: options.all,
+        timeoutMs: 30_000,
+    });
+    const picked = structure.fragments;
     if (options.json) {
-        printJson({
-            package: pkg,
-            activities: parsed.activities.map((activity) => ({
-                activity: activity.activity,
-                pid: activity.pid,
-                fragments: (options.all
-                    ? activity.fragments
-                    : notableFragments(activity.fragments)).map((fragment) => ({
-                    className: fragment.className,
-                    tag: fragment.tag,
-                    state: fragment.state,
-                    added: fragment.added,
-                    hidden: fragment.hidden,
-                    detached: fragment.detached,
-                })),
-            })),
-        });
+        printJson({ package: structure.package, activities: structure.activities });
         return;
     }
     if (picked.length === 0) {
@@ -405,17 +383,8 @@ program
     let annotated = null;
     if (options.annotate) {
         const result = await captureFor(command, options);
-        const trees = treesFor(result, parseSource(options.source), false);
-        const [treeSource, roots] = trees[0];
-        const svgPath = options.out.replace(/\.png$/i, "") + ".annotated.svg";
-        annotated = svgPath;
-        await writeFile(svgPath, renderAnnotatedSvg(roots, {
-            pngFileName: basename(options.out),
-            width: screenshot.width,
-            height: screenshot.height,
-            uiScale: screenshot.scale,
-            title: `${treeSource} ${screenshot.width}x${screenshot.height}`,
-        }));
+        const [treeSource, roots] = treesFor(result, parseSource(options.source), false)[0];
+        annotated = await writeAnnotatedSvgFromCapture(screenshot, roots, treeSource, options.out);
     }
     const metadata = screenshotMetadata(screenshot);
     if (options.json) {
@@ -584,8 +553,9 @@ function parseSource(value) {
     throw new AuiError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, dumpsys, compose, or both).`);
 }
 async function resolvePackage(adb, packageOption, pidOption) {
-    const foreground = await adb.foregroundApp();
-    const packageName = packageOption || foreground.packageName;
+    // Only probe the foreground app when the package is not given: `windows
+    // --package pkg --pid 1234` must not spend a round trip it does not need.
+    const packageName = packageOption || (await adb.foregroundApp()).packageName;
     if (!packageName)
         throw new AuiError("BAD_INPUT", "No package specified and no foreground app detected.");
     const pid = pidOption ? parsePositiveInt(pidOption) : (await adb.packagePids(packageName))[0] ?? null;
@@ -607,13 +577,6 @@ function printJson(value) {
 }
 function asString(value) {
     return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-function parseImageCoordinate(value, name) {
-    const parsed = typeof value === "number" ? value : Number.parseFloat(value);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-        throw new AuiError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
-    }
-    return parsed;
 }
 function parseCoordinate(value, name) {
     const parsed = typeof value === "number" ? value : Number.parseInt(value, 10);

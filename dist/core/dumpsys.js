@@ -116,7 +116,7 @@ function parseActivities(lines, packageName, screen) {
             }
         }
         if (mode === "hierarchy") {
-            const view = parseViewLine(text, current.packageName, screen);
+            const view = parseViewLine(text, screen);
             if (!view) {
                 // The hierarchy block ends at the first non-view line.
                 if (stack.length > 0 || current.roots.length > 0)
@@ -199,7 +199,7 @@ function parseActivities(lines, packageName, screen) {
  *
  * The root `DecorView@hash[title]` form has no bounds; it inherits the screen.
  */
-function parseViewLine(text, packageName, screen) {
+function parseViewLine(text, screen) {
     const decor = /^([A-Za-z0-9_.$]+)@([0-9a-f]+)\[(.*)\]$/.exec(text);
     if (decor) {
         // The DecorView line has no bounds of its own; the window fills the screen.
@@ -309,10 +309,6 @@ function viewNode(view, depth) {
         parent: null,
     };
     return node;
-}
-/** Flattened node count for progress/log messages. */
-export function countDumpsysNodes(result) {
-    return flattenNodes(result.roots).length;
 }
 /**
  * Fills `text`/`contentDescription` on dumpsys nodes by matching geometry

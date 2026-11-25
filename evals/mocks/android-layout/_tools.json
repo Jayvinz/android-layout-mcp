@@ -3,7 +3,7 @@
     {
       "name": "list_devices",
       "title": "List Android devices",
-      "description": "List connected Android devices with model, Android version, and SDK level. Use the serial in other tools when multiple devices are connected.",
+      "description": "List connected Android devices with model, Android version, and SDK level. Use the serial in other tools when multiple devices are connected. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -282,7 +282,7 @@
     {
       "name": "hit_test",
       "title": "Hit-test a screen point",
-      "description": "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index.",
+      "description": "Return the element(s) at a screen coordinate. Matching mirrors LayoutInspectorV2-Pro: all nodes containing the point are sorted by smallest area, with deeper/later-drawn nodes winning ties. By default both the view and semantics trees are queried, so you get the View class and the Compose/accessibility node for the same point. Set source=compose to hit-test the JVMTI Compose tree instead. Use index to cycle through overlapping candidates. Use for \"屏幕坐标 300,800 是什么\" and \"what is at x,y\"; returns all overlapping candidates by index. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -337,7 +337,7 @@
     {
       "name": "analyze_ui",
       "title": "Analyze layout issues",
-      "description": "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\".",
+      "description": "Run layout/accessibility checks over the current UI: tiny touch targets (<48dp by default), overlapping sibling clickables, clipped or offscreen nodes, invisible clickables, unlabeled clickables, duplicate resource ids, deep nesting, and nodes extending outside their parent. Use this after making a UI change to catch regressions. Also answers \"有没有小点击区域\", \"有没有重叠\", \"无障碍检查\", \"布局有没有问题\", and \"有没有错位/被裁剪\". Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -368,7 +368,9 @@
                 "deep_nesting",
                 "overlap",
                 "clipped",
-                "outside_parent"
+                "outside_parent",
+                "overdraw",
+                "rtl_issues"
               ]
             }
           },
@@ -383,6 +385,10 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 100
+          },
+          "includeProperties": {
+            "description": "Capture raw View properties (default true); overdraw and rtl_issues need them. Pass false for a faster, smaller capture.",
+            "type": "boolean"
           },
           "serial": {
             "type": "string"
@@ -432,7 +438,7 @@
     {
       "name": "screenshot",
       "title": "Take a screenshot",
-      "description": "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before reporting a position. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels.",
+      "description": "Capture the device screen as a PNG and return it as image content. This is also the final fallback when structured UI capture fails. By default the image is downscaled to 720px wide to keep responses small; pass fullResolution=true for the native resolution, or maxWidth/scale for a custom size. The text metadata always includes originalWidth/originalHeight, screenWidth/screenHeight, and coordinateMapping.imageToDevice so you can map vision coordinates back to device coordinates before reporting a position. Optionally save the PNG and generate an SVG overlay with node boxes (annotatedPath). Use for \"截个图看看\" and \"看一下画面\". A screenshot cannot reliably reveal text color or font size; do not infer style from pixels. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",

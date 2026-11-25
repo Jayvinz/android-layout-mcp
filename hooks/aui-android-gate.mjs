@@ -3,9 +3,12 @@
  * PreToolUse gate for the android-layout MCP tools.
  *
  * The plugin's activation paths target Android projects. This hook is a hard
- * backstop for the skill prose: when the workspace is not an Android project,
- * device/source tools are denied unless the user's latest message explicitly
- * asks about a connected device screen/page or mentions Android.
+ * backstop for the skill prose: it covers all nine device-touching tools
+ * (list_devices, get_state, dump_ui, find_elements, locate_code, hit_test,
+ * analyze_ui, list_fragments, screenshot). When the workspace is not an Android
+ * project they are denied unless the user's latest message explicitly asks
+ * about a connected device screen/page or mentions Android; locate_code
+ * additionally requires an explicit Android mention.
  *
  * Fail-open on internal errors so a broken hook never blocks legitimate work.
  */
@@ -13,7 +16,8 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-const GATED_TOOLS = /(?:^|__)(get_state|dump_ui|find_elements|locate_code|open_viewer)$/;
+const GATED_TOOLS =
+  /(?:^|__)(list_devices|get_state|dump_ui|find_elements|locate_code|hit_test|analyze_ui|list_fragments|screenshot)$/;
 
 function debug(value) {
   if (process.env.AUI_GATE_DEBUG !== "1") return;
@@ -164,13 +168,14 @@ function main() {
   const explicitAndroid = /(android|安卓)/i.test(prompt);
   const explicitDevice = /(设备|真机|手机|device|emulator)/i.test(prompt);
   const explicitDeviceOrAndroid = explicitAndroid || explicitDevice;
-  const isSourceTool = /__locate_code$/.test(toolName);
+  const isSourceTool = /(?:^|__)locate_code$/.test(toolName);
   debug({ prompt: prompt.slice(0, 160), explicitAndroid, explicitDevice, isSourceTool });
 
   if (!explicitDeviceOrAndroid) {
     deny(
-      "This workspace is not an Android project. Do not call " +
-        "get_state/dump_ui/find_elements/locate_code unless the user explicitly asks " +
+      "This workspace is not an Android project. Do not call any device tool " +
+        "(list_devices, get_state, dump_ui, find_elements, hit_test, analyze_ui, " +
+        "list_fragments, screenshot, locate_code) unless the user explicitly asks " +
         'about the device screen/page or mentions Android. Reply in one sentence that ' +
         "this plugin targets Android projects, then offer to inspect the device if they " +
         "ask, or ask for the Android module path.",

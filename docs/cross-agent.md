@@ -4,14 +4,13 @@ This document records how [Android Layout MCP](https://github.com/Jayvinz/androi
 
 ## What travels and what does not
 
-The plugin is four layers. Only the top two cross agent boundaries.
+The plugin is three layers. Only the top two cross agent boundaries.
 
 | Layer | Contents | Portability |
 |---|---|---|
 | MCP server | `dist/mcp.js`, stdio, 9 tools | Every MCP client |
-| Skills | Four `SKILL.md` files, `name` + `description` frontmatter only | Clients that read Agent Skills directories |
-| Slash commands | Five `commands/*.md`, `$ARGUMENTS` syntax | Claude Code only |
-| Subagent | `agents/capture-ui.md`, `model: inherit` / `color` | Claude Code only |
+| Skills | Five `SKILL.md` files, `name` + `description` frontmatter only | Clients that read Agent Skills directories |
+| Slash commands | Six `commands/*.md`, `$ARGUMENTS` syntax | Claude Code only |
 | Gate + distribution | `hooks/hooks.json` `PreToolUse`, `plugin.json`, marketplace | Claude Code only |
 
 Two properties make the skills portable: their frontmatter contains only `name` and `description`, and their CLI fallback uses `$AUI_ROOT/dist/cli.js` instead of `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`. In Claude Code `AUI_ROOT` is `${CLAUDE_PLUGIN_ROOT}`; elsewhere it is your plugin checkout, or you can put `android-layout` on `PATH`. Skills never hard-code a Claude-only path in an executable command; `test/agent-portability.test.ts` enforces this.
@@ -108,6 +107,6 @@ Run them all with `npm test`. A new client id, a renamed skill directory, or a d
 ## Known limits
 
 - Config formats move. The table reflects November 2026; re-check a client before telling users its path is correct.
-- The skills are portable, but slash commands, the subagent, and the `PreToolUse` hook are not. Do not add agent-specific frontmatter fields to `SKILL.md`, or the sync script will ship a field another client rejects.
+- The skills are portable, but slash commands and the `PreToolUse` hook are not. Do not add agent-specific frontmatter fields to `SKILL.md`, or the sync script will ship a field another client rejects.
 - Only four clients have runtime verification. The other 16 are documented from their own schema definitions.
 - All clients get the same 9 tools. Differences are in config shape, skill discovery, and approval flows, not in tool behaviour.
