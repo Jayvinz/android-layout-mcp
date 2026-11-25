@@ -1,12 +1,12 @@
 ---
 name: trace-view-wiring
 description: >-
-  Android-only. Use when the user asks how ONE control on screen is wired in the code: its implementing class, where its click handler is attached, what controls its visibility, and where its text, image, or background comes from. Triggers include "这个按钮在哪实现的", "这个控件的实现类", "点击处理挂在哪", "显隐逻辑在哪控制", "文案是怎么设进来的", "图片/背景在哪设置", "where is this button implemented", "where is this click handler attached", "what controls this view's visibility", "trace this control's wiring". Owns: one control's wiring — implementation, events, visibility, and content injection. Not: screen facts (capture-ui), property values (inspect-view-attribute), a block's data flow (trace-ui-to-logic), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
+  Android-only. Use when the user asks how ONE element on screen is wired in the code: its implementing class, where its click handler is attached, what controls its visibility, and where its text, image, or background comes from. Triggers include "这个按钮在哪实现的", "这个控件的实现类", "点击处理挂在哪", "显隐逻辑在哪控制", "文案是怎么设进来的", "图片/背景在哪设置", "where is this button implemented", "where is this click handler attached", "what controls this view's visibility", "trace this element's wiring". Owns: one element's wiring — implementation, events, visibility, and content injection. Not: screen facts (capture-ui), property values (inspect-view-attribute), a block's data flow (trace-ui-logic), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
 ---
 
-# Tracing One Control's Wiring
+# Tracing One Element's Wiring
 
-Take one control on the live screen and answer four wiring questions: **who implements it, what handles its clicks, what decides whether it is shown, and where its content comes from.**
+Take one element on the live screen and answer four wiring questions: **who implements it, what handles its clicks, what decides whether it is shown, and where its content comes from.**
 
 ## Scope
 
@@ -14,10 +14,10 @@ Take one control on the live screen and answer four wiring questions: **who impl
 |---|---|
 | What is on screen, bounds, coordinates | `capture-ui` |
 | Margin, padding, measured size, text size values | `inspect-view-attribute` |
-| A list or section: UI → ViewModel → data source | `trace-ui-to-logic` |
+| A list or section: UI → ViewModel → data source | `trace-ui-logic` |
 | Is there a layout defect here | `audit-ui` |
 
-This skill owns exactly one control. A whole section's business chain is `trace-ui-to-logic`, even when the user names a control inside it.
+This skill owns exactly one element. A whole section's business chain is `trace-ui-logic`, even when the user names an element inside it.
 
 ## Step 0 — Android project gate
 
@@ -44,7 +44,7 @@ Answer only the ones the user asked, but know what each one means, because they 
 | **Visibility** — what decides shown/hidden | the state read around `isVisible`, `visibility =`, `if (...) { }`, `AnimatedVisibility`, `alpha` | follow the condition to its state holder |
 | **Content** — where the text / image / background is set | `setText`, binding expression, `stringResource`, `text =`, `load(...)`, `setImageDrawable`, `background =` | `string-usage`, `string-usage-xml`, `literal-text`, `binding-usage` |
 
-A control usually needs two or three of these, not all four. Do not invent an answer for a question the code does not answer; say it was not found in 1–2 hops.
+An element usually needs two or three of these, not all four. Do not invent an answer for a question the code does not answer; say it was not found in 1–2 hops.
 
 ## Step 1 — Capture UI evidence
 
@@ -71,7 +71,7 @@ Notes:
 - Take screenshots only when visual information is genuinely needed. Text, ids, and Compose anchors are usually sufficient.
 - If Compose capture fails (non-debuggable app, Android Studio not installed, Compose version mismatch), do not retry repeatedly. Fall back to semantics plus string/id anchors and mark source confidence as medium or low in the conclusion. Do not claim the result came from the Compose tree.
 
-## Step 2 — Locate the target control
+## Step 2 — Locate the target element
 
 Search in this priority order:
 
@@ -99,9 +99,9 @@ When nothing is found:
 
 **Do not turn "not in this capture" into "not in the repository".** One frame is evidence about the screen, not about the codebase.
 
-- If the user names a control that is not in the captured tree (a closed dialog, another tab, a scrolled-off item), say it is not on the current screen, then ask the user to open it and re-capture, or search the source for the literal.
+- If the user names an element that is not in the captured tree (a closed dialog, another tab, a scrolled-off item), say it is not on the current screen, then ask the user to open it and re-capture, or search the source for the literal.
 - For Compose, search the quoted literal (`Text("Close")`, `contentDescription = "Close"`) instead of assuming attribute syntax such as `android:text` / `text =`; `locate_code` reports these as `literal-text` candidates.
-- If source hits exist while the control is absent on screen, report them as `not currently visible` and keep them separate from capture evidence. Never claim the repository lacks the control based on a single frame.
+- If source hits exist while the element is absent on screen, report them as `not currently visible` and keep them separate from capture evidence. Never claim the repository lacks the element based on a single frame.
 
 Extract and record anchors:
 
@@ -236,6 +236,6 @@ Use a compact evidence report; do not paste entire files. The template is in `re
 ## Additional resources
 
 - `references/anchor-resolution.md` — complete Compose/XML/string/navigation/ViewBinding mapping and edge cases.
-- `references/business-chain.md` — common structures and stopping conditions from a control event to ViewModel/UseCase/Repository.
+- `references/business-chain.md` — common structures and stopping conditions from an element event to ViewModel/UseCase/Repository.
 - `references/repo-search-recipes.md` — `rg` recipes for large repositories, exclusions, and candidate verification.
 - `references/output-template.md` — report template and examples.

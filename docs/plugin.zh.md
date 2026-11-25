@@ -32,7 +32,7 @@
 | Skill | `skills/capture-ui/` | 屏幕事实：结构、Activity、`uiKind`、可见入口、坐标，以及存下的 json/png/xml 产物 |
 | Skill | `skills/inspect-view-attribute/` | 单个控件的原始布局与样式值：内外边距、padding、实测尺寸、文字度量、背景、RTL |
 | Skill | `skills/trace-view-wiring/` | 单个控件 → 实现类、点击处理、显隐控制、文本/图片/背景注入 |
-| Skill | `skills/trace-ui-to-logic/` | 某一块区域的 UI → 状态持有者 → 数据源链路（只读） |
+| Skill | `skills/trace-ui-logic/` | 某一块区域的 UI → 状态持有者 → 数据源链路（只读） |
 | Skill | `skills/audit-ui/` | 12 条布局与无障碍规则给出的缺陷判决 |
 | Commands | `commands/capture.md`、`inspect-view.md`、`trace-view.md`、`trace-logic.md`、`ui2logic.md`、`audit.md` | `/android-layout:capture`、`:inspect-view`、`:trace-view`、`:trace-logic`（别名 `:ui2logic`）、`:audit` |
 | Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截全部 9 个接触设备的工具（`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`）；安装或更新插件后需重启 Claude Code |
@@ -115,7 +115,7 @@ claude --plugin-dir E:/repo/android-layout-mcp
 `locate_code`；只有用户明确追问源码时才进入上面的定位流程。
 
 整页/弹窗请求（“分析当前界面的代码和业务逻辑”“分析这个弹窗的数据从哪来”）会走
-`trace-ui-to-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）→ 判断页面/弹窗/底部弹层并列出区块
+`trace-ui-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）→ 判断页面/弹窗/底部弹层并列出区块
 （独立窗口时按窗口 dump）→ 确定 Activity/Fragment/Composable/route/弹窗类 → 区块映射到 `file:line`
 → 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
 

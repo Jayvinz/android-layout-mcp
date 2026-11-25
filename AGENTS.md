@@ -61,21 +61,21 @@ Two front ends, one core:
 src/cli.ts (commander) ─┐
                         ├── src/core/* ─── adb / device
 src/mcp.ts (MCP stdio) ─┘        ├── view  : JDWP + DDMS ViewDebug v2 (View properties)
-                                 ├── semantics : adb uiautomator XML (Compose text/controls)
+                                 ├── semantics : adb uiautomator XML (Compose text/elements)
                                  ├── dumpsys : dumpsys activity (View classes/ids on any app + Fragments)
                                  └── compose : Android Studio transport + JVMTI + helper JAR
 ```
 
 - `src/cli.ts` and `src/mcp.ts` are thin wrappers. Keep them in parity: a new inspection capability normally means a core function, a CLI subcommand, and an MCP tool. Both call the same `capture()` and `treesFor()` so behavior does not diverge.
-- **The five skills split on two axes: granularity (control / section / screen) and intent (facts / properties / source / defects).** Each cell has exactly one owner:
+- **The five skills split on two axes: granularity (element / section / screen) and intent (facts / properties / source / defects).** Each cell has exactly one owner:
 
 |  | Facts | Property values | Source code | Defects |
 |---|---|---|---|---|
-| **One control** | `capture-ui` (locate part) | `inspect-view-attribute` | `trace-view-wiring` | — |
-| **One section** | — | — | `trace-ui-to-logic` | — |
+| **One element** | `capture-ui` (locate part) | `inspect-view-attribute` | `trace-view-wiring` | — |
+| **One section** | — | — | `trace-ui-logic` | — |
 | **Whole screen** | `capture-ui` | — | — | `audit-ui` |
 
-  `capture-ui` owns screen facts (structure, entry points, coordinates) plus the capture artifacts; `inspect-view-attribute` owns one control's raw layout and style values; `trace-view-wiring` owns one control's implementation, click handler, visibility rule, and content injection; `trace-ui-to-logic` owns one section's UI→state→data chain; `audit-ui` owns defect judgments from the 12 rules. Every description states its `Owns:` and `Not:` clause, and no trigger phrase may be quoted by two skills — `test/skills.test.ts` enforces both.
+  `capture-ui` owns screen facts (structure, entry points, coordinates) plus the capture artifacts; `inspect-view-attribute` owns one View's raw layout and style values; `trace-view-wiring` owns one element's implementation, click handler, visibility rule, and content injection; `trace-ui-logic` owns one section's UI→state→data chain; `audit-ui` owns defect judgments from the 12 rules. Every description states its `Owns:` and `Not:` clause, and no trigger phrase may be quoted by two skills — `test/skills.test.ts` enforces both.
 - Commands are thin entry points: each binds `$ARGUMENTS`, names its skill, and carries at most one gate pointer line. The gate body lives in the skills only, so a command never restates a rule. `test/skills.test.ts` enforces the size and the pointer shape.
 - All five skills, the five commands (six files — `ui2logic.md` aliases `trace-logic`), and all nine device-touching MCP tool descriptions (`list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, `screenshot`) carry the Android-project gate: activation targets Android projects (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository, activate only on an explicit device/screen request or an explicit Android mention; a connected device does not make the repository Android.
 - The gate is enforced twice: hard-stop prose in every skill/command body and a `PreToolUse` hook (`hooks/hooks.json` + `hooks/aui-android-gate.mjs`) that denies all nine device-touching tools (`list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, `screenshot`) in a non-Android workspace unless the latest user prompt explicitly asks about a device screen/page or Android; `locate_code` additionally requires an Android project or an explicit Android mention. `claude plugin eval` does not load plugin hooks, so the hook is unit-tested in `test/android-gate.test.ts` and the non-Android refusal prompts live under `evals/manual-gate-*` (outside the `trigger-*` glob). Hooks load at session start; restart after install/update.

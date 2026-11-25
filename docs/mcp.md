@@ -137,7 +137,7 @@ When a capture fails, tools return the error text plus a fallback screenshot as 
 ### Summarizing the current screen
 
 ```text
-get_state → dump_ui(source="auto", format="tree") → find_elements (named control) → optional analyze_ui / screenshot
+get_state → dump_ui(source="auto", format="tree") → find_elements (named element) → optional analyze_ui / screenshot
 ```
 
 This is observation only. Call `locate_code` only when the user asks for source.
@@ -158,7 +158,7 @@ get_state → dump_ui(source="auto", format="tree") → (separate dialog window)
 → locate_code → read candidate files → ViewModel/state → Repository/API/cache → state/data chain with confirmed|inferred hops
 ```
 
-Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `trace-ui-to-logic` skill and `/android-layout:trace-logic` command encode this workflow.
+Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `trace-ui-logic` skill and `/android-layout:trace-logic` command encode this workflow.
 
 ## Environment variables
 

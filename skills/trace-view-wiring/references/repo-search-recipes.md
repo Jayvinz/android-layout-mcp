@@ -126,9 +126,9 @@ rg 'android:name=".*Profile' --glob '*.xml'
 
 For each candidate, open the file and confirm:
 
-- [ ] The line context really is that control/string/layout, not a same-named variable or comment.
+- [ ] The line context really is that element/string/layout, not a same-named variable or comment.
 - [ ] The defining module is active in the current build variant.
-- [ ] The event handler is actually triggered by this control (check the listener or `android:onClick`).
+- [ ] The event handler is actually triggered by this element (check the listener or `android:onClick`).
 - [ ] The Compose definition really renders that `Text`/`contentDescription` (not a same-named preview with different arguments).
 - [ ] With localization, the resource names match and only qualifiers differ.
 - [ ] An `@id/foo` reference was not mistaken for an `@+id/foo` definition.

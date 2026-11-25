@@ -4,7 +4,7 @@ Internal notes for the two Medium drafts. Not part of the articles.
 
 ## Post 1: "Inspect a Live Android Screen from Your Coding Agent"
 
-- Subtitle: Part 1 of two: connect a client, read the screen, trace a control to source.
+- Subtitle: Part 1 of two: connect a client, read the screen, trace an element to source.
 - Tags: Android, AI Coding Agents, MCP, Developer Tools, Mobile Development.
 - Figures to capture (replace the italic placeholders):
   1. A terminal running `android-layout dump`, showing the node tree with bounds, centers, and refs.

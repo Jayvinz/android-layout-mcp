@@ -1,7 +1,7 @@
 ---
 name: audit-ui
 description: >-
-  Android-only. Use when the user asks to audit a screen or a block of it for layout and accessibility problems AND wants to know where the offending code lives: overlaps, clipping, small touch targets, invisible clickable areas, duplicate ids, deep nesting, overdraw, hardcoded left/right that breaks RTL. Triggers include "审查布局问题", "这块 UI 有没有问题", "有没有重叠", "有没有小点击区域", "有没有被裁剪", "布局有没有问题", "层级嵌套太深", "过度绘制", "RTL 有没有问题", "audit this UI and the code behind it", "check this screen for layout problems and find the source". Owns: defect judgments on one screen or one block, each tied to its layout XML or Composable. Not: what is on the screen (capture-ui), property values of one control (inspect-view-attribute), one control's wiring (trace-view-wiring). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
+  Android-only. Use when the user asks to audit a screen or a block of it for layout and accessibility problems AND wants to know where the offending code lives: overlaps, clipping, small touch targets, invisible clickable areas, duplicate ids, deep nesting, overdraw, hardcoded left/right that breaks RTL. Triggers include "审查布局问题", "这块 UI 有没有问题", "有没有重叠", "有没有小点击区域", "有没有被裁剪", "布局有没有问题", "层级嵌套太深", "过度绘制", "RTL 有没有问题", "audit this UI and the code behind it", "check this screen for layout problems and find the source". Owns: defect judgments on one screen or one block, each tied to its layout XML or Composable. Not: what is on the screen (capture-ui), property values of one View (inspect-view-attribute), one element's wiring (trace-view-wiring). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
 ---
 
 # Auditing UI Defects Against Their Source
@@ -15,11 +15,11 @@ Core principle: **the rule hit supplies evidence, the source supplies the fix lo
 | The user asks | Go to |
 |---|---|
 | What is on this screen | `capture-ui` |
-| One control's margins, padding, measured size | `inspect-view-attribute` |
-| One control: implementation, click, visibility, content | `trace-view-wiring` |
-| One block's UI → ViewModel → data chain | `trace-ui-to-logic` |
+| One View's margins, padding, measured size | `inspect-view-attribute` |
+| One element: implementation, click, visibility, content | `trace-view-wiring` |
+| One block's UI → ViewModel → data chain | `trace-ui-logic` |
 
-This skill judges **defects** and maps them to code. It does not trace one control's behaviour, and it does not explain a block's data flow.
+This skill judges **defects** and maps them to code. It does not trace one element's behaviour, and it does not explain a block's data flow.
 
 ## Step 0 — Android project gate
 

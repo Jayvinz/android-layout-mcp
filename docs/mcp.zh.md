@@ -181,7 +181,7 @@ get_state → dump_ui(source="auto", format="tree") → (独立弹窗窗口) dum
 ```
 
 适用于“分析当前界面/弹窗的代码和业务逻辑”：先判断是页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
-再追 1–3 跳状态与数据。全程只读，不修改代码。`trace-ui-to-logic` skill 与
+再追 1–3 跳状态与数据。全程只读，不修改代码。`trace-ui-logic` skill 与
 `/android-layout:trace-logic` 命令就是这条流程。
 
 ## 环境变量

@@ -146,7 +146,7 @@ test("the skill directory matrix matches the shipped skills", () => {
 
   assert.deepEqual(
     skillNames,
-    ["audit-ui", "capture-ui", "inspect-view-attribute", "trace-ui-to-logic", "trace-view-wiring"],
+    ["audit-ui", "capture-ui", "inspect-view-attribute", "trace-ui-logic", "trace-view-wiring"],
     "the documented five skills changed; update docs/cross-agent.md and both READMEs",
   );
 

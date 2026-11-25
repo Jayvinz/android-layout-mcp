@@ -69,7 +69,7 @@ MCP Server ────────────────────┘      
 |---|---|
 | MCP server `android-layout` | 共 9 个工具：`list_devices`、`get_state`、`dump_ui`、`find_elements`、`hit_test`、`analyze_ui`、`screenshot`、`list_fragments`、`locate_code` |
 | Slash 命令 | `/android-layout:capture`（UI 事实+产物）、`:inspect-view`（控件属性）、`:trace-view`（控件→源码）、`:trace-logic` / `:ui2logic`（区块→数据链）、`:audit`（布局缺陷+对应源码） |
-| Skills | `capture-ui`、`inspect-view-attribute`、`trace-view-wiring`、`trace-ui-to-logic`、`audit-ui` |
+| Skills | `capture-ui`、`inspect-view-attribute`、`trace-view-wiring`、`trace-ui-logic`、`audit-ui` |
 
 可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
 
@@ -160,7 +160,7 @@ android-layout shot          # 保存截图，可附节点标注
 | UI 事实：结构、Activity、`uiKind`，存下 json/png/xml | `/android-layout:capture` / `capture-ui` |
 | 单个控件的内外边距、padding、实测尺寸、文字度量、RTL | `/android-layout:inspect-view` / `inspect-view-attribute` |
 | 单个控件的实现类、点击处理、显隐控制、内容来源 | `/android-layout:trace-view` / `trace-view-wiring` |
-| 某一块区域的 UI → ViewModel → 数据源链路 | `/android-layout:trace-logic` / `trace-ui-to-logic` |
+| 某一块区域的 UI → ViewModel → 数据源链路 | `/android-layout:trace-logic` / `trace-ui-logic` |
 | 布局缺陷（12 条规则）并关联到对应 XML/Composable | `/android-layout:audit` / `audit-ui` |
 | 查找元素 / 命中测试 | `find_elements` / `hit_test` |
 | 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-layout shot` |

@@ -1,6 +1,6 @@
 # Inspect a Live Android Screen from Your Coding Agent
 
-*Part 1 of two: connect a client, read the screen, trace a control to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md) opens the implementation.*
+*Part 1 of two: connect a client, read the screen, trace an element to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-under-the-hood.md) opens the implementation.*
 
 *[Figure 1: a captured screen tree in the terminal, with bounds, centers, and refs]*
 
@@ -8,7 +8,7 @@ Coding agents read repositories well. Ask why a button is disabled and the agent
 
 [Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) gives it that view. It is a CLI and an [MCP](https://modelcontextprotocol.io/) server that captures the live screen of a connected device or emulator over [ADB](https://developer.android.com/tools/adb), then answers questions about the screen with structured data instead of pixels. It ships as a Claude Code plugin and connects to Codex CLI, Cursor, Gemini CLI, CodeBuddy, WorkBuddy, OpenCode, and other MCP clients through generated config.
 
-By the end of this post you will have a client connected, a first inspection running, and a visible control traced back to its Compose or XML source. You will also know which screens it cannot read, before you build a workflow on top of it.
+By the end of this post you will have a client connected, a first inspection running, and a visible element traced back to its Compose or XML source. You will also know which screens it cannot read, before you build a workflow on top of it.
 
 ### What it does
 
@@ -105,7 +105,7 @@ JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and th
 
 **Note**: the human-readable tree is truncated at 2000 nodes by default. `--json` and `--out` write the complete dump; MCP `dump_ui` caps JSON at 800 nodes unless you raise `maxNodes`.
 
-### Trace a control to source
+### Trace an element to source
 
 This is the part a coding agent cannot do from a screenshot. The `trace-view-wiring` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
 

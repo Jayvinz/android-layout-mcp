@@ -2,7 +2,7 @@
   "name": "android-layout",
   "displayName": "Android Layout MCP",
   "version": "1.0.0",
-  "description": "Layout capture and UI-to-code location for Android (XML View, Compose JVMTI, or accessibility semantics): summarize the current page, inspect a visible control's bounds and clickable state, audit layout and accessibility, and trace UI elements back to their Compose/XML source code and business logic through the bundled android-layout MCP server.",
+  "description": "Layout capture and UI-to-code location for Android (XML View, Compose JVMTI, or accessibility semantics): summarize the current page, inspect a visible element's bounds and clickable state, audit layout and accessibility, and trace UI elements back to their Compose/XML source code and business logic through the bundled android-layout MCP server.",
   "author": {
     "name": "Jayvinz",
     "url": "https://github.com/Jayvinz"

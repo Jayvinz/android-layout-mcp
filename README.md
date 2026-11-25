@@ -10,7 +10,7 @@
 
 ![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)
 
-**Android Layout MCP for coding agents.** Layout capture and UI-to-code location over ADB: read the live screen of a real device or emulator, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, and trace any control back to its Compose/XML source and business logic.
+**Android Layout MCP for coding agents.** Layout capture and UI-to-code location over ADB: read the live screen of a real device or emulator, search and hit-test elements, capture annotated screenshots, run layout/accessibility checks, and trace any element back to its Compose/XML source and business logic.
 
 Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro).
 
@@ -73,8 +73,8 @@ After installation you get:
 | Component               | Content                                                                                                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | MCP server `android-layout` | all 9 tools: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`, `analyze_ui`, `screenshot`, `list_fragments`, `locate_code`                        |
-| Slash commands          | `/android-layout:capture` (UI facts + artifacts), `:inspect-view` (control attributes), `:trace-view` (control → source), `:trace-logic` / `:ui2logic` (block → data chain), `:audit` (layout defects + their source) |
-| Skills                  | `capture-ui`, `inspect-view-attribute`, `trace-view-wiring`, `trace-ui-to-logic`, `audit-ui` |
+| Slash commands          | `/android-layout:capture` (UI facts + artifacts), `:inspect-view` (View attributes), `:trace-view` (element → source), `:trace-logic` / `:ui2logic` (block → data chain), `:audit` (layout defects + their source) |
+| Skills                  | `capture-ui`, `inspect-view-attribute`, `trace-view-wiring`, `trace-ui-logic`, `audit-ui` |
 
 Use `/mcp` to confirm the server is loaded; `/help` lists the commands above.
 
@@ -157,7 +157,7 @@ Or run the command:
 
 The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. 
 
-To trace one block instead of one control, say "分析这块区域的业务逻辑" or run `/android-layout:trace-logic` (alias `:ui2logic`): it maps the block to source, then follows the ViewModel, data source, and the wiring between them.
+To trace one block instead of one element, say "分析这块区域的业务逻辑" or run `/android-layout:trace-logic` (alias `:ui2logic`): it maps the block to source, then follows the ViewModel, data source, and the wiring between them.
 
 **Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for all nine device-touching tools — `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, `screenshot` — with `locate_code` additionally requiring an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
 
@@ -166,9 +166,9 @@ To trace one block instead of one control, say "分析这块区域的业务逻�
 | Task | Entry point |
 |---|---|
 | UI facts: structure, Activity, `uiKind`, saved json/png/xml | `/android-layout:capture` / `capture-ui` |
-| One control's margins, padding, measured size, text metrics, RTL | `/android-layout:inspect-view` / `inspect-view-attribute` |
-| One control's implementation, click handler, visibility, content source | `/android-layout:trace-view` / `trace-view-wiring` |
-| One block's UI → ViewModel → data source chain | `/android-layout:trace-logic` / `trace-ui-to-logic` |
+| One View's margins, padding, measured size, text metrics, RTL | `/android-layout:inspect-view` / `inspect-view-attribute` |
+| One element's implementation, click handler, visibility, content source | `/android-layout:trace-view` / `trace-view-wiring` |
+| One block's UI → ViewModel → data source chain | `/android-layout:trace-logic` / `trace-ui-logic` |
 | Layout defects (12 rules) tied to their XML/Composable source | `/android-layout:audit` / `audit-ui` |
 | Find elements / hit-test | `find_elements` / `hit_test` |
 | Screenshots with SVG node overlay and image→device mapping | `screenshot` / `android-layout shot` |

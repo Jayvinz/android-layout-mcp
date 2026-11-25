@@ -10,7 +10,7 @@
     {
       "name": "android-layout",
       "source": "./",
-      "description": "Layout capture and UI-to-code location on Android: summarize the current page, audit layout and accessibility, and trace controls to Compose/XML source files, event handlers, state and business logic.",
+      "description": "Layout capture and UI-to-code location on Android: summarize the current page, audit layout and accessibility, and trace elements to Compose/XML source files, event handlers, state and business logic.",
       "license": "MIT",
       "category": "development",
       "keywords": [

@@ -84,7 +84,7 @@ Notes:
 | Dialog/BottomSheet | `DialogFragment`, `BottomSheetDialogFragment`, `show()` calls |
 | Custom routing | The project's own Router/Navigator; search by route string or destination id |
 
-Identify the **page entry** before the **control entry**. When the user asks about "the Me button on the current page", page ownership and button behavior matter equally.
+Identify the **page entry** before the **element entry**. When the user asks about "the Me button on the current page", page ownership and button behavior matter equally.
 
 ## Multi-module / Multi-flavor / Large Repositories
 

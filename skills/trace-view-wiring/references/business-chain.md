@@ -1,8 +1,8 @@
-# From Control to Business Chain
+# From Element to Business Chain
 
 "Related code logic" is rarely a single `onClick` line. Follow the order below so you do not stop at the UI layer.
 
-## 1. Confirm the control is the entry point
+## 1. Confirm the element is the entry point
 
 - `Button`, `IconButton`, `FloatingActionButton`, `ListItem`, `Tab`, `MenuItem`, and `Switch` are usually entry points.
 - `Text`, `Icon`, `Image`, and containers are usually display-only; in Compose, however, any node may carry `Modifier.clickable`.

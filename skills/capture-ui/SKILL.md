@@ -1,7 +1,7 @@
 ---
 name: capture-ui
 description: >-
-  Android-only. Use when the user wants to see what is on the current Android screen or in one named block of it: the structure, the Activity/Compose surface behind it, a visible control's bounds, or a saved snapshot for later. Triggers include "查看整个屏幕", "抓取当前页面布局", "抓取这块区域", "当前界面有什么", "这个页面是什么", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪", "屏幕坐标 300,800 是什么", "导出布局树", "summarize the current screen", "capture this screen or block". Owns: UI facts — structure, entry points, coordinates, and the capture artifacts. Not: property values (inspect-view-attribute), source code (trace-view-wiring), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly asks for the device screen or mentions Android.
+  Android-only. Use when the user wants to see what is on the current Android screen or in one named block of it: the structure, the Activity/Compose surface behind it, a visible element's bounds, or a saved snapshot for later. Triggers include "查看整个屏幕", "抓取当前页面布局", "抓取这块区域", "当前界面有什么", "这个页面是什么", "现在前台是哪个 app", "看下当前“登录”按钮", "这个控件多大/在哪", "屏幕坐标 300,800 是什么", "导出布局树", "summarize the current screen", "capture this screen or block". Owns: UI facts — structure, entry points, coordinates, and the capture artifacts. Not: property values (inspect-view-attribute), source code (trace-view-wiring), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly asks for the device screen or mentions Android.
 ---
 
 # Capturing the Current Screen
@@ -15,8 +15,8 @@ Answer "what is on screen" from captured evidence, and hand back a snapshot the 
 | The user asks | Go to |
 |---|---|
 | Is there a layout defect (overlap, clipping, deep nesting) | `audit-ui` |
-| What are this control's margins / padding / text size | `inspect-view-attribute` |
-| Where is this control implemented | `trace-view-wiring` |
+| What are this View's margins / padding / text size | `inspect-view-attribute` |
+| Where is this element implemented | `trace-view-wiring` |
 
 This skill reports facts. It does not judge quality and does not read the repository.
 
@@ -63,13 +63,13 @@ Call `dump_ui(source="auto", format="tree", visibleOnly=true)`.
 
 Summarize the top 2–3 levels, then the visible leaf labels and clickable entries. Never paste hundreds of lines.
 
-### Step 3 — Answer a specific control
+### Step 3 — Answer a specific element
 
 Search in this order: `find_elements(by="text")` → `by="desc"` → `by="id"` → `by="class"`. For a positional question ("屏幕坐标 300,800 是什么"), call `hit_test(x, y)` and use `index` to cycle overlapping candidates.
 
 Report `bounds`, `center`, `clickable`, `enabled`, `className`. If several matches stay plausible, list them with bounds instead of picking one.
 
-If nothing matches, the control may be offscreen, in another window, or labeled only by description. Check `windows`, retry with `by="desc"`, and say it is not in this capture rather than claiming it does not exist.
+If nothing matches, the element may be offscreen, in another window, or labeled only by description. Check `windows`, retry with `by="desc"`, and say it is not in this capture rather than claiming it does not exist.
 
 ### Step 4 — Artifacts
 
@@ -104,7 +104,7 @@ Answer in the user's language:
 ## Visible entry points
 - <label> — id=<id>, bounds=<x,y,w,h>, center=<x,y>, clickable=<yes|no>
 
-## Asked control
+## Asked element
 - <label>: bounds=<...>, center=<...>, clickable=<...>, enabled=<...>, class=<...>
 
 ## Artifacts
@@ -117,7 +117,7 @@ Answer in the user's language:
 ## Quality rules
 
 - Never state text color, font size, or font family from the normalized tree; those live in `inspect-view-attribute`. Only raw `view.properties` may contain them, and then say they are raw values.
-- Do not claim a control is enabled from appearance alone; read `enabled` from `find_elements` / `hit_test`.
+- Do not claim an element is enabled from appearance alone; read `enabled` from `find_elements` / `hit_test`.
 - Refs (`v*` / `s*` / `d*` / `c*`) are valid for one capture only.
 - Do not describe an element that is not in the capture.
 - This skill never modifies code.

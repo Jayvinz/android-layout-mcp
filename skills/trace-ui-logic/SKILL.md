@@ -1,7 +1,7 @@
 ---
-name: trace-ui-to-logic
+name: trace-ui-logic
 description: >-
-  Android-only. Use when the user asks how a BLOCK of the current screen works end to end: a feed list, a card group, a form, a dialog body, or a bottom sheet section — how its UI maps to state and where the data comes from. Triggers include "分析这块区域的业务逻辑", "分析这个 feed 列表", "这个卡片组的数据从哪来", "这块 UI 到数据层是怎么走的", "分析当前弹窗的业务逻辑", "ui2logic", "analyze this block's logic", "where does this list's data come from", "trace this block from UI to data". Owns: one block's logic chain — UI block, state holder, data source, and the wiring between them. Not: one control's wiring (trace-view-wiring), screen facts (capture-ui), attribute values (inspect-view-attribute), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
+  Android-only. Use when the user asks how a BLOCK of the current screen works end to end: a feed list, a card group, a form, a dialog body, or a bottom sheet section — how its UI maps to state and where the data comes from. Triggers include "分析这块区域的业务逻辑", "分析这个 feed 列表", "这个卡片组的数据从哪来", "这块 UI 到数据层是怎么走的", "分析当前弹窗的业务逻辑", "ui2logic", "analyze this block's logic", "where does this list's data come from", "trace this block from UI to data". Owns: one block's logic chain — UI block, state holder, data source, and the wiring between them. Not: one element's wiring (trace-view-wiring), screen facts (capture-ui), attribute values (inspect-view-attribute), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
 ---
 
 # Tracing a Block's UI to Its Logic
@@ -12,12 +12,12 @@ Take one visible block of the screen — a list, a card group, a form, a dialog 
 
 | The user asks | Go to |
 |---|---|
-| One control: who implements it, click, visibility, content | `trace-view-wiring` |
+| One element: who implements it, click, visibility, content | `trace-view-wiring` |
 | What is on screen, bounds, coordinates | `capture-ui` |
-| This control's margins / padding / text size | `inspect-view-attribute` |
+| This View's margins / padding / text size | `inspect-view-attribute` |
 | Layout defects on this screen | `audit-ui` |
 
-The dividing line is **granularity**: one control is `trace-view-wiring`; a group of controls that share one state holder is this skill. "The delete button in this feed item" is one control; "why does this feed item show a delete button" is this section's data flow.
+The dividing line is **granularity**: one element is `trace-view-wiring`; a group of elements that share one state holder is this skill. "The delete button in this feed item" is one element; "why does this feed item show a delete button" is this section's data flow.
 
 ## Step 0 — Android project gate
 
@@ -68,7 +68,7 @@ Refs (`v*` / `s*` / `c*`) are valid only for this capture; re-capture after the 
 Before touching source, describe the block the user named. If they named a list, a card group, or a section, that is the boundary — do not expand to the whole screen unless they ask.
 
 1. Name the block and its bounds: the list, the card group, the form, the dialog body.
-2. List the controls it contains, in visible order, with text/id/class.
+2. List the elements it contains, in visible order, with text/id/class.
 3. Note which items are repeated (list rows) and which are single — the repeated ones usually route through an Adapter or a `LazyColumn` item.
 4. Note loading/empty/error states and anything that changes with data.
 
@@ -129,7 +129,7 @@ Answer in the user's language, compactly, without full-file pastes:
 - Window: <primary or window name/index; separate-window dialog if any>
 
 ## Screen map
-- <section> — <purpose> — <key controls / labels> — <dialog|page|sheet>
+- <section> — <purpose> — <key elements / labels> — <dialog|page|sheet>
 
 ## Entry & UI implementation
 - <section> → <file:line> (<Activity/Fragment/Composable/layout/dialog class>) — confirmed|inferred
@@ -150,7 +150,7 @@ Answer in the user's language, compactly, without full-file pastes:
 - <dynamic/server-driven text, flavor/module ambiguity, failed Compose capture, stale build, other-package dialog>
 
 ## Next steps
-- <files to read next, or "ask trace-view-wiring to trace one control">
+- <files to read next, or "ask trace-view-wiring to trace one element">
 ```
 
 

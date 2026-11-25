@@ -1,20 +1,20 @@
 ---
 name: inspect-view-attribute
 description: >-
-  Android-only. Use when the user asks for one control's layout and style attributes to check a UI detail: margins, padding, measured size, text size or color, gravity, background, or RTL handling. Triggers include "这个按钮的边距是多少", "这个控件为什么这么高", "核对一下这个卡片的 padding", "它的 layoutParams 是什么", "这个文案的字号", "背景是什么", "margin / padding of this control", "why is this view this tall", "check this control's attributes". Owns: one control's attribute values, read from the raw View dump. Not: what is on screen and where (capture-ui), where the value is set in code (trace-view-wiring), whether the value is wrong (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
+  Android-only. Use when the user asks for one View's layout and style attributes to check a UI detail: margins, padding, measured size, text size or color, gravity, background, or RTL handling. Triggers include "这个按钮的边距是多少", "这个控件为什么这么高", "核对一下这个卡片的 padding", "它的 layoutParams 是什么", "这个文案的字号", "背景是什么", "margin / padding of this View", "why is this view this tall", "check this View's attributes". Owns: one View's attribute values, read from the raw View dump. Not: what is on screen and where (capture-ui), where the value is set in code (trace-view-wiring), whether the value is wrong (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
 ---
 
-# Inspecting One Control's Attributes
+# Inspecting One View's Attributes
 
-Read and report the actual numbers behind a control's appearance. Core principle: **quote the raw property, and name it exactly — never estimate a dp from a pixel or guess a margin from a screenshot.**
+Read and report the actual numbers behind a View's appearance. Core principle: **quote the raw property, and name it exactly — never estimate a dp from a pixel or guess a margin from a screenshot.**
 
 ## Scope
 
 | The user asks | Go to |
 |---|---|
-| Where is this control, what is it | `capture-ui` |
+| Where is this View, what is it | `capture-ui` |
 | Where is this padding set in code | `trace-view-wiring` |
-| Is this control too small / overlapping | `audit-ui` |
+| Is this View too small / overlapping | `audit-ui` |
 
 This skill reports values. It does not judge whether the value is correct.
 
@@ -30,11 +30,11 @@ Look for an Android project in the cwd or any parent: `settings.gradle(.kts)`, `
 
 **HARD STOP** on the third row: call nothing, reply in one sentence that this workspace is not an Android project, then offer device observation or ask for the Android module path. A bare "这个按钮/这个页面/这个弹窗" is not an explicit device request, and a connected device does not make the repository Android.
 
-## Step 1 — Find the control
+## Step 1 — Find the View
 
 `get_state`, then `dump_ui(source="auto", format="tree", visibleOnly=true)`.
 
-Locate the control with `find_elements` (`by="text"` → `desc` → `id` → `class`) or `hit_test` for a coordinate. Keep its `ref`; every later call reuses it.
+Locate the View with `find_elements` (`by="text"` → `desc` → `id` → `class`) or `hit_test` for a coordinate. Keep its `ref`; every later call reuses it.
 
 If several candidates match, list them with bounds and class, and ask which one — a property report for the wrong node is worse than no report.
 
@@ -73,7 +73,7 @@ Pick the node whose `ref` you kept and read `view.properties`. The groups worth 
 Report a table, then one sentence of interpretation if the user asked "why is it like this".
 
 ```markdown
-## <control> — <class> [<ref>]
+## <View> — <class> [<ref>]
 
 | Property | Value | Notes |
 |---|---|---|

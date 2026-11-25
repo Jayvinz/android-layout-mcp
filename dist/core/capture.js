@@ -128,7 +128,7 @@ export async function capture(options) {
         try {
             dumpsysResult = await captureDumpsys(adb, packageName, target, screen, options);
             // dumpsys has no text; merge the semantics tree when one is available so
-            // a non-debuggable screen still answers "what does this control say".
+            // a non-debuggable screen still answers "what does this element say".
             if (semanticsResult) {
                 const merged = mergeSemanticsText(dumpsysResult.roots, semanticsResult.roots, { screen });
                 dumpsysResult.labelledNodes = merged.labelled;
@@ -356,7 +356,7 @@ function chooseAutoSource(viewResult, semanticsResult, uiKind) {
     if (uiKind === "mixed")
         return "view";
     // Compose renders into a single AndroidComposeView; the ViewDebug dump stops
-    // there, while the semantics tree contains the actual text and controls.
+    // there, while the semantics tree contains the actual text and elements.
     return uiKind === "compose" ? "semantics" : "view";
 }
 /**

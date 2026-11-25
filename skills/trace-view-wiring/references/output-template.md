@@ -6,7 +6,7 @@ Goal: another engineer should be able to verify the conclusion within 30 seconds
 
 ```markdown
 ## Conclusion
-<Control> is rendered by `<entry type> <name>`, defined at `<file>:<line>`.
+<Element> is rendered by `<entry type> <name>`, defined at `<file>:<line>`.
 Clicking it invokes `<handler>` (`<file>:<line>`); state comes from `<ViewModel/Repository>`.
 
 ## UI evidence

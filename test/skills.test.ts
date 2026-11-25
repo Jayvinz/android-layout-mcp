@@ -61,7 +61,7 @@ const SKILL_NAMES = [
   "capture-ui",
   "inspect-view-attribute",
   "trace-view-wiring",
-  "trace-ui-to-logic",
+  "trace-ui-logic",
   "audit-ui",
 ] as const;
 
@@ -132,7 +132,7 @@ test("every Not: clause points at a real skill", () => {
 test("no trigger phrase is claimed by two skills", () => {
   // A phrase listed in two descriptions makes routing a coin flip. This is the
   // check that would have caught "which Activity owns this page" living in both
-  // trace-view-wiring and trace-ui-to-logic.
+  // trace-view-wiring and trace-ui-logic.
   const owners = new Map<string, string>();
   for (const [name, source] of Object.entries(skills)) {
     const description = scalarField(source, "description");
@@ -236,7 +236,7 @@ test("skills stay self-contained so sync-agent-skills can ship each one alone", 
 });
 
 test("commands delegate to a skill and carry no gate body of their own", () => {
-  const allowedSkill = /`(capture-ui|inspect-view-attribute|trace-view-wiring|trace-ui-to-logic|audit-ui)`/;
+  const allowedSkill = /`(capture-ui|inspect-view-attribute|trace-view-wiring|trace-ui-logic|audit-ui)`/;
   for (const name of COMMAND_NAMES) {
     const source = read(`commands/${name}.md`);
     assert.match(source, allowedSkill, `commands/${name}.md must name its skill`);
@@ -263,8 +263,8 @@ test("each command binds $ARGUMENTS and names its skill", () => {
     capture: "capture-ui",
     "inspect-view": "inspect-view-attribute",
     "trace-view": "trace-view-wiring",
-    "trace-logic": "trace-ui-to-logic",
-    ui2logic: "trace-ui-to-logic",
+    "trace-logic": "trace-ui-logic",
+    ui2logic: "trace-ui-logic",
     audit: "audit-ui",
   };
   for (const [command, skill] of Object.entries(expected)) {
@@ -300,13 +300,13 @@ test("trace-view-wiring covers the four questions", () => {
   assertContains(source, ["stringResource", "setOnClickListener", "setText"], "trace-view-wiring");
 });
 
-test("trace-ui-to-logic is scoped to a block, not the whole screen", () => {
-  const source = skills["trace-ui-to-logic"];
+test("trace-ui-logic is scoped to a block, not the whole screen", () => {
+  const source = skills["trace-ui-logic"];
   assert.match(source, /## Scope/);
-  assert.match(source, /block/i, "trace-ui-to-logic must talk about a block/section");
+  assert.match(source, /block/i, "trace-ui-logic must talk about a block/section");
   assert.ok(
     !/whole current screen/i.test(source.split("## Step 1")[0]),
-    "trace-ui-to-logic must not claim the whole screen as its default scope",
+    "trace-ui-logic must not claim the whole screen as its default scope",
   );
 });
 
@@ -319,7 +319,7 @@ test("audit-ui lists the rules it reports, including overdraw and RTL", () => {
   );
 });
 
-test("the ordering axis is documented: single control vs section vs screen", () => {
+test("the ordering axis is documented: single element vs section vs screen", () => {
   // Each skill's Scope table must name at least one neighbour, so a reader can
   // resolve an ambiguous request without reading five files.
   for (const [name, source] of Object.entries(skills)) {

@@ -1,11 +1,11 @@
 ---
-description: Read one control's layout and style attributes — margins, padding, measured size, text metrics, background, RTL
-argument-hint: <control text/id/ref, e.g. "登录" button>
+description: Read one View's layout and style attributes — margins, padding, measured size, text metrics, background, RTL
+argument-hint: <View text/id/ref, e.g. "登录" button>
 ---
 
 # Inspect one view's attributes
 
-`$ARGUMENTS` identifies the control: its visible text, content description, resource id, or the `ref` from a prior capture.
+`$ARGUMENTS` identifies the View: its visible text, content description, resource id, or the `ref` from a prior capture.
 
 Follow the `inspect-view-attribute` skill.
 

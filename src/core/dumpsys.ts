@@ -451,7 +451,7 @@ export function mergeSemanticsText(
 /**
  * Offset between the dumpsys window origin and the semantics screen origin.
  *
- * Both trees describe the same controls, so their bounding boxes line up
+ * Both trees describe the same elements, so their bounding boxes line up
  * vertically after one constant shift. The median of the per-text-node
  * differences is stable even when some nodes do not correspond.
  */

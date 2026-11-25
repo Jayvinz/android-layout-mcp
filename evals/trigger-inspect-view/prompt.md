@@ -1,5 +1,5 @@
 ---
-name: trigger-inspect-control
+name: trigger-inspect-view
 runs: 1
 allowed_tools: [Skill]
 max_turns: 8

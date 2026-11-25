@@ -127,7 +127,7 @@ When the View capture fails, for example on a release build, `auto` keeps the se
 
 Four pieces turn the tree into an answer.
 
-**Hit testing** collects every node whose visible bounds contain the point, sorts by visible area ascending, then by depth, then by draw order. The smallest control wins, which matches what the user meant to point at.
+**Hit testing** collects every node whose visible bounds contain the point, sorts by visible area ascending, then by depth, then by draw order. The smallest element wins, which matches what the user meant to point at.
 
 **Search** matches text, content description, resource id, class (fully qualified or short), and ref. `contains` ignores case, `exact` does not, and `/pattern/flags` compiles to a regular expression. Invisible nodes are filtered out by default.
 
@@ -143,7 +143,7 @@ An agent can activate a device tool in the wrong repository. The plugin uses two
 
 Every skill and command body starts with a hard gate on Android project markers. A [`PreToolUse` hook](https://code.claude.com/docs/en/hooks) enforces the same rule at the tool layer: it walks up to ten directories looking for `settings.gradle(.kts)`, `gradlew`, an `AndroidManifest.xml`, or a module build file that applies `com.android.*`. If none exists, it denies `get_state`, `dump_ui`, `find_elements`, and `locate_code` unless the latest user message explicitly asks about a device screen or mentions Android.
 
-The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The five skills divide work as well: `capture-ui` answers what is on screen and never calls `locate_code`; `inspect-view-attribute` reads one control's raw layout and style values; `trace-view-wiring` traces one control's implementation; `trace-ui-to-logic` maps one block's UI → state → data chain; `audit-ui` owns defect judgments from the rule set. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
+The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The five skills divide work as well: `capture-ui` answers what is on screen and never calls `locate_code`; `inspect-view-attribute` reads one View's raw layout and style values; `trace-view-wiring` traces one element's implementation; `trace-ui-logic` maps one block's UI → state → data chain; `audit-ui` owns defect judgments from the rule set. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
 
 ### When the agent is not Claude Code
 

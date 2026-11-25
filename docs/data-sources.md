@@ -22,7 +22,7 @@
 | Fragment instances | ❌ | ❌ | ✅ | ❌ |
 | Speed | ~100ms | ~0.5–3s | ~100–300ms | ~8–12s (including daemon/agent startup) |
 
-`dumpsys` and `semantics` complement each other: dumpsys has the real View classes and resource ids but no text, while the semantics tree has the text but reports accessibility classes. `--source dumpsys` captures both and merges them by geometry, so a release build still answers what a control says and which class renders it.
+`dumpsys` and `semantics` complement each other: dumpsys has the real View classes and resource ids but no text, while the semantics tree has the text but reports accessibility classes. `--source dumpsys` captures both and merges them by geometry, so a release build still answers what an element says and which class renders it.
 
 ## Why the other three differ
 
@@ -74,7 +74,7 @@ v3 ComposeView / v4 AndroidComposeView ...   ← the view source ends here, no t
 s43 TextView "开拍" / s44 Button ...          ← the semantics source has real text and clickable bounds
 ```
 
-- **view source**: only 10 View nodes; content stops at `AndroidComposeView` / `AndroidViewsHandler`, **no Compose text or controls**.
+- **view source**: only 10 View nodes; content stops at `AndroidComposeView` / `AndroidViewsHandler`, **no Compose text or elements**.
 - **semantics source**: 49 nodes; text, content-description, clickable, bounds, scrollable, checkable, enabled all available — the main zero-config Compose source.
 - **compose source (JVMTI)**: 489 Composable nodes, e.g.:
 
@@ -203,6 +203,6 @@ On mixed screens `auto` captures and shows both view + semantics and makes `find
 - Without Android Studio, Compose is still available via `semantics` (zero dependencies; text/click semantics work).
 - Content drawn straight to a `Canvas` (custom `View.onDraw`, `SurfaceView`, a `WebView`'s pixels) has no text or children in the `view` tree; the `semantics` tree only sees what the app exposes to accessibility, and the `compose` tree only sees composables (not canvas drawing).
 - `view` text comes from framework text widgets; a custom view that draws its own labels exposes no text property.
-- Some ROMs (e.g. MIUI) report an accessibility window shorter than the real screen through uiautomator, clipping bottom nodes; `analyze` skips touch-target measurement in that case, but `hit` still works (the center point stays inside the control).
+- Some ROMs (e.g. MIUI) report an accessibility window shorter than the real screen through uiautomator, clipping bottom nodes; `analyze` skips touch-target measurement in that case, but `hit` still works (the center point stays inside the element).
 - `input text` reliably supports ASCII only; Chinese input needs an extra IME (e.g. ADBKeyboard).
 - No live monitoring; every command captures a fresh snapshot.
