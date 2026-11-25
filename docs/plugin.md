@@ -25,19 +25,19 @@ server key, and CLI command are the shorter `android-layout`.
 
 | Component | Path | Purpose |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` and more |
-| Skill | `skills/inspect-current-screen/` | Screen/control observation, direct interaction, layout/accessibility audits, and the explicit browser viewer; no source tracing |
-| Skill | `skills/locate-ui-code/` | The full UI element → Compose/XML source → click/state/business-chain workflow and references |
-| Skill | `skills/analyze-screen-logic/` | Whole-screen/dialog analysis: implementation, ViewModel/state, data sources, navigation, conditions, and side effects (read-only) |
-| Skill | `skills/verify-ui-change/` | Before/after dumps, diff, rule checks, screenshots, and interaction verification |
-| Commands | `commands/locate.md`, `screen.md`, `analyze-screen.md`, `view.md`, `verify.md` | `/android-layout:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify` |
-| Agent | `agents/ui-code-locator.md` | Read-only UI→code locator subagent for isolating multi-step investigation in a subcontext |
-| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after installing or updating the plugin |
+| MCP | `.claude-plugin/plugin.json` | Inline `mcpServers`, starts `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`, providing `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `analyze_ui` and more |
+| Skill | `skills/capture-ui/` | Screen facts — structure, Activity, `uiKind`, entry points, coordinates — plus the saved json/png/xml artifacts |
+| Skill | `skills/inspect-view-attribute/` | One control's raw layout and style values: margins, padding, measured size, text metrics, background, RTL |
+| Skill | `skills/trace-view-wiring/` | One control → implementation, click handler, visibility control, and text/image/background injection |
+| Skill | `skills/trace-ui-to-logic/` | One section's UI → state holder → data source chain (read-only) |
+| Skill | `skills/audit-ui/` | Defect judgments from 12 layout and accessibility rules |
+| Commands | `commands/capture.md`, `inspect.md`, `locate.md`, `analyze.md`, `audit.md` | `/android-layout:capture`, `:inspect`, `:locate`, `:analyze`, `:audit` |
+| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`; restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
 | Script | `scripts/sync-agent-skills.mjs` | Copies `skills/` into `.agents/skills/` (Codex CLI, Gemini CLI, Cline, Goose), `.codebuddy/skills/` (CodeBuddy, `--codebuddy`), or `.workbuddy/skills/` (WorkBuddy, `--workbuddy`) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
 
-Only the skills and the MCP server travel to other agents; the commands, the subagent, and the hook are Claude Code specific. See [mcp.md](mcp.md#other-clients) for the per-client configs and the skills install flow.
+Only the skills and the MCP server travel to other agents; the commands and the hook are Claude Code specific. See [mcp.md](mcp.md#other-clients) for the per-client configs and the skills install flow.
 
 ## Installation
 
@@ -86,7 +86,7 @@ Or load for the current session only:
 claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
-After installation `/mcp` should show the `android-layout` server and `/help` should list `/android-layout:locate`, `:screen`, `:analyze-screen`, `:view`, `:verify`.
+After installation `/mcp` should show the `android-layout` server and `/help` should list `/android-layout:capture`, `:inspect`, `:locate`, `:analyze`, `:audit`.
 
 ## Typical workflow
 
@@ -99,22 +99,20 @@ For "locate the Me button on the current screen and trace it to its related code
 5. `locate_code` (or the locate script directly) returns string, layout, Compose, ViewBinding, and click-handler candidates;
 6. Open the candidate files to verify, follow 1–3 hops of business logic, and report with `file:line`.
 
-Natural-language requests about the current screen or a visible control ("抓取当前页面布局", "看下这个按钮", "有没有重叠") route through the `inspect-current-screen` skill instead: `get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`, optionally `analyze_ui` and `screenshot`. That path stops after device evidence and never calls `locate_code`; only source questions continue into the workflow above.
+Natural-language requests about the current screen or a visible control ("抓取当前页面布局", "看下这个按钮", "有没有重叠") route through the `capture-ui` skill instead: `get_state` → `dump_ui(format="tree")` → `find_elements` / `hit_test`, optionally `analyze_ui` and `screenshot`. That path stops after device evidence and never calls `locate_code`; only source questions continue into the workflow above.
 
-Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `analyze-screen-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
+Whole-screen/dialog requests ("分析当前界面的代码和业务逻辑", "分析这个弹窗的数据从哪来") route through `trace-ui-to-logic`: capture (`get_state` + `dump_ui(auto, tree)`) → classify page/dialog/bottom sheet and list sections (dump a separate window when needed) → resolve the Activity/Fragment/Composable/route/dialog class → map sections to `file:line` → follow ViewModel/state → Repository/API/cache for 1–3 hops, marking each hop confirmed or inferred. It is read-only and does not edit code.
 
-Explicit visual requests ("打开可视化看看", "在浏览器里打开当前页面", "open the UI viewer") use `/android-layout:view` or the `open_viewer` tool: one capture, one self-contained `.aui/viewer.html`, then the default browser. No dump/find/analyze/screenshot/verify path launches a browser.
-
-**Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`; restart Claude Code after install/update.
+**Android project gate.** Every activation path first checks that the working directory (or the named repo root) is an Android project: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository the plugin activates only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android. A connected device does not make the repository Android. A `PreToolUse` hook enforces the gate for `get_state`/`dump_ui`/`find_elements`/`locate_code`; restart Claude Code after install/update.
 
 Or call the commands directly:
 
 ```text
-/android-layout:locate Me
-/android-layout:screen
-/android-layout:analyze-screen
-/android-layout:view
-/android-layout:verify
+/android-layout:capture
+/android-layout:inspect-view Me
+/android-layout:trace-view Me
+/android-layout:trace-logic "the feed list"
+/android-layout:audit
 ```
 
 ## Locate script
@@ -140,7 +138,7 @@ The script only ranks candidates — always open the files to confirm. It never 
 
 ## Agent
 
-`ui-code-locator` is a read-only subagent suited to "capture screen → find node → scan candidates → read code" multi-step work, so the main session only receives the conclusion. It performs no edits, builds, installs, or device input.
+`capture-ui` is a read-only subagent suited to "capture screen → find node → scan candidates → read code" multi-step work, so the main session only receives the conclusion. It performs no edits, builds, installs, or device input.
 
 ## Environment variables
 
@@ -149,7 +147,7 @@ The plugin manifest's `mcpServers` injects no environment variables; the MCP pro
 ## Read-only and permissions
 
 - Every skill and the agent are read-only: the plugin observes and analyzes a device but never taps, swipes, types, or sends key events.
-- The locate/verify workflows write `.aui/before.json`, `.aui/after.json`, `.aui/*.png` inside the repository; add `.aui/` to `.gitignore` (this repo already does).
+- The capture workflow writes `.aui/capture.json`, `.aui/capture.png`, and `.aui/capture.xml` inside the repository; add `.aui/` to `.gitignore` (this repo already does).
 - Do not commit dumps: they may contain device serials, foreground package names, and screen text.
 
 ## Adding a second plugin later

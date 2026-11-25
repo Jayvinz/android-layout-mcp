@@ -3,23 +3,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
 import { allFragments, notableFragments, parseDumpsys } from "./core/dumpsys.js";
-import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderSource } from "./core/render.js";
 import { renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
 import { serializeNode } from "./core/viewdump.js";
-import { loadDump, saveDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
-import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload, } from "./core/viewer.js";
+import { saveDump } from "./core/serialize.js";
 import { PACKAGE_VERSION } from "./core/version.js";
 const TOOL_SERVER_INFO = {
     name: "android-layout",
@@ -539,116 +536,6 @@ export async function startMcpServer(options = {}) {
                     { type: "text", text: JSON.stringify(meta) },
                 ],
             };
-        }
-        catch (error) {
-            return errorResultWithScreenshot(error);
-        }
-    });
-    server.registerTool("open_viewer", {
-        title: "Open the UI viewer",
-        description: "Capture the current Android UI once, write a self-contained interactive HTML viewer (tree, screenshot overlay, node details, layout issues), and open it in the default browser. Use ONLY when the user explicitly asks to visualize or open the screen in a browser, such as \"打开可视化看看\", \"在浏览器里打开当前页面\", \"可视化当前布局\", \"open the UI viewer\", \"open this screen in the browser\", or \"visualize the current screen\". This opens a browser window as an explicit, user-visible side effect: never call it for ordinary summaries (dump_ui), element lookup (find_elements), screenshots (screenshot), analysis (analyze_ui), diffs (diff_ui), or verification. The result is a static offline snapshot; refs are valid only for this capture. Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
-        inputSchema: {
-            serial: z.string().optional().describe("Device serial; omit when only one device is connected."),
-            package: z.string().optional().describe("Package to inspect; defaults to the foreground app."),
-            window: z.string().optional().describe("ViewRootImpl window name or index for source=view."),
-            source: sourceSchema.optional().describe("auto (default), view, semantics, compose, or both."),
-            savePath: z.string().optional().describe("HTML output path (default .aui/viewer.html)."),
-            open: z.boolean().optional().describe("Open the browser after writing (default true)."),
-            maxWidth: z.number().int().min(1).max(4000).optional().describe("Downscale the embedded screenshot to at most this width (default 1080)."),
-            maxNodes: z.number().int().min(1).max(20000).optional().describe("Maximum serialized nodes per tree (default 4000)."),
-            includeProperties: z.boolean().optional().describe("Embed every ViewDebug property in node details."),
-            includeIssues: z.boolean().optional().describe("Run layout/accessibility analysis (default true)."),
-        },
-        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    }, async (args) => {
-        try {
-            const result = await captureFor({
-                serial: args.serial,
-                package: args.package,
-                window: args.window,
-                source: args.source,
-                includeProperties: args.includeProperties,
-            });
-            let screenshot = null;
-            try {
-                screenshot = await takeScreenshot(adbFor(args.serial), { maxWidth: args.maxWidth ?? 1080 });
-            }
-            catch {
-                // The viewer still works without a screenshot.
-            }
-            const analysis = (args.includeIssues ?? true) ? analyzeCapture(result) : null;
-            const payload = viewerPayload(result, {
-                screenshot,
-                analysis,
-                maxNodes: args.maxNodes ?? 4000,
-                includeProperties: args.includeProperties,
-            });
-            const html = renderViewerHtmlFromPayload(payload);
-            const savePath = resolve(args.savePath ?? defaultViewerPath(process.env.CLAUDE_PROJECT_DIR));
-            await mkdir(dirname(savePath), { recursive: true });
-            await writeFile(savePath, html, "utf8");
-            const shouldOpen = args.open ?? true;
-            const openResult = shouldOpen
-                ? await openInBrowser(savePath)
-                : { opened: false, error: "open=false" };
-            const truncated = Object.keys(payload.trees).some((source) => payload.trees[source]?.truncated === true);
-            const screenshotMeta = screenshot
-                ? {
-                    width: screenshot.width,
-                    height: screenshot.height,
-                    originalWidth: screenshot.originalWidth,
-                    originalHeight: screenshot.originalHeight,
-                    scale: screenshot.scale,
-                }
-                : null;
-            return jsonResult({
-                path: savePath,
-                opened: openResult.opened,
-                ...(openResult.browser ? { browser: openResult.browser } : {}),
-                ...(openResult.error ? { openError: openResult.error } : {}),
-                bytes: Buffer.byteLength(html, "utf8"),
-                uiKind: result.uiKind,
-                sources: result.sources,
-                truncated,
-                screenshot: screenshotMeta,
-                warnings: result.warnings,
-                hint: (openResult.opened
-                    ? `Viewer opened at ${savePath}.`
-                    : `Viewer written to ${savePath} but not opened (${openResult.error ?? "unknown"}).`) +
-                    " Static offline snapshot: refs are valid only for this capture.",
-            });
-        }
-        catch (error) {
-            return errorResultWithScreenshot(error);
-        }
-    });
-    server.registerTool("diff_ui", {
-        title: "Diff two saved UI dumps",
-        description: "Compare two dump JSON files written by dump_ui (savePath). Reports added, removed, and moved/resized nodes. Useful for verifying a UI change: dump before, make the change, dump after, then diff.",
-        inputSchema: {
-            beforePath: z.string().describe("Path to the earlier dump JSON."),
-            afterPath: z.string().describe("Path to the later dump JSON."),
-            source: z.enum(["view", "semantics", "compose"]).optional().describe("Tree to compare; defaults to each dump's primary source."),
-            tolerance: z.number().int().min(0).max(100).optional().describe("Bounds tolerance in pixels (default 1)."),
-        },
-        annotations: { readOnlyHint: true, openWorldHint: false },
-    }, async (args) => {
-        try {
-            const [before, after] = await Promise.all([loadDump(args.beforePath), loadDump(args.afterPath)]);
-            const source = args.source;
-            const chosen = chooseDiffSource(before, after, source);
-            const diff = diffSnapshots(snapshotRoots(before, chosen), snapshotRoots(after, chosen), {
-                source: chosen,
-                boundsTolerance: args.tolerance,
-            });
-            return jsonResult({
-                source: chosen,
-                summary: diff.summary,
-                added: diff.added,
-                removed: diff.removed,
-                changed: diff.changed,
-                text: renderDiff(diff),
-            });
         }
         catch (error) {
             return errorResultWithScreenshot(error);

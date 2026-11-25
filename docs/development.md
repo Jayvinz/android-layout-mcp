@@ -10,7 +10,7 @@ npm run typecheck
 npm run build     # regenerates dist/ (dist/ is intentionally committed)
 npm run build:helper   # rebuild the Compose JVMTI helper against local Android Studio
 npm run build:plugin-zip   # release plugin bundle into dist-plugin/ (gitignored; runs npm ci --omit=dev, add --no-deps offline)
-npm run sync-skills        # copy the four skills to .agents/skills for other agents (--codebuddy, --workbuddy, --both, --global, --check)
+npm run sync-skills        # copy the five skills to .agents/skills for other agents (--codebuddy, --workbuddy, --both, --global, --check)
 npx tsx --test test/query.test.ts   # run a single test file
 npx tsx src/cli.ts dump             # run the CLI from source without building
 ```

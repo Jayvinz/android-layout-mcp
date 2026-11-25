@@ -8,10 +8,10 @@
 
 | 层 | 内容 | 可移植性 |
 |---|---|---|
-| MCP Server | `dist/mcp.js`、stdio、11 个工具 | 所有 MCP 客户端 |
+| MCP Server | `dist/mcp.js`、stdio、9 个工具 | 所有 MCP 客户端 |
 | 技能 | 4 个 `SKILL.md`，frontmatter 只有 `name` + `description` | 读取 Agent Skills 目录的客户端 |
 | 斜杠命令 | 5 个 `commands/*.md`，`$ARGUMENTS` 语法 | 仅 Claude Code |
-| 子代理 | `agents/ui-code-locator.md`，`model: inherit` / `color` | 仅 Claude Code |
+| 子代理 | `agents/capture-ui.md`，`model: inherit` / `color` | 仅 Claude Code |
 | 门禁与分发 | `hooks/hooks.json` 的 `PreToolUse`、`plugin.json`、marketplace | 仅 Claude Code |
 
 技能可移植靠两个性质：frontmatter 只用 `name` 与 `description`；CLI 兜底路径用 `$AUI_ROOT/dist/cli.js`，而不是 `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`。在 Claude Code 里 `AUI_ROOT` 就是 `${CLAUDE_PLUGIN_ROOT}`；其他地方它是你的插件 checkout，或者把 `android-layout` 放进 `PATH`。技能的可执行命令里不会硬编码 Claude 专属路径，`test/agent-portability.test.ts` 强制这一点。
@@ -48,10 +48,10 @@ id 定义在 `src/core/mcp-config.ts`；CLI 的 `--client` choices 直接从该�
 
 | 客户端 | 版本 | 验证内容 | 需要记住的坑 |
 |---|---|---|---|
-| OpenCode | 1.19.5 | `opencode mcp list` 显示已连接；`tools/list` 收到全部 11 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 | 配置校验严格；`type: "local"` 加命令数组才是被接受的形状 |
+| OpenCode | 1.19.5 | `opencode mcp list` 显示已连接；`tools/list` 收到全部 9 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 5 个技能 | 配置校验严格；`type: "local"` 加命令数组才是被接受的形状 |
 | CodeBuddy Code | 2.186.0 | `mcp__android-layout__list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载 | 项目级 server 需要一次性审批；无交互运行要加 `--settings '{"enableAllProjectMcpServers":true}'`，工具被门禁时还要 `-y` |
 | Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 | 非交互 shell 里 `codex exec` 会等 stdin，需从 `/dev/null` 重定向；自定义 provider 必须用 `env_key`，inline `api_key` 会被忽略 |
-| WorkBuddy | 内置 | 重启并在 GUI 中一次性启用后，`list_devices` 返回真实设备，`inspect-current-screen` 从 `.workbuddy/skills/` 加载 | 只写 `mcp.json` 不会暴露工具，GUI 启用/信任步骤不能省 |
+| WorkBuddy | 内置 | 重启并在 GUI 中一次性启用后，`list_devices` 返回真实设备，`capture-ui` 从 `.workbuddy/skills/` 加载 | 只写 `mcp.json` 不会暴露工具，GUI 启用/信任步骤不能省 |
 
 其余 16 家按各自官方文档的 schema 配置，但未在本机运行。未实测的条目按"配置形状已核对、运行时未验证"看待。
 
@@ -77,7 +77,7 @@ node scripts/sync-agent-skills.mjs --dest . --check           # 副本过期时�
 | `--workbuddy` | `.workbuddy/skills/` | WorkBuddy，项目级或用户级 |
 | 无需复制 | `.claude/skills/` | Cursor、VS Code 直接读取 |
 
-`--both` 只表示前两个目标：`.agents/skills` 加 `.codebuddy/skills`。要写三处需再叠加 `--workbuddy`。脚本零依赖，只覆盖这 4 个技能，不会删除目标目录里的其他技能；`--check` 会分别校验每个选中的目标。
+`--both` 只表示前两个目标：`.agents/skills` 加 `.codebuddy/skills`。要写三处需再叠加 `--workbuddy`。脚本零依赖，只覆盖这 5 个技能，不会删除目标目录里的其他技能；`--check` 会分别校验每个选中的目标。
 
 Cursor 与 VS Code 无需复制就能发现 `.claude/skills/`，因此把插件技能放在那里即可。
 
@@ -110,4 +110,4 @@ Cursor 与 VS Code 无需复制就能发现 `.claude/skills/`，因此把插件�
 - 配置格式会变。表格反映 2026 年 11 月的写法，告诉用户路径前先复核。
 - 技能可移植，但斜杠命令、子代理、`PreToolUse` hook 不可移植。不要给 `SKILL.md` 加 agent 专属 frontmatter 字段，否则同步脚本会把其他客户端不认的字段一起发出去。
 - 只有四家做了运行时验证，其余 16 家是按各自 schema 文档配置的。
-- 所有客户端拿到的是同一套 11 个工具。差异在配置形状、技能发现与审批流程，不在工具行为。
+- 所有客户端拿到的是同一套 9 个工具。差异在配置形状、技能发现与审批流程，不在工具行为。

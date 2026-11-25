@@ -1,7 +1,7 @@
 ---
 type: tool_used
 tool: Skill
-input_match: '"skill"\s*:\s*"(?:[\w-]+:)?(?:locate-ui-code|locate)"'
+input_match: '"skill"\s*:\s*"(?:[\w-]+:)?(?:trace-view-wiring|locate)"'
 ---
 
-The run activates the `locate-ui-code` skill.
+The run activates the `trace-view-wiring` skill.

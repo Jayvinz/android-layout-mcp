@@ -19,7 +19,6 @@ Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-l
 - **Adaptive data sources** — `auto` picks the right tree per screen: ViewDebug v2 for XML, accessibility semantics for Compose, and both for mixed screens. Opt into the Compose JVMTI tree for Composable names and `file:line`.
 - **Find and hit-test** — search by text / content-description / resource-id / class / ref, and resolve every element under a coordinate (smallest area first). Read-only: it never taps, swipes, or types.
 - **Visual verification** — screenshots with SVG node overlays and automatic image→device coordinate mapping; a fallback screenshot is saved automatically when structured capture fails.
-- **Interactive viewer on request** — say "打开可视化看看" and get a self-contained offline HTML file (tree, screenshot overlay, node details, layout issues) opened in your browser. It never opens a browser as a side effect of other commands.
 - **Checks and diffs** — 10 layout/accessibility rules and identity-keyed before/after diffs around a code change.
 - **UI → source locator** — turn UI anchors into ranked `file:line` candidates, string/layout/Compose definitions, and click handlers. Read-only: it never edits the repo.
 - **One core, two front ends** — the CLI and the MCP server share the same `capture()` / `treesFor()` pipeline, so behavior does not diverge.
@@ -73,10 +72,9 @@ After installation you get:
 
 | Component               | Content                                                                                                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MCP server `android-layout` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `open_viewer`, `diff_ui`, `list_fragments`, and more                                          |
-| Slash commands          | `/android-layout:locate` (UI→source), `:screen` (current screen), `:analyze-screen` (screen/dialog logic), `:view` (browser viewer), `:verify` (verify changes on device) |
-| Skills                  | `inspect-current-screen`, `locate-ui-code`, `analyze-screen-logic`, `verify-ui-change`                                                                                |
-| Read-only subagent      | `ui-code-locator`                                                                                                                                                     |
+| MCP server `android-layout` | `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `screenshot`, `list_fragments`, `get_state`, and more                                          |
+| Slash commands          | `/android-layout:capture` (UI facts + artifacts), `:inspect-view` (control attributes), `:trace-view` (control → source), `:trace-logic` / `:ui2logic` (block → data chain), `:audit` (layout defects + their source) |
+| Skills                  | `capture-ui`, `inspect-view-attribute`, `trace-view-wiring`, `trace-ui-to-logic`, `audit-ui` |
 
 Use `/mcp` to confirm the server is loaded; `/help` lists the commands above.
 
@@ -140,7 +138,7 @@ android-layout devices       # connected devices
 android-layout state         # screen, foreground app, pid
 android-layout dump          # capture the current UI (auto source)
 android-layout find "开拍"   # search by text
-android-layout view          # write an interactive HTML viewer and open it in the browser
+android-layout shot          # save a screenshot with optional node overlay
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command table, analysis rules, screenshots, and coordinate mapping.
@@ -154,29 +152,26 @@ Put the target app on the page you care about, then just say in Claude Code:
 Or run the command:
 
 ```text
-/android-layout:locate Me
+/android-layout:trace-view Me
 ```
 
-The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. After a UI change, use `/android-layout:verify` to compare before/after.
+The tools confirm the foreground app → capture the UI tree → lock onto the target node → scan the repository for `file:line` candidates → read the code and report the location. 
 
-To analyze a whole screen, dialog, or bottom sheet instead of one control, say "分析当前界面的代码和业务逻辑" or run `/android-layout:analyze-screen`: it maps the screen's sections to source, then follows the ViewModel, data sources, navigation, and side effects.
+To trace one block instead of one control, say "分析这块区域的业务逻辑" or run `/android-layout:trace-logic` (alias `:ui2logic`): it maps the block to source, then follows the ViewModel, data source, and the wiring between them.
 
-**Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer`. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
+**Android projects only.** Activation is gated on an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin activates only when you explicitly ask to inspect the device screen/page or explicitly mention Android; a connected device does not make the repository Android. A `PreToolUse` hook enforces the same gate for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. Hooks load at session start, so restart Claude Code after installing or updating the plugin.
 
 ## What you can do
 
-| Task                                                                      | Entry point                                                   |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Locate the Compose/XML source and business chain of a control             | `/android-layout:locate` / `locate_code`            |
-| Analyze the code, state, data flow, and business logic of the current screen/dialog | `/android-layout:analyze-screen` / `analyze-screen-logic` skill |
-| Understand the current screen (foreground app, Activity, visible entries) | `/android-layout:screen` / `get_state` + `dump_ui`  |
-| Inspect a visible control's bounds, center, clickable/enabled state, and class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
-| Verify a UI change on a real device (diff + rules + screenshot)           | `/android-layout:verify` / `diff_ui` + `analyze_ui` |
-| Find elements / hit-test                                                  | `find_elements` / `hit_test` |
-| Screenshots (SVG node overlay, image→device coordinates)                  | `screenshot` / `android-layout shot`                        |
-| Visualize the current screen in a browser (explicit request only)         | `open_viewer` / `android-layout view` / `/android-layout:view` |
-| Layout and accessibility checks                                           | `analyze_ui` / `android-layout analyze`                     |
-| Before/after layout diff around a code change                             | `diff_ui` / `android-layout diff`                           |
+| Task | Entry point |
+|---|---|
+| UI facts: structure, Activity, `uiKind`, saved json/png/xml | `/android-layout:capture` / `capture-ui` |
+| One control's margins, padding, measured size, text metrics, RTL | `/android-layout:inspect-view` / `inspect-view-attribute` |
+| One control's implementation, click handler, visibility, content source | `/android-layout:trace-view` / `trace-view-wiring` |
+| One block's UI → ViewModel → data source chain | `/android-layout:trace-logic` / `trace-ui-to-logic` |
+| Layout defects (12 rules) tied to their XML/Composable source | `/android-layout:audit` / `audit-ui` |
+| Find elements / hit-test | `find_elements` / `hit_test` |
+| Screenshots with SVG node overlay and image→device mapping | `screenshot` / `android-layout shot` |
 
 ## Data sources at a glance
 
@@ -207,7 +202,6 @@ To analyze a whole screen, dialog, or bottom sheet instead of one control, say "
 - `compose` additionally needs a local Android Studio and Java 17+; each capture takes about 8–12s.
 - `input text` reliably supports ASCII only; every command captures a fresh snapshot — there is no live monitoring.
 - Text output is trimmed at 2000 nodes (`--max-nodes`/`--depth`/`--visible-only` shape the text tree only); `--json`/`--out` write the complete dump, and MCP `dump_ui` caps JSON at 800 nodes unless you raise `maxNodes`.
-- The HTML viewer embeds at most 8 MB; beyond that it drops View properties, then halves the node budget down to 200, and reports `truncated`.
 - `find`/`hit` selectors only match visible nodes. Coordinate work needs the screenshot metadata (`coordinateMapping`) to convert image pixels to device coordinates. MCP `screenshot` defaults to 720 px wide, while CLI `shot` keeps the native resolution.
 - Content drawn directly to a `Canvas` (custom views, `SurfaceView`, `WebView` pixels) has no text or child nodes; the semantics tree only shows what the app exposes to accessibility.
 - Activation targets Android projects; in other repositories it requires an explicit device/screen request or an explicit Android mention.

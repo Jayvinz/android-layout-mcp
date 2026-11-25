@@ -28,14 +28,14 @@
 
 | 组件 | 路径 | 作用 |
 |---|---|---|
-| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `open_viewer` / `diff_ui` / `analyze_ui` 等 |
-| Skill | `skills/inspect-current-screen/` | 只看当前页面/控件、直接操作、布局/无障碍检查，以及显式触发的浏览器查看器；不追溯源码 |
-| Skill | `skills/locate-ui-code/` | UI 元素 → Compose/XML 源码 → 点击/状态/业务链路的完整流程与参考资料 |
-| Skill | `skills/analyze-screen-logic/` | 整页/弹窗分析：实现、ViewModel/状态、数据来源、导航、条件与副作用（只读） |
-| Skill | `skills/verify-ui-change/` | 改动前后 dump、diff、规则检查、截图与交互验证 |
-| Commands | `commands/locate.md`、`screen.md`、`analyze-screen.md`、`view.md`、`verify.md` | `/android-layout:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify` |
-| Agent | `agents/ui-code-locator.md` | 只读的 UI→代码定位子代理，适合把多步排查隔离在子上下文 |
-| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer`；安装或更新插件后需重启 Claude Code |
+| MCP | `.claude-plugin/plugin.json` | 内联 `mcpServers`，启动 `${CLAUDE_PLUGIN_ROOT}/dist/mcp.js`，提供 `dump_ui` / `find_elements` / `locate_code` / `hit_test` / `list_fragments` / `screenshot` / `analyze_ui` 等 |
+| Skill | `skills/capture-ui/` | 屏幕事实：结构、Activity、`uiKind`、可见入口、坐标，以及存下的 json/png/xml 产物 |
+| Skill | `skills/inspect-view-attribute/` | 单个控件的原始布局与样式值：内外边距、padding、实测尺寸、文字度量、背景、RTL |
+| Skill | `skills/trace-view-wiring/` | 单个控件 → 实现类、点击处理、显隐控制、文本/图片/背景注入 |
+| Skill | `skills/trace-ui-to-logic/` | 某一块区域的 UI → 状态持有者 → 数据源链路（只读） |
+| Skill | `skills/audit-ui/` | 12 条布局与无障碍规则给出的缺陷判决 |
+| Commands | `commands/capture.md`、`inspect.md`、`locate.md`、`analyze.md`、`audit.md` | `/android-layout:capture`、`:inspect`、`:locate`、`:analyze`、`:audit` |
+| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截 `get_state`/`dump_ui`/`find_elements`/`locate_code`；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Script | `scripts/sync-agent-skills.mjs` | 把 `skills/` 复制到 `.agents/skills/`（Codex CLI、Gemini CLI、Cline、Goose）、`.codebuddy/skills/`（CodeBuddy，`--codebuddy`）或 `.workbuddy/skills/`（WorkBuddy，`--workbuddy`） |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
@@ -96,7 +96,7 @@ claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
 安装后 `/mcp` 应能看到 `android-layout` server；`/help` 中会出现
-`/android-layout:locate`、`:screen`、`:analyze-screen`、`:view`、`:verify`。
+`/android-layout:capture`、`:inspect`、`:locate`、`:analyze`、`:audit`。
 
 ## 典型流程
 
@@ -110,33 +110,29 @@ claude --plugin-dir E:/repo/android-layout-mcp
 6. 打开候选文件验证，追 1–3 跳业务链路，输出带 `file:line` 的报告。
 
 “抓取当前页面布局”“看下这个按钮”“有没有重叠”这类关于当前页面或可见控件的自然语言请求会走
-`inspect-current-screen` skill：`get_state` → `dump_ui(format="tree")` → `find_elements` /
+`capture-ui` skill：`get_state` → `dump_ui(format="tree")` → `find_elements` /
 `hit_test`，必要时再看 `analyze_ui` 和 `screenshot`。这条路径只做设备取证，不会调用
 `locate_code`；只有用户明确追问源码时才进入上面的定位流程。
 
 整页/弹窗请求（“分析当前界面的代码和业务逻辑”“分析这个弹窗的数据从哪来”）会走
-`analyze-screen-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）→ 判断页面/弹窗/底部弹层并列出区块
+`trace-ui-to-logic`：抓屏（`get_state` + `dump_ui(auto, tree)`）→ 判断页面/弹窗/底部弹层并列出区块
 （独立窗口时按窗口 dump）→ 确定 Activity/Fragment/Composable/route/弹窗类 → 区块映射到 `file:line`
 → 追 ViewModel/状态 → Repository/API/缓存 1–3 跳，每一跳标注 confirmed 或 inferred。全程只读，不修改代码。
-
-显式可视化请求（“打开可视化看看”“在浏览器里打开当前页面”“open the UI viewer”）走
-`/android-layout:view` 或 `open_viewer` 工具：抓取一次、生成一个自包含的
-`.aui/viewer.html`，再打开默认浏览器。`dump`/`find`/`analyze`/`screenshot`/验证流程都不会打开浏览器。
 
 **Android 工程门槛。** 所有激活路径都会先确认当前工作目录（或用户指定的仓库根目录）是 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
 `AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android
 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对
-`get_state`/`dump_ui`/`find_elements`/`locate_code`/`open_viewer` 强制执行同一门槛；安装或更新后需重启 Claude Code。
+`get_state`/`dump_ui`/`find_elements`/`locate_code` 强制执行同一门槛；安装或更新后需重启 Claude Code。
 
 也可以直接调用命令：
 
 ```text
-/android-layout:locate 个人页
-/android-layout:screen
-/android-layout:analyze-screen
-/android-layout:view
-/android-layout:verify
+/android-layout:capture
+/android-layout:inspect-view 关注
+/android-layout:trace-view 个人页
+/android-layout:trace-logic "feed 列表"
+/android-layout:audit
 ```
 
 ## 定位脚本
@@ -166,7 +162,7 @@ node scripts/locate-code.mjs --root . \
 
 ## Agent
 
-`ui-code-locator` 是只读子代理，适合让子上下文完成“抓屏 → 找节点 → 扫描候选 → 读代码”的
+`capture-ui` 是只读子代理，适合让子上下文完成“抓屏 → 找节点 → 扫描候选 → 读代码”的
 多步工作，主会话只接收结论。它默认不执行编辑、构建、安装或点击。
 
 ## 环境变量

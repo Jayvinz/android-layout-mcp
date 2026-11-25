@@ -203,6 +203,8 @@ export interface Issue {
 }
 export interface AnalyzeResult {
     issues: Issue[];
+    /** Rules that could not run on this capture, with the reason. */
+    skipped?: string[];
     counts: Record<string, number>;
     dp: number;
     nodeCount: number;

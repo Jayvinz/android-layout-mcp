@@ -15,7 +15,6 @@
 - **数据源自适应** —— `auto` 按页面选择正确的数据树：XML 用 ViewDebug v2，Compose 用无障碍语义树，混合页面两者并用；需要 Composable 名称与 `file:line` 时可显式启用 Compose JVMTI 树。
 - **查找与命中测试** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的全部元素（按面积从小到大排序）。全程只读，不点击、不滑动、不输入。
 - **可视化验证** —— 截图支持 SVG 节点标注与图片坐标→设备坐标的自动映射；结构化抓取失败时会自动保存一张兜底截图。
-- **按需交互式浏览器查看器** —— 说“打开可视化看看”即可生成一个自包含的离线 HTML 文件（树、截图叠加层、节点详情、布局问题）并在浏览器中打开；其他命令绝不会顺带打开浏览器。
 - **检查与对比** —— 10 条布局/无障碍规则，以及围绕代码改动的 identity-keyed 改前/改后 diff。
 - **UI → 源码定位** —— 以 UI 锚点扫描仓库，返回排序后的 `file:line` 候选、string/layout/Compose 定义与点击处理逻辑。全程只读，不修改仓库。
 - **一个内核，两个前端** —— CLI 与 MCP server 共享同一套 `capture()` / `treesFor()` 流程，行为不会分叉。
@@ -68,10 +67,9 @@ MCP Server ────────────────────┘      
 
 | 组件 | 内容 |
 |---|---|
-| MCP server `android-layout` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`open_viewer`、`diff_ui`、`list_fragments` 等工具 |
-| Slash 命令 | `/android-layout:locate`（UI→源码）、`:screen`（当前页面速览）、`:analyze-screen`（页面/弹窗逻辑）、`:view`（浏览器查看器）、`:verify`（真机验证改动） |
-| Skills | `inspect-current-screen`、`locate-ui-code`、`analyze-screen-logic`、`verify-ui-change` |
-| 只读子代理 | `ui-code-locator` |
+| MCP server `android-layout` | `dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`screenshot`、`list_fragments`、`get_state` 等工具 |
+| Slash 命令 | `/android-layout:capture`（UI 事实+产物）、`:inspect-view`（控件属性）、`:trace-view`（控件→源码）、`:trace-logic` / `:ui2logic`（区块→数据链）、`:audit`（布局缺陷+对应源码） |
+| Skills | `capture-ui`、`inspect-view-attribute`、`trace-view-wiring`、`trace-ui-to-logic`、`audit-ui` |
 
 可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
 
@@ -112,7 +110,7 @@ node dist/cli.js mcp --print-config --client cursor
 }
 ```
 
-支持技能加载的客户端还能复用这 4 个技能：`node scripts/sync-agent-skills.mjs --dest ../my-android-app`
+支持技能加载的客户端还能复用这 5 个技能：`node scripts/sync-agent-skills.mjs --dest ../my-android-app`
 会把它们写入 `.agents/skills/`；CodeBuddy 要加 `--codebuddy` 写入 `.codebuddy/skills/`，WorkBuddy 加
 `--workbuddy` 写入 `.workbuddy/skills/`，`--both` 写 `.agents/skills/` 与 `.codebuddy/skills/` 两处，
 再叠加 `--workbuddy` 则三处都写（Cursor 与 VS Code 直接读 `.claude/skills/`）。斜杠命令、子代理与
@@ -132,7 +130,7 @@ android-layout devices       # 已连接设备
 android-layout state         # 屏幕、前台 App、pid
 android-layout dump          # 抓取当前 UI（默认 auto）
 android-layout find "开拍"   # 按文本查找
-android-layout view          # 生成交互式 HTML 查看器并在浏览器中打开
+android-layout shot          # 保存截图，可附节点标注
 ```
 
 完整命令表、分析规则、截图与坐标映射见 [docs/cli.zh.md](docs/cli.zh.md)。
@@ -146,29 +144,26 @@ android-layout view          # 生成交互式 HTML 查看器并在浏览器中�
 或运行命令：
 
 ```text
-/android-layout:locate 个人页
+/android-layout:trace-view 个人页
 ```
 
-工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。UI 改动完成后用 `/android-layout:verify` 做改前/改后对比验证。
+工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。
 
-如果要分析的是整个页面、弹窗或底部弹层而不是单个控件，可以说“分析当前界面的代码和业务逻辑”，或运行 `/android-layout:analyze-screen`：它会把页面各区块映射到源码，再追 ViewModel、数据来源、导航与副作用。
+如果要追的是一整块区域而不是单个控件，可以说“分析这块区域的业务逻辑”，或运行 `/android-layout:trace-logic`（别名 `:ui2logic`）：它把该区块映射到源码，再追 ViewModel、数据源与两者的连接。
 
-**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code`、`open_viewer` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
+**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对 `get_state`、`dump_ui`、`find_elements`、`locate_code` 强制执行同一门槛。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
 
 ## 能做什么
 
 | 想做的事 | 入口 |
 |---|---|
-| 定位控件对应的 Compose/XML 源码与业务链路 | `/android-layout:locate` / `locate_code` |
-| 分析当前页面/弹窗的代码、状态、数据流与业务逻辑 | `/android-layout:analyze-screen` / `analyze-screen-logic` skill |
-| 看懂当前页面（前台 App、Activity、可见入口） | `/android-layout:screen` / `get_state` + `dump_ui` |
-| 检查某个可见控件的 bounds、center、可点击/enabled 状态与 class | `inspect-current-screen` skill / `find_elements` + `hit_test` |
-| 真机验证 UI 改动（diff + 规则 + 截图） | `/android-layout:verify` / `diff_ui` + `analyze_ui` |
+| UI 事实：结构、Activity、`uiKind`，存下 json/png/xml | `/android-layout:capture` / `capture-ui` |
+| 单个控件的内外边距、padding、实测尺寸、文字度量、RTL | `/android-layout:inspect-view` / `inspect-view-attribute` |
+| 单个控件的实现类、点击处理、显隐控制、内容来源 | `/android-layout:trace-view` / `trace-view-wiring` |
+| 某一块区域的 UI → ViewModel → 数据源链路 | `/android-layout:trace-logic` / `trace-ui-to-logic` |
+| 布局缺陷（12 条规则）并关联到对应 XML/Composable | `/android-layout:audit` / `audit-ui` |
 | 查找元素 / 命中测试 | `find_elements` / `hit_test` |
 | 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-layout shot` |
-| 在浏览器中可视化当前页面（仅显式请求） | `open_viewer` / `android-layout view` / `/android-layout:view` |
-| 布局与无障碍问题检查 | `analyze_ui` / `android-layout analyze` |
-| 改码前后布局对比 | `diff_ui` / `android-layout diff` |
 
 ## 数据来源速览
 

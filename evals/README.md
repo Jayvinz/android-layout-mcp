@@ -1,6 +1,6 @@
 # Trigger evals
 
-Routing regression suite for the four skills. It checks that a prompt activates the intended skill and calls the intended MCP tools, that general Android or coding questions activate nothing, and that the Android project gate blocks non-Android workspaces unless the user explicitly asks for the device screen/page or mentions Android.
+Routing regression suite for the five skills. It checks that a prompt activates the intended skill and calls the intended MCP tools, that general Android or coding questions activate nothing, and that the Android project gate blocks non-Android workspaces unless the user explicitly asks for the device screen/page or mentions Android.
 
 ## Layout
 
@@ -44,7 +44,7 @@ The eval workspace is empty, so it is not an Android project. Existing positive 
 
 ## Runtime gate
 
-`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/aui-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/aui-android-gate.mjs`) for `get_state`, `dump_ui`, `find_elements`, and `locate_code`. In a non-Android workspace it denies those tools unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
 
 ## Scaffolded Android workspace
 

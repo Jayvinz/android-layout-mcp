@@ -1,13 +1,12 @@
 #!/usr/bin/env node
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { Command, Option } from "commander";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
 import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js";
-import { diffSnapshots, renderDiff } from "./core/diff.js";
 import { AuiError, errorMessage } from "./core/errors.js";
 import { JdwpClient } from "./core/jdwp.js";
 import { allFragments, notableFragments, parseDumpsys } from "./core/dumpsys.js";
@@ -16,8 +15,7 @@ import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderIssues, renderSource } from "./core/render.js";
 import { renderAnnotatedSvg, saveScreenshot, screenshotMetadata, takeScreenshot, } from "./core/screenshot.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
-import { loadDump, saveDump, serializeDump, snapshotRoots, chooseDiffSource } from "./core/serialize.js";
-import { defaultViewerPath, openInBrowser, renderViewerHtmlFromPayload, viewerPayload } from "./core/viewer.js";
+import { saveDump, serializeDump } from "./core/serialize.js";
 import { PACKAGE_VERSION } from "./core/version.js";
 const program = new Command();
 program
@@ -347,10 +345,13 @@ program
     .option("--rules <rules>", "comma-separated rules (small_touch_target, overlap, clipped, ...)")
     .option("--min-touch-dp <dp>", "minimum touch target size", parsePositiveInt, 48)
     .option("--max-depth <n>", "deep nesting threshold", parsePositiveInt, 14)
+    .option("--no-props", "skip raw View properties (overdraw and rtl_issues need them)")
     .option("--json", "output JSON")
     .option("--paths", "include full node paths in text output")
     .action(async (options, command) => {
-    const result = await captureFor(command, options);
+    // overdraw and rtl_issues read raw View properties, so request them by
+    // default; --no-props opts out for a faster, smaller capture.
+    const result = await captureFor(command, { ...options, props: options.props !== false });
     const rules = options.rules
         ? options.rules.split(",").map((rule) => rule.trim()).filter(Boolean)
         : undefined;
@@ -436,119 +437,6 @@ program
     }
     if (annotated)
         console.log(`saved ${annotated}`);
-});
-program
-    .command("view")
-    .alias("open")
-    .description("capture the current UI and open an interactive HTML viewer in the browser")
-    .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
-    .option("--package <package>", "package name (defaults to foreground app)")
-    .option("--pid <pid>", "process id")
-    .option("--window <name-or-index>", "ViewRootImpl window to capture (view source)")
-    .option("--out <file>", "HTML output path", ".aui/viewer.html")
-    .option("--no-open", "write the HTML file without opening a browser")
-    .option("--max-width <px>", "downscale the embedded screenshot to at most this width", parsePositiveInt, 1080)
-    .option("--max-nodes <n>", "limit serialized nodes per tree", parsePositiveInt, 4000)
-    .option("--props", "embed every ViewDebug property")
-    .option("--rules <rules>", "comma-separated analysis rules (default: all)")
-    .option("--no-issues", "skip layout/accessibility analysis")
-    .option("--json", "output JSON")
-    .action(async (options, command) => {
-    const result = await captureFor(command, options);
-    const adb = makeAdb(command);
-    let screenshot = null;
-    let screenshotError = null;
-    try {
-        screenshot = await takeScreenshot(adb, { maxWidth: options.maxWidth });
-    }
-    catch (error) {
-        screenshotError = errorMessage(error);
-    }
-    const rules = options.rules
-        ? options.rules.split(",").map((rule) => rule.trim()).filter(Boolean)
-        : undefined;
-    const analysis = options.issues === false ? null : analyzeCapture(result, { rules });
-    const payload = viewerPayload(result, {
-        screenshot,
-        analysis,
-        maxNodes: options.maxNodes,
-        includeProperties: Boolean(options.props),
-    });
-    const html = renderViewerHtmlFromPayload(payload);
-    const outPath = resolve(options.out);
-    await mkdir(dirname(outPath), { recursive: true });
-    await writeFile(outPath, html, "utf8");
-    const openResult = options.open === false ? { opened: false, error: "--no-open" } : await openInBrowser(outPath);
-    const bytes = Buffer.byteLength(html, "utf8");
-    const truncated = Object.keys(payload.trees).some((source) => payload.trees[source]?.truncated === true);
-    const screenshotMeta = screenshot
-        ? {
-            width: screenshot.width,
-            height: screenshot.height,
-            originalWidth: screenshot.originalWidth,
-            originalHeight: screenshot.originalHeight,
-            scale: screenshot.scale,
-        }
-        : null;
-    if (!options.json && !isInsideAui(outPath)) {
-        console.error("warning: the viewer contains device/screen data; do not commit it.");
-    }
-    if (options.json) {
-        printJson({
-            path: outPath,
-            opened: openResult.opened,
-            ...(openResult.browser ? { browser: openResult.browser } : {}),
-            ...(openResult.error ? { openError: openResult.error } : {}),
-            bytes,
-            uiKind: result.uiKind,
-            sources: result.sources,
-            truncated,
-            trees: viewerTreeSummary(payload),
-            screenshot: screenshotMeta,
-            ...(screenshotError ? { screenshotError } : {}),
-        });
-        return;
-    }
-    const state = openResult.opened
-        ? "opened in browser"
-        : `not opened: ${openResult.error ?? "unknown"}`;
-    console.log(`viewer ${outPath} (${state})`);
-    console.log(`  ${bytes} bytes · uiKind ${result.uiKind} · nodes ${viewerTreeCounts(payload)}` +
-        `${truncated ? " · truncated" : ""}`);
-    if (screenshot) {
-        console.log(`  screenshot ${screenshot.width}x${screenshot.height} ` +
-            `(from ${screenshot.originalWidth}x${screenshot.originalHeight})`);
-    }
-    else {
-        console.log(`  screenshot unavailable${screenshotError ? `: ${screenshotError}` : ""}`);
-    }
-    if (payload.meta.limits.budgetExceeded) {
-        console.error("warning: embedded JSON exceeded the 8 MB budget; the payload was reduced.");
-    }
-});
-program
-    .command("diff <before> <after>")
-    .description("diff two dump JSON files")
-    .option("--source <source>", "view | semantics | compose (defaults to each dump's primary source)")
-    .option("--tolerance <px>", "bounds tolerance in pixels", parseNonNegativeInt, 1)
-    .option("--json", "output JSON")
-    .action(async (beforePath, afterPath, options) => {
-    const [before, after] = await Promise.all([loadDump(beforePath), loadDump(afterPath)]);
-    const source = options.source ? options.source : undefined;
-    const chosen = chooseDiffSource(before, after, source);
-    const result = diffSnapshots(snapshotRoots(before, chosen), snapshotRoots(after, chosen), { source: chosen, boundsTolerance: options.tolerance });
-    if (options.json) {
-        printJson({
-            summary: result.summary,
-            before: { source: chosen, file: beforePath },
-            after: { source: chosen, file: afterPath },
-            added: result.added,
-            removed: result.removed,
-            changed: result.changed,
-        });
-        return;
-    }
-    console.log(renderDiff(result));
 });
 program
     .command("compose-clean")
@@ -716,28 +604,6 @@ function formatMatch(match) {
 }
 function printJson(value) {
     console.log(JSON.stringify(value, null, 2));
-}
-function isInsideAui(path) {
-    const root = dirname(defaultViewerPath());
-    return path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}\\`);
-}
-function viewerTreeSummary(payload) {
-    const summary = {};
-    for (const [source, tree] of Object.entries(payload.trees)) {
-        if (!tree)
-            continue;
-        summary[source] = { nodes: tree.nodeCount, total: tree.totalNodes, truncated: tree.truncated };
-    }
-    return summary;
-}
-function viewerTreeCounts(payload) {
-    const parts = [];
-    for (const [source, tree] of Object.entries(payload.trees)) {
-        if (!tree)
-            continue;
-        parts.push(`${source} ${tree.nodeCount}${tree.truncated ? `/${tree.totalNodes}` : ""}`);
-    }
-    return parts.length > 0 ? parts.join(", ") : "none";
 }
 function asString(value) {
     return typeof value === "string" && value.length > 0 ? value : undefined;

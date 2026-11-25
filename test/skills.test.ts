@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -52,30 +52,53 @@ function scalarField(source: string, field: string): string {
 
 function assertContains(haystack: string, needles: string[], label: string): void {
   for (const needle of needles) {
-    assert.ok(haystack.includes(needle), `${label} description is missing "${needle}"`);
+    assert.ok(haystack.includes(needle), `${label} is missing "${needle}"`);
   }
 }
 
-const components = {
-  inspect: read("skills/inspect-current-screen/SKILL.md"),
-  locate: read("skills/locate-ui-code/SKILL.md"),
-  verify: read("skills/verify-ui-change/SKILL.md"),
-  analyze: read("skills/analyze-screen-logic/SKILL.md"),
-  agent: read("agents/ui-code-locator.md"),
-};
+/** The five skills, keyed by directory name. */
+const SKILL_NAMES = [
+  "capture-ui",
+  "inspect-view-attribute",
+  "trace-view-wiring",
+  "trace-ui-to-logic",
+  "audit-ui",
+] as const;
 
-const skills = {
-  inspect: components.inspect,
-  locate: components.locate,
-  verify: components.verify,
-  analyze: components.analyze,
-};
+const skills = Object.fromEntries(
+  SKILL_NAMES.map((name) => [name, read(`skills/${name}/SKILL.md`)]),
+) as Record<(typeof SKILL_NAMES)[number], string>;
 
-const SKILL_GATE = "Android-only";
-const MCP_GATE = "Android repos only";
+/** The five commands, keyed by command name. */
+/** Commands plus the ui2logic alias, which maps onto the same skill as trace-logic. */
+const COMMAND_NAMES = ["capture", "inspect-view", "trace-view", "trace-logic", "ui2logic", "audit"] as const;
 
-test("component descriptions are valid and within the 1024-character limit", () => {
-  for (const [name, source] of Object.entries(components)) {
+test("the shipped skill set is exactly the five designed skills", () => {
+  const found = readdirSync(join(repoRoot, "skills"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(join(repoRoot, "skills", entry.name, "SKILL.md")))
+    .map((entry) => entry.name)
+    .sort();
+  assert.deepEqual(found, [...SKILL_NAMES].sort());
+});
+
+test("the shipped command set is exactly the five designed commands", () => {
+  const found = readdirSync(join(repoRoot, "commands"))
+    .filter((name) => name.endsWith(".md"))
+    .map((name) => name.replace(/\.md$/, ""))
+    .sort();
+  assert.deepEqual(found, [...COMMAND_NAMES].sort());
+});
+
+test("no subagent ships: the locator is a skill, not an agent", () => {
+  assert.equal(
+    existsSync(join(repoRoot, "agents")),
+    false,
+    "agents/ must not exist; trace-view-wiring owns that workflow",
+  );
+});
+
+test("every skill description fits the 1024-character limit", () => {
+  for (const [name, source] of Object.entries(skills)) {
     const description = scalarField(source, "description");
     assert.ok(description.length > 0, `${name} description is empty`);
     assert.ok(
@@ -85,189 +108,179 @@ test("component descriptions are valid and within the 1024-character limit", () 
   }
 });
 
-test("every skill description carries at least one English trigger phrase", () => {
-  // Quoted English trigger phrases let English-only users activate each skill.
-  // The Chinese trigger lists alone leave two skills routed only by the prose
-  // "Use when ..." sentence, which is weaker for a model choosing a skill.
-  const quoted = /"([^"]*)"/g;
+test("every skill description declares what it owns and what it does not", () => {
   for (const [name, source] of Object.entries(skills)) {
     const description = scalarField(source, "description");
-    const englishPhrases = [...description.matchAll(quoted)]
+    assert.match(description, /Owns:/, `${name} description needs an "Owns:" clause`);
+    assert.match(description, /Not:/, `${name} description needs a "Not:" clause`);
+  }
+});
+
+test("every Not: clause points at a real skill", () => {
+  const known = new Set<string>(SKILL_NAMES);
+  for (const [name, source] of Object.entries(skills)) {
+    const description = scalarField(source, "description");
+    const notClause = /Not:([\s\S]*?)(?:Only in Android|$)/.exec(description);
+    assert.ok(notClause, `${name} has no Not: clause`);
+    for (const referenced of notClause[1].matchAll(/`([a-z][a-z-]+)`|\(([a-z][a-z-]+)\)/g)) {
+      const target = referenced[1] ?? referenced[2];
+      assert.ok(known.has(target), `${name} points at unknown skill "${target}"`);
+    }
+  }
+});
+
+test("no trigger phrase is claimed by two skills", () => {
+  // A phrase listed in two descriptions makes routing a coin flip. This is the
+  // check that would have caught "which Activity owns this page" living in both
+  // trace-view-wiring and trace-ui-to-logic.
+  const owners = new Map<string, string>();
+  for (const [name, source] of Object.entries(skills)) {
+    const description = scalarField(source, "description");
+    for (const quoted of description.matchAll(/"([^"]{4,})"/g)) {
+      const phrase = quoted[1].trim().toLowerCase();
+      const existing = owners.get(phrase);
+      assert.ok(
+        existing === undefined || existing === name,
+        `trigger phrase "${quoted[1]}" is claimed by both ${existing} and ${name}`,
+      );
+      owners.set(phrase, name);
+    }
+  }
+});
+
+test("every skill description carries at least one English trigger phrase", () => {
+  for (const [name, source] of Object.entries(skills)) {
+    const description = scalarField(source, "description");
+    const english = [...description.matchAll(/"([^"]*)"/g)]
       .map((match) => match[1])
       .filter((phrase) => /[A-Za-z]{3}/.test(phrase) && !/[\u4e00-\u9fff]/.test(phrase));
-    assert.ok(
-      englishPhrases.length > 0,
-      `${name} description needs at least one quoted English trigger phrase`,
-    );
+    assert.ok(english.length > 0, `${name} needs at least one quoted English trigger phrase`);
   }
 });
 
-test("agent output format uses English section headings", () => {
-  const agent = components.agent;
-  const outputSection = /\*\*Output Format:\*\*([\s\S]*?)(?=\*\*Edge Cases:\*\*)/.exec(agent);
-  assert.ok(outputSection, "expected an Output Format section in the agent");
-  assert.doesNotMatch(
-    outputSection[1],
-    /[\u4e00-\u9fff]/,
-    "agent output headings must be English so English-only users can read the report structure",
-  );
-});
-
-test("inspect-current-screen description owns screen and control observation", () => {
-  assertContains(
-    scalarField(components.inspect, "description"),
-    [
-      "抓取当前页面布局",
-      "当前页面布局",
-      "summarize the current screen",
-      "看下当前",
-      "这个控件多大",
-      "有没有小点击区域",
-      "打开可视化看看",
-      "在浏览器里打开当前页面",
-      "可视化当前布局",
-      "open the UI viewer",
-      "locate-ui-code",
-      "verify-ui-change",
-    ],
-    "inspect-current-screen",
-  );
-});
-
-test("every skill description carries the Android project gate", () => {
+test("every skill carries the Android project gate", () => {
   for (const [name, source] of Object.entries(skills)) {
-    assertContains(scalarField(source, "description"), [SKILL_GATE], name);
+    assertContains(source, ["Android project gate", "HARD STOP", "does not make the repository Android"], name);
+    assertContains(scalarField(source, "description"), ["Android-only"], `${name} description`);
   }
 });
 
-test("locate-ui-code description owns source tracing and excludes screen observation", () => {
-  assertContains(
-    scalarField(components.locate, "description"),
-    [
-      "这个按钮在哪实现的",
-      "按 UI 找已有业务逻辑",
-      "这个点击事件/可见性/状态在哪个 ViewModel/Repository",
-      "inspect-current-screen",
-      "Not for general Android questions",
-    ],
-    "locate-ui-code",
-  );
+test("every skill opens with a Scope table routing its neighbours", () => {
+  for (const [name, source] of Object.entries(skills)) {
+    assert.match(source, /^## Scope$/m, `${name} needs a "## Scope" section`);
+    const scope = /## Scope([\s\S]*?)(?=\n## )/.exec(source);
+    assert.ok(scope, `${name} has no Scope body`);
+    assert.match(scope[1], /\|.*\|/, `${name} Scope must be a table`);
+  }
 });
 
-test("verify-ui-change description owns before/after verification", () => {
-  assertContains(
-    scalarField(components.verify, "description"),
-    ["改完了看看生效没", "这次改动有没有回归", "inspect-current-screen"],
-    "verify-ui-change",
-  );
+test("skills stay self-contained so sync-agent-skills can ship each one alone", () => {
+  // A skill is copied into other agents on its own; a relative path that
+  // escapes the skill directory would not resolve there.
+  for (const [name, source] of Object.entries(skills)) {
+    const relative = [...source.matchAll(/`(\.\.[^`]*)`/g)].map((match) => match[1]);
+    for (const path of relative) {
+      assert.ok(
+        !path.includes("skills/"),
+        `${name} reaches into another skill via "${path}"; copy the reference instead`,
+      );
+    }
+  }
 });
 
-test("analyze-screen-logic description owns whole-screen/dialog business analysis", () => {
-  assertContains(
-    scalarField(components.analyze, "description"),
-    [
-      "分析当前界面的代码",
-      "分析当前界面/弹窗的代码/业务逻辑",
-      "分析这个弹窗的业务逻辑",
-      "locate-ui-code",
-      "inspect-current-screen",
-    ],
-    "analyze-screen-logic",
-  );
-});
+test("commands delegate to a skill and carry no gate body of their own", () => {
+  const allowedSkill = /`(capture-ui|inspect-view-attribute|trace-view-wiring|trace-ui-to-logic|audit-ui)`/;
+  for (const name of COMMAND_NAMES) {
+    const source = read(`commands/${name}.md`);
+    assert.match(source, allowedSkill, `commands/${name}.md must name its skill`);
 
-test("screen command delegates to the inspect-current-screen skill", () => {
-  const command = read("commands/screen.md");
-  assert.ok(command.includes("inspect-current-screen"), "screen.md must reference inspect-current-screen");
-  assert.ok(
-    /Do not scan the repository or call `locate_code`/i.test(command),
-    "screen.md must tell the model not to scan source by default",
-  );
-});
-
-test("commands gate activation on an Android project", () => {
-  for (const command of ["screen", "locate", "verify"]) {
-    const source = read(`commands/${command}.md`);
+    // The gate lives in the skill; a command repeats it only as one pointer line.
     assert.ok(
-      source.includes("Android project gate"),
-      `commands/${command}.md must include the Android project gate`,
+      !/^\*\*HARD STOP:\*\*/m.test(source),
+      `commands/${name}.md must not inline the HARD STOP body`,
+    );
+    const gateLines = source.split(/\r?\n/).filter((line) => /^Gate:/i.test(line.trim()));
+    assert.ok(
+      gateLines.length <= 1,
+      `commands/${name}.md should carry at most one gate pointer line, found ${gateLines.length}`,
     );
     assert.ok(
-      source.includes("does not make the repository Android"),
-      `commands/${command}.md must say a connected device does not make the repo Android`,
+      source.length < 1500,
+      `commands/${name}.md is ${source.length} characters; a command is an entry point, not a procedure`,
     );
   }
 });
 
-test("analyze-screen command delegates to the analyze-screen-logic skill", () => {
-  const command = read("commands/analyze-screen.md");
-  assert.ok(
-    command.includes("analyze-screen-logic"),
-    "commands/analyze-screen.md must reference analyze-screen-logic",
-  );
-  assert.ok(
-    command.includes("Android project gate"),
-    "commands/analyze-screen.md must include the Android project gate",
-  );
-  assert.ok(
-    command.includes("does not make the repository Android"),
-    "commands/analyze-screen.md must say a connected device does not make the repo Android",
-  );
-});
-
-test("view command delegates to the viewer tool", () => {
-  const command = read("commands/view.md");
-  assert.ok(command.includes("inspect-current-screen"), "view.md must reference inspect-current-screen");
-  assert.ok(command.includes("open_viewer"), "view.md must call open_viewer");
-  assert.ok(
-    /static snapshot|do not modify code|living refresh/i.test(command),
-    "view.md must describe the snapshot semantics",
-  );
-  assert.ok(command.includes("Android project gate"), "view.md must include the Android project gate");
-  assert.ok(
-    command.includes("does not make the repository Android"),
-    "view.md must say a connected device does not make the repo Android",
-  );
-});
-
-test("MCP tool descriptions carry the screen-observation routing phrases", () => {
-  const mcp = read("src/mcp.ts");
-  const blocks = mcp.split("server.registerTool(");
-  const blockFor = (tool: string): string => {
-    const block = blocks.find((candidate) => candidate.trimStart().startsWith(`"${tool}"`));
-    assert.ok(block, `expected a registerTool block for ${tool}`);
-    return block;
+test("each command binds $ARGUMENTS and names its skill", () => {
+  const expected: Record<(typeof COMMAND_NAMES)[number], string> = {
+    capture: "capture-ui",
+    "inspect-view": "inspect-view-attribute",
+    "trace-view": "trace-view-wiring",
+    "trace-logic": "trace-ui-to-logic",
+    ui2logic: "trace-ui-to-logic",
+    audit: "audit-ui",
   };
-
-  assertContains(blockFor("dump_ui"), ["抓取当前页面布局", "导出布局树", "当前界面有什么"], "dump_ui");
-  assertContains(blockFor("find_elements"), ["看下当前", "这个控件多大"], "find_elements");
-  assertContains(blockFor("analyze_ui"), ["有没有小点击区域", "无障碍检查"], "analyze_ui");
-  assertContains(blockFor("screenshot"), ["截个图看看", "看一下画面"], "screenshot");
-  assertContains(blockFor("hit_test"), ["屏幕坐标 300,800"], "hit_test");
-  assertContains(
-    blockFor("open_viewer"),
-    ["打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", "open the UI viewer", "never call it"],
-    "open_viewer",
-  );
-  assertContains(blockFor("locate_code"), ["not for general Android concept questions"], "locate_code");
-
-  for (const tool of ["get_state", "dump_ui", "find_elements", "locate_code", "open_viewer"]) {
-    assertContains(blockFor(tool), [MCP_GATE], `${tool} MCP description`);
+  for (const [command, skill] of Object.entries(expected)) {
+    const source = read(`commands/${command}.md`);
+    assert.ok(source.includes("$ARGUMENTS"), `commands/${command}.md must reference $ARGUMENTS`);
+    assert.ok(source.includes(skill), `commands/${command}.md must point at ${skill}`);
   }
 });
 
-test("skills, commands, and the agent hard-stop outside Android projects", () => {
+test("capture-ui reports the big-dimension facts and the artifact caveat", () => {
+  const source = skills["capture-ui"];
+  assertContains(source, ["activity", "uiKind", "savePath", "uiautomator"], "capture-ui");
+  assert.match(
+    source,
+    /Layout Inspector cannot open/i,
+    "capture-ui must state that Android Studio cannot open our dump",
+  );
+});
+
+test("inspect-view-attribute owns raw property names and the px/dp caveat", () => {
+  const source = skills["inspect-view-attribute"];
+  assertContains(
+    source,
+    ["includeProperties", "layoutParams", "padding:", "measurement:", "density"],
+    "inspect-view-attribute",
+  );
+  assert.match(source, /MATCH_PARENT/, "inspect-view-attribute must decode -1 as MATCH_PARENT");
+});
+
+test("trace-view-wiring covers the four questions", () => {
+  const source = skills["trace-view-wiring"];
+  assertContains(source, ["Implementation", "Events", "Visibility", "Content"], "trace-view-wiring");
+  assertContains(source, ["stringResource", "setOnClickListener", "setText"], "trace-view-wiring");
+});
+
+test("trace-ui-to-logic is scoped to a block, not the whole screen", () => {
+  const source = skills["trace-ui-to-logic"];
+  assert.match(source, /## Scope/);
+  assert.match(source, /block/i, "trace-ui-to-logic must talk about a block/section");
+  assert.ok(
+    !/whole current screen/i.test(source.split("## Step 1")[0]),
+    "trace-ui-to-logic must not claim the whole screen as its default scope",
+  );
+});
+
+test("audit-ui lists the rules it reports, including overdraw and RTL", () => {
+  const source = skills["audit-ui"];
+  assertContains(
+    source,
+    ["small_touch_target", "overlap", "clipped", "deep_nesting", "overdraw", "rtl_issues"],
+    "audit-ui",
+  );
+});
+
+test("the ordering axis is documented: single control vs section vs screen", () => {
+  // Each skill's Scope table must name at least one neighbour, so a reader can
+  // resolve an ambiguous request without reading five files.
   for (const [name, source] of Object.entries(skills)) {
-    assert.ok(source.includes("HARD STOP"), `${name} body must include HARD STOP`);
-    assert.ok(
-      source.includes("do NOT call `get_state`, `dump_ui`, `find_elements`, `locate_code`"),
-      `${name} body must name the tools it must not call`,
-    );
+    const scope = /## Scope([\s\S]*?)(?=\n## )/.exec(source);
+    assert.ok(scope, `${name} has no Scope section`);
+    const neighbours = [...scope[1].matchAll(/`([a-z][a-z-]+)`/g)]
+      .map((match) => match[1])
+      .filter((target) => target !== name && SKILL_NAMES.includes(target as never));
+    assert.ok(neighbours.length > 0, `${name} Scope must route at least one neighbouring skill`);
   }
-  for (const command of ["screen", "locate", "verify", "analyze-screen"]) {
-    const source = read(`commands/${command}.md`);
-    assert.ok(source.includes("HARD STOP"), `commands/${command}.md must include HARD STOP`);
-  }
-  const agent = read("agents/ui-code-locator.md");
-  assert.ok(agent.includes("HARD STOP"), "agent must include HARD STOP");
 });

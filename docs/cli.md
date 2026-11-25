@@ -50,18 +50,11 @@ android-layout shot --out small.png --scale 0.5
 # Layout / accessibility checks
 android-layout analyze
 
-# Interactive HTML viewer (explicit visual request; opens the browser)
-android-layout view
-android-layout view --no-open --out .aui/viewer.html
 
 # Hit-test a device coordinate (all overlapping nodes, smallest first)
 android-layout hit 540 2239 --json
 
-# Two-snapshot diff: before/after a code change or page switch
-android-layout dump --json --out before.json
-# ... modify, rerun, refresh the page ...
-android-layout dump --json --out after.json
-android-layout diff before.json after.json
+
 
 # Full properties of a single node
 android-layout inspect v4
@@ -95,8 +88,6 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-layout inspect <ref>` | Full JSON of a single node (including View properties); `--source`, `--json` |
 | `android-layout analyze` | Layout/accessibility checks; `--rules`, `--min-touch-dp` (48), `--max-depth` (14), `--paths`, `--json` |
 | `android-layout shot` | Screenshot; `--max-width` / `--scale` downscale; `--annotate` generates `*.annotated.svg`; `--json`, `--json --base64` |
-| `android-layout view` (alias `open`) | Capture once, write a self-contained interactive HTML viewer, and open it in the browser; `--no-open` writes only |
-| `android-layout diff <a> <b>` | Compare two dump JSON files; `--source`, `--tolerance` (default 1 px), `--json` |
 | `android-layout fragments` | Activity/Fragment structure from `dumpsys`; `--package`, `--json`, `--all` (keep AndroidX bookkeeping fragments) |
 | `android-layout studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
 | `android-layout mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
@@ -111,7 +102,6 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 - **Text tree vs JSON**: `--depth`, `--max-nodes` (default 2000) and `--visible-only` shape only the human-readable tree; when it is cut, the last line says how many nodes were shown. `--json` / `--out` write the complete dump (`version: 1`, no trimming), so an agent should trim on its side or use MCP `dump_ui` with `depth`/`maxNodes`.
 - **Search**: `find` and `hit` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
 - **Screenshots**: CLI `shot` keeps the native resolution unless `--max-width`/`--scale` is given; `--base64` adds data only together with `--json`. MCP `screenshot` defaults to 720px wide.
-- **Viewer budget**: the embedded JSON is capped at 8 MB. On overflow the viewer first drops `--props`, then halves `--max-nodes` (floor 200); `view --json` reports `truncated`, and the embedded payload carries `limits.budgetExceeded`. The page is a static snapshot either way.
 - **Diff**: compares one tree per run and keys nodes by identity, not pixels. `--tolerance` (default 1 px) ignores smaller bound changes; `--source` forces the tree when the two dumps disagree on the primary source.
 - **Analyze**: `deep_nesting` is skipped for the `compose` source, unknown rule names are ignored, and `small_touch_target` skips bottom-clipped accessibility nodes on ROMs that under-report the window (e.g. MIUI).
 - **Fallbacks**: with `auto`, a tree that fails to capture is skipped with a warning and the other tree is used; when the target package is not running, view capture is skipped. Warnings surface in the text tree, in JSON (`warnings`), and on stderr for `analyze`. `--window` takes a 0-based index or a name substring and applies to the view source only.
@@ -132,36 +122,12 @@ Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide
 | `unlabeled_clickable` | Clickable with no text/desc/id on itself or descendants |
 | `duplicate_id` | The same resource-id on multiple visible nodes |
 | `deep_nesting` | Nesting deeper than the threshold (default 14); skipped for the `compose` source |
+| `overdraw` | A child paints a different opaque background over its parent across the same area |
+| `rtl_issues` | A hardcoded `leftMargin`/`rightMargin` with no `startMargin`/`endMargin` counterpart, so it will not mirror in RTL |
 
 Enable only the rules you need: `android-layout analyze --rules small_touch_target,overlap`.
 
-## Interactive viewer
-
-`android-layout view` (alias `open`) captures the current UI once, writes one self-contained HTML file, and opens it in the default browser. Use it only when the user explicitly asks to visualize the screen; `dump`, `find`, `analyze`, `shot`, and verification never open a browser as a side effect.
-
-```bash
-android-layout view                                    # .aui/viewer.html + browser
-android-layout view --no-open                          # write the file only
-android-layout view --out .tmp-view/v.html             # custom path
-android-layout view --source semantics --max-width 720
-android-layout view --rules small_touch_target,overlap --no-issues
-android-layout view --json                             # path, opened, bytes, screenshot metadata
-```
-
-| Flag | Default | Meaning |
-|---|---|---|
-| `--source` | `auto` | `auto`, `view`, `semantics`, `compose`, or `both` |
-| `--out` | `.aui/viewer.html` | HTML output path; parent directories are created |
-| `--no-open` | off | Write the file without launching a browser |
-| `--max-width` | `1080` | Downscale the embedded screenshot to at most this width |
-| `--max-nodes` | `4000` | Maximum serialized nodes per tree |
-| `--props` | off | Embed every ViewDebug property in node details |
-| `--rules` | all | Comma-separated analysis rules |
-| `--no-issues` | off | Skip layout/accessibility analysis |
-| `--package`, `--pid`, `--window` | foreground app | Same target selection as `dump` |
-| `--json` | off | Emit `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
-
-The page embeds the tree, a base64 screenshot, node details, and issues; it makes no network requests and works from `file://`. It is a static snapshot: refs are valid only for that capture. The embedded JSON is capped at 8 MB — on overflow the viewer drops properties first, then halves the node budget down to 200 and sets `truncated` / `limits.budgetExceeded`. The HTML contains device serials, package names, and screen text — keep it under the gitignored `.aui/` and do not commit it. `AUI_NO_OPEN=1` disables browser launch globally.
+`overdraw` and `rtl_issues` read the raw View property map, so `analyze` requests properties by default. Pass `--no-props` to skip them; the JSON then lists them under `skipped` instead of reporting a clean screen.
 
 ## Screenshots and fallback
 
@@ -218,7 +184,6 @@ Coordinates returned by `find` / `hit` / MCP `find_elements` / `hit_test` are al
 | `AUI_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
 | `AUI_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |
 | `AUI_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
-| `AUI_NO_OPEN=1` | Never launch a browser from `view` / `open_viewer` (still writes the HTML) |
 | `AUI_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |
 | `AUI_JAVAC` / `AUI_JAR` | Compiler and jar tool used by `npm run build:helper` |
 | `AUI_GATE_DEBUG=1` | Append `PreToolUse` hook decisions to `aui-android-gate.log` in the temp directory |

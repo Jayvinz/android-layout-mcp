@@ -75,16 +75,16 @@ Client config formats move; the paths and shapes above are what these clients ac
 
 | Client | Version | What was exercised |
 |---|---|---|
-| OpenCode | 1.19.5 | `opencode.json` connects; `tools/list` returns all 11 tools; `opencode debug skill` finds the four skills in `.agents/skills/` |
+| OpenCode | 1.19.5 | `opencode.json` connects; `tools/list` returns all 9 tools; `opencode debug skill` finds the five skills in `.agents/skills/` |
 | CodeBuddy Code | 2.186.0 | `mcpServers` connects and `list_devices` returns a real device; skills load from `.codebuddy/skills/`. Headless runs need `--settings '{"enableAllProjectMcpServers":true}'` (plus `-y` when tool calls are gated) |
 | Codex CLI | 0.172.0 | Generated TOML parses; `codex exec` calls `list_devices` and returns a real device; skills in `.agents/skills/` are discovered |
-| WorkBuddy | bundled | After a restart and one-time GUI approval of the custom server, `list_devices` returns a real device and `inspect-current-screen` loads from `.workbuddy/skills/`; writing `mcp.json` alone does not expose tools |
+| WorkBuddy | bundled | After a restart and one-time GUI approval of the custom server, `list_devices` returns a real device and `capture-ui` loads from `.workbuddy/skills/`; writing `mcp.json` alone does not expose tools |
 
 The other clients in the table follow their documented schemas but were not exercised on this machine.
 
 ### Skills in other agents
 
-The four skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads `.codebuddy/skills/`; WorkBuddy reads `.workbuddy/skills/`:
+The five skills are written to run outside Claude Code too: their frontmatter uses only `name` and `description` (the portable subset of the Agent Skills standard), and their bodies resolve the CLI through `AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. Cursor and VS Code read `.claude/skills/` directly; Codex CLI, Gemini CLI, Cline, and Goose read `.agents/skills/`; CodeBuddy reads `.codebuddy/skills/`; WorkBuddy reads `.workbuddy/skills/`:
 
 ```bash
 node scripts/sync-agent-skills.mjs --dest ../my-android-app           # .agents/skills
@@ -96,7 +96,7 @@ node scripts/sync-agent-skills.mjs --global                            # ~/.agen
 node scripts/sync-agent-skills.mjs --dest . --check                     # exit 1 when the copy is stale
 ```
 
-Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/screen`, `/locate`, …) and the `ui-code-locator` subagent are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
+Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in that project so the CLI fallback resolves. The slash commands (`/capture`, `/locate`, …) are Claude Code specific; other clients reach the same workflows through the skills and tool descriptions. The `PreToolUse` gate hook is also Claude Code only — elsewhere the Android-project gate is the soft rule written in every skill body.
 
 ## Tools
 
@@ -110,11 +110,9 @@ Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in tha
 | `hit_test` | Coordinate hit test; returns view and semantics by default; `source=compose` reaches the Compose tree |
 | `analyze_ui` | Layout/accessibility checks (rules in [cli.md](cli.md#analysis-rules)) |
 | `screenshot` | Returns PNG image content; downscaled to 720px wide by default (`fullResolution=true` to disable); can save and produce an SVG overlay |
-| `open_viewer` | Capture once, write a self-contained offline HTML viewer (tree, screenshot overlay, details, issues), and open it in the browser |
-| `diff_ui` | Compare two JSON files written by `dump_ui(savePath)` |
 | `list_fragments` | Activity and Fragment structure from `dumpsys`; works on non-debuggable apps. Framework bookkeeping fragments are filtered unless `includeFramework` is set |
 
-**Android project gate.** `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer` are intended for Android projects: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository call them only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android; `locate_code` additionally needs an explicit Android/device request. A connected device does not make the repository Android.
+**Android project gate.** `get_state`, `dump_ui`, `find_elements`, and `locate_code` are intended for Android projects: `settings.gradle(.kts)`, `gradlew(.bat)`, a module `build.gradle(.kts)` applying `com.android.*`, or `AndroidManifest.xml`. In a non-Android repository call them only when the user explicitly asks to inspect the device screen/page or explicitly mentions Android; `locate_code` additionally needs an explicit Android/device request. A connected device does not make the repository Android.
 
 ## Limits and defaults
 
@@ -125,8 +123,6 @@ Set `AUI_ROOT` to the plugin checkout (or put `android-layout` on `PATH`) in tha
 | `locate_code` | `limit=25` candidates | `limit` 1–200; `exclude` / `includeTests` scope the scan; read-only |
 | `analyze_ui` | all 10 rules, 48 dp, depth 14 | `minTouchTargetDp` 1–200; `maxDepth` 1–100; `deep_nesting` is skipped for the compose source |
 | `screenshot` | 720 px wide | `maxWidth` 1–4000; `scale` 0.05–1; `fullResolution=true` bypasses the 720 default; `annotate` only writes the SVG when `savePath` is also set |
-| `open_viewer` | `.aui/viewer.html`, 4000 nodes/tree, 1080 px | `maxNodes` 1–20000; `includeProperties` adds ViewDebug properties (off by default); `includeIssues` runs analysis (on by default); 8 MB embedded-JSON budget — properties are dropped first, then nodes are halved to a floor of 200 |
-| `diff_ui` | `tolerance=1` px | `tolerance` 0–100; one tree per run (`source`); both inputs must be dumps written by `dump_ui(savePath=...)` |
 | `hit_test` | candidate 0, visible nodes only | `index` selects among overlapping candidates at the same point |
 
 When a capture fails, tools return the error text plus a fallback screenshot as image content.
@@ -137,9 +133,6 @@ When a capture fails, tools return the error text plus a fallback screenshot as 
 2. `dump_ui(source="auto", format="tree")` or `find_elements` → view the screen / locate;
 3. `screenshot` → visual confirmation;
 4. `analyze_ui` → check small touch targets, overlap, clipping, etc.;
-5. After a code change: `dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`.
-
-`open_viewer` is outside this order: call it only on an explicit visual request such as "打开可视化看看", "在浏览器里打开当前页面", "可视化当前布局", or "open the UI viewer". It opens a browser window as a visible side effect, so `dump_ui`, `find_elements`, `analyze_ui`, `screenshot`, `diff_ui`, and verification must not call it. Pass `open=false` (or set `AUI_NO_OPEN=1`) to write the HTML without launching a browser; the tool returns `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`.
 
 ### Summarizing the current screen
 
@@ -147,7 +140,7 @@ When a capture fails, tools return the error text plus a fallback screenshot as 
 get_state → dump_ui(source="auto", format="tree") → find_elements (named control) → optional analyze_ui / screenshot
 ```
 
-This is observation only. Call `locate_code` only when the user asks for source, and `diff_ui` only for before/after comparisons.
+This is observation only. Call `locate_code` only when the user asks for source.
 
 ### Locating UI source code
 
@@ -165,7 +158,7 @@ get_state → dump_ui(source="auto", format="tree") → (separate dialog window)
 → locate_code → read candidate files → ViewModel/state → Repository/API/cache → state/data chain with confirmed|inferred hops
 ```
 
-Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `analyze-screen-logic` skill and `/android-layout:analyze-screen` command encode this workflow.
+Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `trace-ui-to-logic` skill and `/android-layout:trace-logic` command encode this workflow.
 
 ## Environment variables
 

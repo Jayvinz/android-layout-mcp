@@ -107,7 +107,7 @@ JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and th
 
 ### Trace a control to source
 
-This is the part a coding agent cannot do from a screenshot. The `locate-ui-code` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
+This is the part a coding agent cannot do from a screenshot. The `trace-view-wiring` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
 
 ```text
 /android-layout:locate "Sign in"

@@ -10,7 +10,7 @@ npm run typecheck
 npm run build     # 重新生成 dist/（dist/ 有意提交到仓库）
 npm run build:helper   # 使用本机 Android Studio 重新编译 Compose JVMTI helper
 npm run build:plugin-zip   # 构建发布用插件包到 dist-plugin/（已 gitignore；会执行 npm ci --omit=dev，离线可加 --no-deps）
-npm run sync-skills        # 把 4 个技能复制到 .agents/skills 供其他 agent 使用（--codebuddy、--workbuddy、--both、--global、--check）
+npm run sync-skills        # 把 5 个技能复制到 .agents/skills 供其他 agent 使用（--codebuddy、--workbuddy、--both、--global、--check）
 npx tsx --test test/query.test.ts   # 运行单个测试文件
 npx tsx src/cli.ts dump             # 不构建直接从源码运行 CLI
 ```

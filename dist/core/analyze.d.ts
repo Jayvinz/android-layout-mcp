@@ -1,5 +1,5 @@
 import type { AnalyzeResult, CaptureResult } from "./model.js";
-export type RuleName = "zero_size" | "offscreen" | "small_touch_target" | "invisible_clickable" | "unlabeled_clickable" | "duplicate_id" | "deep_nesting" | "overlap" | "clipped" | "outside_parent";
+export type RuleName = "zero_size" | "offscreen" | "small_touch_target" | "invisible_clickable" | "unlabeled_clickable" | "duplicate_id" | "deep_nesting" | "overlap" | "clipped" | "outside_parent" | "overdraw" | "rtl_issues";
 export interface AnalyzeOptions {
     rules?: RuleName[];
     minTouchTargetDp?: number;

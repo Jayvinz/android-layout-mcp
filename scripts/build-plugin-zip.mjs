@@ -43,7 +43,6 @@ const INCLUDED = [
   "hooks",
   "skills",
   "commands",
-  "agents",
   "scripts/locate-code.mjs",
   "package.json",
   "README.md",

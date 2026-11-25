@@ -1,7 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { CaptureResult, DumpFile, NodeSource, UiNode } from "./model.js";
-import type { SnapshotNode } from "./diff.js";
 import { serializeNode } from "./viewdump.js";
 
 export function serializeDump(result: CaptureResult, includeProperties = true): DumpFile {
@@ -83,54 +82,4 @@ export async function loadDump(path: string): Promise<DumpFile> {
     throw new Error(`${path} is not an android-layout dump (version 1).`);
   }
   return parsed;
-}
-
-/** Returns the roots of the requested (or primary) source as diffable nodes. */
-export function snapshotRoots(dump: DumpFile, source?: NodeSource): SnapshotNode[] {
-  const chosen = source ?? dump.source;
-  const tree =
-    chosen === "semantics"
-      ? dump.semantics?.roots
-      : chosen === "compose"
-        ? dump.compose?.roots
-        : chosen === "dumpsys"
-          ? dump.dumpsys?.roots
-          : dump.view?.roots;
-  if (tree) return tree as unknown as SnapshotNode[];
-  const fallback =
-    chosen === "semantics"
-      ? dump.view?.roots
-      : chosen === "compose"
-        ? dump.view?.roots
-        : chosen === "dumpsys"
-          ? dump.semantics?.roots
-          : dump.semantics?.roots;
-  return (fallback ?? []) as unknown as SnapshotNode[];
-}
-
-/**
- * Choose a source that exists in both dumps. Dumps captured with different
- * primary sources (e.g. source=both vs auto) would otherwise be compared
- * across trees, producing nonsense diffs.
- */
-export function chooseDiffSource(
-  before: DumpFile,
-  after: DumpFile,
-  explicit?: NodeSource,
-): NodeSource {
-  if (explicit) return explicit;
-  const has = (dump: DumpFile, source: NodeSource) =>
-    source === "view"
-      ? Boolean(dump.view)
-      : source === "semantics"
-        ? Boolean(dump.semantics)
-        : source === "dumpsys"
-          ? Boolean(dump.dumpsys)
-          : Boolean(dump.compose);
-  if (before.source === after.source) return before.source;
-  if (has(before, "dumpsys") && has(after, "dumpsys")) return "dumpsys";
-  if (has(before, "compose") && has(after, "compose")) return "compose";
-  if (has(before, "semantics") && has(after, "semantics")) return "semantics";
-  if (has(before, "view") && has(after, "view")) return "view";
-  return before.source;
 }

@@ -50,18 +50,11 @@ android-layout shot --out small.png --scale 0.5
 # 布局 / 无障碍问题检查
 android-layout analyze
 
-# 交互式 HTML 查看器（显式可视化请求，会打开浏览器）
-android-layout view
-android-layout view --no-open --out .aui/viewer.html
 
 # 命中测试某个设备坐标（返回全部重叠节点，面积最小的优先）
 android-layout hit 540 2239 --json
 
-# 两次快照对比：改代码 / 切换页面前后
-android-layout dump --json --out before.json
-# ... 修改、重新运行、刷新页面 ...
-android-layout dump --json --out after.json
-android-layout diff before.json after.json
+
 
 # 查看某个节点的全部属性
 android-layout inspect v4
@@ -95,8 +88,6 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-layout inspect <ref>` | 输出单个节点的完整 JSON（含 View 属性）；`--source`、`--json` |
 | `android-layout analyze` | 布局/无障碍检查；`--rules`、`--min-touch-dp`（48）、`--max-depth`（14）、`--paths`、`--json` |
 | `android-layout shot` | 截图；`--max-width` / `--scale` 降分辨率；`--annotate` 生成 `*.annotated.svg`；`--json`、`--json --base64` |
-| `android-layout view`（别名 `open`） | 一次抓取，写入自包含的交互式 HTML 查看器并打开浏览器；`--no-open` 只写文件 |
-| `android-layout diff <a> <b>` | 对比两个 dump JSON；`--source`、`--tolerance`（默认 1px）、`--json` |
 | `android-layout fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；`--package`、`--json`、`--all`（保留 AndroidX 记账型 Fragment） |
 | `android-layout studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
 | `android-layout mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
@@ -112,7 +103,6 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 - **文本树与 JSON**：`--depth`、`--max-nodes`（默认 2000）和 `--visible-only` 只影响人类可读的文本树；被截断时最后一行会说明展示到多少节点。`--json` / `--out` 写出完整 dump（`version: 1`，不裁剪），agent 端需要自己裁剪，或改用 MCP `dump_ui` 的 `depth`/`maxNodes`。
 - **搜索**：`find` 与 `hit` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
 - **截图**：CLI `shot` 默认保持原生分辨率，只有指定 `--max-width`/`--scale` 才降采样；`--base64` 仅在同时带 `--json` 时生效。MCP `screenshot` 默认 720px 宽。
-- **查看器预算**：内嵌 JSON 上限 8 MB。超限时先丢弃 `--props`，再把 `--max-nodes` 折半（下限 200）；`view --json` 会返回 `truncated`，内嵌 payload 中带 `limits.budgetExceeded`。页面始终是静态快照。
 - **Diff**：每次只比较一棵树，按节点身份而非像素对比。`--tolerance`（默认 1px）忽略更小的边界变化；两个 dump 的主来源不一致时用 `--source` 指定。
 - **Analyze**：`compose` 数据源不评估 `deep_nesting`；未知规则名会被忽略；在低报窗口高度的 ROM（如 MIUI）上，`small_touch_target` 会跳过底部被裁的语义节点。
 - **兜底行为**：`auto` 下某棵树抓取失败会跳过并给出 warning，改用另一棵树；目标包未运行时跳过 view 抓取。warning 会出现在文本树、JSON 的 `warnings` 字段，`analyze` 还会输出到 stderr。`--window` 接受 0 起始索引或名称子串，仅对 view 源生效。
@@ -133,36 +123,10 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 | `unlabeled_clickable` | 可点击且自身与后代都没有 text/desc/id |
 | `duplicate_id` | 同一个 resource-id 出现在多个可见节点 |
 | `deep_nesting` | 嵌套深度超过阈值（默认 14）；`compose` 数据源不评估该规则 |
+| `overdraw` | 子节点在同一区域绘制了与父节点不同且不透明的背景 |
+| `rtl_issues` | 硬编码 `leftMargin`/`rightMargin` 且没有对应的 `startMargin`/`endMargin`，RTL 下不会镜像 |
 
 规则可按需开启：`android-layout analyze --rules small_touch_target,overlap`。
-
-## 交互式查看器
-
-`android-layout view`（别名 `open`）会抓取一次当前界面，写入一个自包含的 HTML 文件，并在默认浏览器中打开。仅在用户显式要求可视化界面时使用；`dump`、`find`、`analyze`、`shot` 与验证流程都不会顺带打开浏览器。
-
-```bash
-android-layout view                                    # 生成 .aui/viewer.html 并打开浏览器
-android-layout view --no-open                          # 只写文件
-android-layout view --out .tmp-view/v.html             # 自定义路径
-android-layout view --source semantics --max-width 720
-android-layout view --rules small_touch_target,overlap --no-issues
-android-layout view --json                             # path、opened、bytes、截图元数据
-```
-
-| 参数 | 默认值 | 说明 |
-|---|---|---|
-| `--source` | `auto` | `auto`、`view`、`semantics`、`compose` 或 `both` |
-| `--out` | `.aui/viewer.html` | HTML 输出路径，自动创建父目录 |
-| `--no-open` | 关闭 | 只写文件，不启动浏览器 |
-| `--max-width` | `1080` | 内嵌截图最大宽度（超过则降分辨率） |
-| `--max-nodes` | `4000` | 每棵树最多序列化的节点数 |
-| `--props` | 关闭 | 在节点详情中嵌入全部 ViewDebug 属性 |
-| `--rules` | 全部 | 逗号分隔的分析规则 |
-| `--no-issues` | 关闭 | 跳过布局/无障碍分析 |
-| `--package`、`--pid`、`--window` | 前台 App | 目标选择与 `dump` 相同 |
-| `--json` | 关闭 | 输出 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}` |
-
-页面内嵌树、base64 截图、节点详情和问题列表；不发起任何网络请求，可直接从 `file://` 打开。它是静态快照，ref 只在本次抓取内有效。内嵌 JSON 上限 8 MB——超限时先丢弃属性，再把节点预算折半至 200，并置 `truncated` / `limits.budgetExceeded`。HTML 中包含设备序列号、包名与屏幕文本，请放在已 gitignore 的 `.aui/` 下，不要提交。设置 `AUI_NO_OPEN=1` 可全局禁止打开浏览器。
 
 ## 截图与兜底
 
@@ -224,7 +188,6 @@ android-layout hit 540 1200 --json
 | `AUI_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
 | `AUI_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |
 | `AUI_COMPOSE_HELPER_JAR` | 预编译的 JVMTI helper JAR |
-| `AUI_NO_OPEN=1` | `view` / `open_viewer` 不启动浏览器（仍会写入 HTML） |
 | `AUI_NO_FALLBACK_SCREENSHOT=1` | 关闭抓取失败时的兜底截图 |
 | `AUI_JAVAC` / `AUI_JAR` | `npm run build:helper` 使用的编译器与 jar 工具 |
 | `AUI_GATE_DEBUG=1` | 把 `PreToolUse` hook 的判定结果追加写入临时目录下的 `aui-android-gate.log` |

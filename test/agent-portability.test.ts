@@ -65,7 +65,7 @@ test("skills never hard-code the Claude Code plugin root in a command", () => {
       assert.ok(source.includes("`AUI_ROOT`"), `${name}: document what AUI_ROOT points at`);
     }
   }
-  const reference = read("skills/locate-ui-code/references/output-template.md");
+  const reference = read("skills/trace-view-wiring/references/output-template.md");
   assert.doesNotMatch(reference, /\$\{CLAUDE_PLUGIN_ROOT\}\/(dist|scripts)\//);
 });
 

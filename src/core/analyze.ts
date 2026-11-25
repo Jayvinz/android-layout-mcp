@@ -12,7 +12,9 @@ export type RuleName =
   | "deep_nesting"
   | "overlap"
   | "clipped"
-  | "outside_parent";
+  | "outside_parent"
+  | "overdraw"
+  | "rtl_issues";
 
 export interface AnalyzeOptions {
   rules?: RuleName[];
@@ -27,6 +29,11 @@ export function analyzeCapture(result: CaptureResult, options: AnalyzeOptions = 
   const minTarget = (options.minTouchTargetDp ?? 48) * dp;
   const maxDepth = options.maxDepth ?? 14;
   const rules = new Set(options.rules ?? (Object.keys(RULES) as RuleName[]));
+
+  // overdraw and rtl_issues read raw View properties, which are only present
+  // when the capture requested them. If they are missing, the rules cannot
+  // fire; say so instead of reporting a clean screen.
+  const needsProperties = rules.has("overdraw") || rules.has("rtl_issues");
   let nodeCount = 0;
 
   const add = (issue: Issue) => {
@@ -171,6 +178,70 @@ export function analyzeCapture(result: CaptureResult, options: AnalyzeOptions = 
       }
     }
 
+    if (rules.has("overdraw")) {
+      // A node whose parent already paints an opaque background paints the same
+      // pixels twice. Only same-tree, direct parent/child pairs are considered,
+      // and only when the child fully covers the parent's visible area.
+      const backgrounds = new Map<string, string>();
+      const walkBackgrounds = (node: UiNode) => {
+        const name = backgroundOf(node);
+        if (name) backgrounds.set(node.id, name);
+        for (const child of node.children) walkBackgrounds(child);
+      };
+      for (const root of roots) walkBackgrounds(root);
+      for (const node of nodes) {
+        if (!node.visible || !node.parent) continue;
+        const own = backgrounds.get(node.id);
+        if (!own) continue;
+        const parentName = backgrounds.get(node.parent.id);
+        if (!parentName) continue;
+        if (own === parentName) continue;
+        const outer = node.parent.visibleBounds;
+        const inner = node.visibleBounds;
+        if (!outer || !inner) continue;
+        if (outer.width * outer.height <= 0) continue;
+        if (inner.width >= outer.width * 0.98 && inner.height >= outer.height * 0.98) {
+          add(
+            issueFor(
+              node,
+              "overdraw",
+              "info",
+              `${own} is drawn over the parent's ${parentName} across the same area; one of the two backgrounds is redundant.`,
+            ),
+          );
+        }
+      }
+    }
+
+    if (rules.has("rtl_issues")) {
+      // A hardcoded left/right offset does not mirror in RTL. The dump exposes
+      // layout:left/right (resolved) and layoutParams.startMargin/endMargin
+      // (Integer.MIN_VALUE when unset), so an absolute value with no start/end
+      // counterpart is the signal.
+      for (const node of nodes) {
+        if (!node.visible) continue;
+        const props = node.view?.properties;
+        if (!props) continue;
+        // Integer.MIN_VALUE is how the platform prints an unset start/end margin,
+        // so it must count as "not set" rather than as a real value.
+        const hasStart = isSetMargin(numberProp(props, "layoutParams.startMargin"));
+        const hasEnd = isSetMargin(numberProp(props, "layoutParams.endMargin"));
+        const left = numberProp(props, "layoutParams.leftMargin") ?? 0;
+        const right = numberProp(props, "layoutParams.rightMargin") ?? 0;
+        if (hasStart || hasEnd) continue;
+        if (left === 0 && right === 0) continue;
+        const side = left !== 0 && right !== 0 ? "left+right margins" : left !== 0 ? "leftMargin" : "rightMargin";
+        add(
+          issueFor(
+            node,
+            "rtl_issues",
+            "warning",
+            `Hardcoded ${side} without start/end; it will not mirror in RTL. Use marginStart/marginEnd.`,
+          ),
+        );
+      }
+    }
+
     if (rules.has("clipped")) {
       for (const node of nodes) {
         if (!node.visible || !node.visibleBounds) continue;
@@ -247,9 +318,17 @@ export function analyzeCapture(result: CaptureResult, options: AnalyzeOptions = 
 
   const counts: Record<string, number> = {};
   for (const issue of issues) counts[issue.rule] = (counts[issue.rule] ?? 0) + 1;
+
+  const skipped: string[] = [];
+  if (needsProperties && result.view && !hasViewProperties(result.view.roots)) {
+    skipped.push("overdraw, rtl_issues (raw View properties were not captured; add --props)");
+  }
+  if (needsProperties && !result.view) {
+    skipped.push("overdraw, rtl_issues (need a debuggable app for raw View properties)");
+  }
   const severityOrder: Record<Issue["severity"], number> = { error: 0, warning: 1, info: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity] || a.rule.localeCompare(b.rule));
-  return { issues, counts, dp, nodeCount };
+  return { issues, counts, dp, nodeCount, ...(skipped.length ? { skipped } : {}) };
 }
 
 const RULES: Record<RuleName, true> = {
@@ -263,6 +342,8 @@ const RULES: Record<RuleName, true> = {
   overlap: true,
   clipped: true,
   outside_parent: true,
+  overdraw: true,
+  rtl_issues: true,
 };
 
 function containsBounds(outer: Bounds, inner: Bounds): boolean {
@@ -305,4 +386,36 @@ export function issuesToJson(result: AnalyzeResult): Record<string, unknown> {
       bounds: issue.bounds,
     })),
   };
+}
+
+/** Background drawable name from the raw View properties, if any. */
+function backgroundOf(node: UiNode): string | null {
+  const props = node.view?.properties;
+  if (!props) return null;
+  const value = props["miui:backgroundDrawableName"] ?? props["backgroundDrawableName"] ?? props["misc:background"];
+  if (typeof value !== "string") return null;
+  if (!value || value === "null") return null;
+  return value.split(".").pop() ?? value;
+}
+
+function numberProp(props: Record<string, string | number | boolean>, key: string): number | null {
+  const value = props[key];
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return null;
+}
+
+/** True when at least one node carries the raw property map. */
+function hasViewProperties(roots: UiNode[]): boolean {
+  return flattenNodes(roots).some((node) => {
+    const props = node.view?.properties;
+    return Boolean(props && Object.keys(props).length > 0);
+  });
+}
+
+/** An unset margin is printed as Integer.MIN_VALUE, not as zero. */
+function isSetMargin(value: number | null): boolean {
+  return value !== null && value !== -2147483648;
 }

@@ -82,10 +82,10 @@ node dist/cli.js mcp --print-config --client codex > config.toml
 
 | 客户端 | 版本 | 实测内容 |
 |---|---|---|
-| OpenCode | 1.19.5 | 生成的 `opencode.json` 可连接；`tools/list` 收到全部 11 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 4 个技能 |
+| OpenCode | 1.19.5 | 生成的 `opencode.json` 可连接；`tools/list` 收到全部 9 个工具；`opencode debug skill` 发现 `.agents/skills/` 下的 5 个技能 |
 | CodeBuddy Code | 2.186.0 | `mcpServers` 可连接、`list_devices` 返回真实设备；技能从 `.codebuddy/skills/` 加载。无交互运行需加 `--settings '{"enableAllProjectMcpServers":true}'`（工具调用被门禁时还要加 `-y`） |
 | Codex CLI | 0.172.0 | 生成的 TOML 可解析；`codex exec` 调用 `list_devices` 返回真实设备；`.agents/skills/` 下的技能能被发现 |
-| WorkBuddy | 内置 | 重启并在 GUI 中一次性启用/信任自定义 server 后，`list_devices` 返回真实设备，`inspect-current-screen` 从 `.workbuddy/skills/` 加载；只写 `mcp.json` 不会暴露工具 |
+| WorkBuddy | 内置 | 重启并在 GUI 中一次性启用/信任自定义 server 后，`list_devices` 返回真实设备，`capture-ui` 从 `.workbuddy/skills/` 加载；只写 `mcp.json` 不会暴露工具 |
 
 表中其余客户端按各自官方文档的 schema 配置，但未在本机实测。
 
@@ -107,7 +107,7 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 ```
 
 在那个工程里把 `AUI_ROOT` 指向本插件目录（或把 `android-layout` 放进 `PATH`），CLI 兜底才能生效。
-斜杠命令（`/screen`、`/locate` 等）与 `ui-code-locator` 子代理是 Claude Code 专属；其他客户端通过技能与
+斜杠命令（`/capture`、`/locate` 等）是 Claude Code 专属；其他客户端通过技能与
 工具描述走同样的流程。`PreToolUse` 门禁 hook 同样是 Claude Code 专属，其他环境里 Android 工程门禁
 只是技能正文中的软约束。
 
@@ -123,11 +123,9 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 | `hit_test` | 坐标命中；默认同时返回 view 与 semantics；`source=compose` 可查 Compose 树 |
 | `analyze_ui` | 布局/无障碍问题检查（规则见 [cli.zh.md](cli.zh.md#分析规则)） |
 | `screenshot` | 返回 PNG image content；默认降采样到 720px 宽（`fullResolution=true` 关闭），可保存并生成 SVG 叠加层 |
-| `open_viewer` | 一次抓取，写入自包含的离线 HTML 查看器（树、截图叠加层、详情、问题），并在浏览器中打开 |
-| `diff_ui` | 对比两个 `dump_ui(savePath)` 写出的 JSON |
 | `list_fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；不可调试 App 同样可用。默认过滤 AndroidX 记账型 Fragment，`includeFramework` 可保留 |
 
-**Android 工程门槛。** `get_state`、`dump_ui`、`find_elements`、`locate_code`、`open_viewer` 面向 Android 工程：
+**Android 工程门槛。** `get_state`、`dump_ui`、`find_elements`、`locate_code` 面向 Android 工程：
 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或
 `AndroidManifest.xml`。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才调用；
 `locate_code` 还要求明确提到 Android 或设备。连接了设备并不代表仓库是 Android 工程。
@@ -141,8 +139,6 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 | `locate_code` | `limit=25` 条候选 | `limit` 1–200；`exclude` / `includeTests` 控制扫描范围；全程只读 |
 | `analyze_ui` | 全部 10 条规则、48dp、深度 14 | `minTouchTargetDp` 1–200；`maxDepth` 1–100；`compose` 数据源不评估 `deep_nesting` |
 | `screenshot` | 720px 宽 | `maxWidth` 1–4000；`scale` 0.05–1；`fullResolution=true` 绕过 720 默认值；`annotate` 只在同时给了 `savePath` 时才写出 SVG |
-| `open_viewer` | `.aui/viewer.html`、每棵树 4000 节点、1080px | `maxNodes` 1–20000；`includeProperties` 嵌入 ViewDebug 属性（默认关闭）；`includeIssues` 执行分析（默认开启）；内嵌 JSON 8 MB 预算——先丢属性，再把节点折半至下限 200 |
-| `diff_ui` | `tolerance=1` px | `tolerance` 0–100；每次只比较一棵树（`source`）；两个输入都必须是 `dump_ui(savePath=...)` 写出的 dump |
 | `hit_test` | 候选 0，仅可见节点 | `index` 用于在同一坐标的多个重叠候选中选择 |
 
 抓取失败时，工具会返回错误文本和一张兜底截图（image content）。
@@ -153,9 +149,7 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 2. `dump_ui(source="auto", format="tree")` 或 `find_elements` → 看界面 / 定位；
 3. `screenshot` → 视觉确认；
 4. `analyze_ui` → 检查小触摸区、重叠、裁剪等；
-5. 修改代码后：`dump_ui(savePath=before.json)` … `dump_ui(savePath=after.json)` → `diff_ui`。
 
-`open_viewer` 不在上述顺序内：只有用户显式提出可视化请求时才调用，例如“打开可视化看看”“在浏览器里打开当前页面”“可视化当前布局”或“open the UI viewer”。它会打开一个浏览器窗口，属于可见副作用，因此 `dump_ui`、`find_elements`、`analyze_ui`、`screenshot`、`diff_ui` 与验证流程都不得调用它。传 `open=false`（或设置 `AUI_NO_OPEN=1`）可只写 HTML 不打开浏览器；工具返回 `{path, opened, browser?, openError?, bytes, uiKind, sources, truncated, screenshot}`。
 
 ### 速览当前页面
 
@@ -163,7 +157,7 @@ node scripts/sync-agent-skills.mjs --dest . --check                      # 副�
 get_state → dump_ui(source="auto", format="tree") → find_elements（指定控件）→ 可选 analyze_ui / screenshot
 ```
 
-这条路径只做观察：只有用户追问源码时才调用 `locate_code`，只有做改前/改后对比时才调用 `diff_ui`。
+这条路径只做观察：只有用户追问源码时才调用 `locate_code`。
 
 ### 定位 UI 对应源码
 
@@ -183,8 +177,8 @@ get_state → dump_ui(source="auto", format="tree") → (独立弹窗窗口) dum
 ```
 
 适用于“分析当前界面/弹窗的代码和业务逻辑”：先判断是页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
-再追 1–3 跳状态与数据。全程只读，不修改代码。`analyze-screen-logic` skill 与
-`/android-layout:analyze-screen` 命令就是这条流程。
+再追 1–3 跳状态与数据。全程只读，不修改代码。`trace-ui-to-logic` skill 与
+`/android-layout:trace-logic` 命令就是这条流程。
 
 ## 环境变量
 

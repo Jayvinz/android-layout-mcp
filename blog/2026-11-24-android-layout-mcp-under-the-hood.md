@@ -141,7 +141,7 @@ An agent can activate a device tool in the wrong repository. The plugin uses two
 
 Every skill and command body starts with a hard gate on Android project markers. A [`PreToolUse` hook](https://code.claude.com/docs/en/hooks) enforces the same rule at the tool layer: it walks up to ten directories looking for `settings.gradle(.kts)`, `gradlew`, an `AndroidManifest.xml`, or a module build file that applies `com.android.*`. If none exists, it denies `get_state`, `dump_ui`, `find_elements`, `locate_code`, and `open_viewer` unless the latest user message explicitly asks about a device screen or mentions Android.
 
-The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The skills divide work as well: `inspect-current-screen` answers what is on screen and never calls `locate_code`; `locate-ui-code` traces one control; `analyze-screen-logic` maps a whole screen or dialog to code and data flow; `verify-ui-change` owns before and after. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
+The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The skills divide work as well: `inspect-current-screen` answers what is on screen and never calls `locate_code`; `trace-view-wiring` traces one control; `trace-ui-to-logic` maps a whole screen or dialog to code and data flow; `verify-ui-change` owns before and after. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
 
 ### When the agent is not Claude Code
 

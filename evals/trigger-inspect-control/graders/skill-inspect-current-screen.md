@@ -1,7 +1,0 @@
----
-type: tool_used
-tool: Skill
-input_match: '"skill"\s*:\s*"(?:[\w-]+:)?(?:inspect-current-screen|screen)"'
----
-
-The run activates the `inspect-current-screen` skill.
