@@ -1,4 +1,4 @@
-import { AuiError } from "./errors.js";
+import { AlmError } from "./errors.js";
 import { allFragments, notableFragments, parseDumpsys, } from "./dumpsys.js";
 /** Projects a parsed fragment onto the shared, front-end-neutral field set. */
 export function toFragmentSummary(fragment) {
@@ -41,7 +41,7 @@ export function fragmentsFromDump(parsed, options = {}) {
 export async function readFragments(adb, options = {}) {
     const packageName = options.packageName ?? (await adb.foregroundApp()).packageName;
     if (!packageName) {
-        throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.");
+        throw new AlmError("BAD_INPUT", "Could not determine the foreground app package.");
     }
     const output = await adb.shell(`dumpsys activity ${packageName}`, {
         timeoutMs: options.timeoutMs ?? 30_000,

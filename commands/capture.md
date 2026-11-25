@@ -11,7 +11,7 @@ Follow the `capture-ui` skill.
 
 - **Default target is the whole screen. A block is the target only when the user names one** — then report that block's subtree, not the entire screen.
 - Report `activity` and `uiKind` explicitly — the two big-dimension facts every follow-up question depends on.
-- Save all three artifacts for the screen: `.aui/capture.json`, `.aui/capture.png`, `.aui/capture.xml` (the uiautomator XML is the only one a human can open directly). Say when the report is scoped to a block while the files cover the screen.
+- Save all three artifacts for the screen: `.alm/capture.json`, `.alm/capture.png`, `.alm/capture.xml` (the uiautomator XML is the only one a human can open directly). Say when the report is scoped to a block while the files cover the screen.
 - Android Studio's Layout Inspector cannot open these; its `.li` format is private. Say so if the user expects that.
 
 Gate: no Android project and no explicit device/screen request → call no tool. Details in the `capture-ui` skill.

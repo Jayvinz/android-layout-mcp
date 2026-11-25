@@ -32,7 +32,7 @@ server key, and CLI command are the shorter `android-layout`.
 | Skill | `skills/trace-ui-logic/` | One section's UI → state holder → data source chain (read-only) |
 | Skill | `skills/audit-ui/` | Defect judgments from 12 layout and accessibility rules |
 | Commands | `commands/capture.md`, `inspect-view.md`, `trace-view.md`, `trace-logic.md`, `ui2logic.md`, `audit.md` | `/android-layout:capture`, `:inspect-view`, `:trace-view`, `:trace-logic` (alias `:ui2logic`), `:audit` |
-| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android-project gate for all nine device-touching tools (`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`); restart Claude Code after installing or updating the plugin |
+| Hook | `hooks/hooks.json` + `hooks/alm-android-gate.mjs` | `PreToolUse` Android-project gate for all nine device-touching tools (`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`); restart Claude Code after installing or updating the plugin |
 | Script | `scripts/locate-code.mjs` | Dependency-free code anchor scanner (Node built-ins only, no `npm install` needed) |
 | Script | `scripts/sync-agent-skills.mjs` | Copies `skills/` into `.agents/skills/` (Codex CLI, Gemini CLI, Cline, Goose), `.codebuddy/skills/` (CodeBuddy, `--codebuddy`), or `.workbuddy/skills/` (WorkBuddy, `--workbuddy`) |
 | Marketplace | `.claude-plugin/marketplace.json` | The `jayvinz-tools` catalog; the repo root is the first plugin |
@@ -136,7 +136,7 @@ The plugin manifest's `mcpServers` injects no environment variables; the MCP pro
 ## Read-only and permissions
 
 - Every skill is read-only: the plugin observes and analyzes a device but never taps, swipes, types, or sends key events.
-- The capture workflow writes `.aui/capture.json`, `.aui/capture.png`, and `.aui/capture.xml` inside the repository; add `.aui/` to `.gitignore` (this repo already does).
+- The capture workflow writes `.alm/capture.json`, `.alm/capture.png`, and `.alm/capture.xml` inside the repository; add `.alm/` to `.gitignore` (this repo already does).
 - Do not commit dumps: they may contain device serials, foreground package names, and screen text.
 
 ## Adding a second plugin later

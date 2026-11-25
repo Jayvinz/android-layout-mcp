@@ -28,7 +28,7 @@ Why not let the model read a screenshot instead? Pixels give labels and position
 
 ### Connect a client
 
-You need Node.js 20 or newer, `adb` on your `PATH` (or `AUI_ADB` set to its path), a device or emulator with USB debugging enabled, and the target app in the foreground. The `view` and `compose` sources also require a debuggable build (`android:debuggable="true"`); the semantics source works on any app.
+You need Node.js 20 or newer, `adb` on your `PATH` (or `ALM_ADB` set to its path), a device or emulator with USB debugging enabled, and the target app in the foreground. The `view` and `compose` sources also require a debuggable build (`android:debuggable="true"`); the semantics source works on any app.
 
 Pick the path for the agent you use.
 
@@ -124,17 +124,17 @@ The tool is read-only. It ranks files; you or the agent still open them and foll
 Before and after a UI change, capture the same page twice and compare the two dumps yourself:
 
 ```bash
-android-layout dump --json --out .aui/before.json
+android-layout dump --json --out .alm/before.json
 # rebuild, install, return to the same page and scroll position
-android-layout dump --json --out .aui/after.json
+android-layout dump --json --out .alm/after.json
 android-layout analyze
 ```
 
-Refs change between captures, so match nodes by source, resource id, class, text, and path rather than by `v12`/`s43`. The two JSON files are the same format the MCP `dump_ui(savePath=...)` tool writes, so an agent can save `.aui/before.json`, apply the change, save `.aui/after.json`, and read both. `analyze` then runs the rule set: small touch targets, overlapping clickables, clipped nodes, invisible clickables, duplicate ids, deep nesting, overdraw, RTL mirroring gaps, and four more.
+Refs change between captures, so match nodes by source, resource id, class, text, and path rather than by `v12`/`s43`. The two JSON files are the same format the MCP `dump_ui(savePath=...)` tool writes, so an agent can save `.alm/before.json`, apply the change, save `.alm/after.json`, and read both. `analyze` then runs the rule set: small touch targets, overlapping clickables, clipped nodes, invisible clickables, duplicate ids, deep nesting, overdraw, RTL mirroring gaps, and four more.
 
 *[Figure 3: two saved dumps side by side, with one added button and one resized row]*
 
-Keep `.aui/` in your `.gitignore`. Dumps contain the device serial, the package name, and the text on screen.
+Keep `.alm/` in your `.gitignore`. Dumps contain the device serial, the package name, and the text on screen.
 
 ### Connect another MCP client
 
@@ -161,7 +161,7 @@ Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cli
 
 `--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 9 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
 
-The five skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `AUI_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
+The five skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `ALM_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
 
 ### Where it stops
 

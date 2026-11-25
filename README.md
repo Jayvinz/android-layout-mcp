@@ -12,7 +12,7 @@ Coding agents read repositories well but cannot look at the phone. This project 
 
 - What is on this screen? → `dump_ui`
 - Where is this element, and is it clickable? → `find_elements` / `hit_test`
-- Is the layout broken? → `analyze_ui` with 12 rules
+- Does the layout have issues? → `analyze_ui` with 12 rules
 - Which Compose or XML file, and which business logic, renders it? → `locate_code` plus the bundled skills
 
 It is read-only: it observes the device, never taps, swipes, or types. Inspired by [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro).
@@ -31,7 +31,7 @@ It is read-only: it observes the device, never taps, swipes, or types. Inspired 
 ## Requirements
 
 - Node.js ≥ 20 (the MCP server runs on Node)
-- `adb` on `PATH` (or `AUI_ADB` / `ADB_PATH`), with a device or emulator and USB debugging on
+- `adb` on `PATH` (or `ALM_ADB` / `ADB_PATH`), with a device or emulator and USB debugging on
 - A debuggable app for the `view` and `compose` sources; `semantics` and `dumpsys` work on any app
 - Android Studio + Java only for the `compose` source (~8–12 s per capture)
 
@@ -130,7 +130,7 @@ Skills, commands, and MCP tools are layers over one shared core.
 | `find_elements` | Where is this text / id / class / ref? | `query`, `by`, `match`, `clickable`, `both`, `includeInvisible`, `limit` |
 | `hit_test` | What is at (x, y)? | `x`, `y`, `index`, `source` |
 | `locate_code` | Which source file renders this element? | `text[]`, `desc[]`, `id[]`, `className[]`, `composeName`, `composeFile` + `composeLine`, `root`, `limit`, `includeTests`, `exclude[]` |
-| `analyze_ui` | Is the layout broken? | `rules[]`, `minTouchTargetDp` (48), `maxDepth` (14), `includeProperties` |
+| `analyze_ui` | Does the layout have issues? | `rules[]`, `minTouchTargetDp` (48), `maxDepth` (14), `includeProperties` |
 | `screenshot` | What does it look like? | `maxWidth` (720), `scale`, `fullResolution`, `savePath`, `annotate` |
 | `list_fragments` | Activity / Fragment structure | `package`, `includeFramework` |
 
@@ -169,7 +169,7 @@ Commands are thin entry points: they bind `$ARGUMENTS`, name their skill, and ca
 
 ### Gate hook
 
-All nine device-touching tools are Android-project gated. The plugin's `PreToolUse` hook denies them in a non-Android workspace unless the latest user prompt explicitly asks about the device screen or mentions Android. `locate_code` is stricter: it needs an Android project or an explicit Android mention. Detection uses `settings.gradle(.kts)`, `gradlew(.bat)`, a module applying `com.android.*`, or `AndroidManifest.xml`. A connected device does not make a repository Android. Set `AUI_GATE_DEBUG=1` to log decisions.
+All nine device-touching tools are Android-project gated. The plugin's `PreToolUse` hook denies them in a non-Android workspace unless the latest user prompt explicitly asks about the device screen or mentions Android. `locate_code` is stricter: it needs an Android project or an explicit Android mention. Detection uses `settings.gradle(.kts)`, `gradlew(.bat)`, a module applying `com.android.*`, or `AndroidManifest.xml`. A connected device does not make a repository Android. Set `ALM_GATE_DEBUG=1` to log decisions.
 
 ### Scripts
 
@@ -197,10 +197,10 @@ On a Compose screen the `view` source stops at `AndroidComposeView` — that is 
 ## Things to know
 
 - **Refs are per capture.** `v*` (view), `s*` (semantics), `d*` (dumpsys), `c*` (compose) are valid only for the capture that produced them. To compare before/after, match on source, resource id, class, text, and path.
-- **Artifacts are local.** The capture workflow writes `.aui/capture.json`, `.aui/capture.png`, and `.aui/capture.xml`. Add `.aui/` to `.gitignore`; dumps can contain device serials, package names, and screen text. Android Studio's Layout Inspector cannot open these files (`.li` is private).
+- **Artifacts are local.** The capture workflow writes `.alm/capture.json`, `.alm/capture.png`, and `.alm/capture.xml`. Add `.alm/` to `.gitignore`; dumps can contain device serials, package names, and screen text. Android Studio's Layout Inspector cannot open these files (`.li` is private).
 - **Image coordinates ≠ device coordinates.** A downscaled screenshot reports `coordinateMapping.imageToDevice`; multiply before hit-testing or quoting a position. Values from `find_elements` / `hit_test` are already device coordinates.
-- **Screenshots are a fallback, not the source of truth.** When structured capture fails, a downscaled `aui-fallback-<time>.png` is saved and returned as image content. Disable with `AUI_NO_FALLBACK_SCREENSHOT=1`.
-- **Common environment variables:** `AUI_ADB` / `ADB_PATH`, `ANDROID_SERIAL`, `AUI_ANDROID_STUDIO`, `AUI_JAVA`, `AUI_COMPOSE_VERSION`, `AUI_NO_FALLBACK_SCREENSHOT`. Full table: [docs/cli.md](docs/cli.md#environment-variables).
+- **Screenshots are a fallback, not the source of truth.** When structured capture fails, a downscaled `alm-fallback-<time>.png` is saved and returned as image content. Disable with `ALM_NO_FALLBACK_SCREENSHOT=1`.
+- **Common environment variables:** `ALM_ADB` / `ADB_PATH`, `ANDROID_SERIAL`, `ALM_ANDROID_STUDIO`, `ALM_JAVA`, `ALM_COMPOSE_VERSION`, `ALM_NO_FALLBACK_SCREENSHOT`. Full table: [docs/cli.md](docs/cli.md#environment-variables).
 - **JDWP allows one debugger at a time.** Attach can fail while Android Studio is debugging the same app.
 - **Canvas-drawn pixels have no nodes.** Custom `Canvas` drawing, `SurfaceView`, and `WebView` content expose no children or text; the semantics tree only shows what the app reports to accessibility.
 - **Limits:** `dump_ui` caps JSON at 800 nodes and the tree at 1500 unless you raise `maxNodes`; `savePath` writes the untrimmed dump. The `compose` source needs Android Studio + Java 17+ and takes ~8–12 s.

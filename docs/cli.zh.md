@@ -2,7 +2,7 @@
 
 [English](cli.md) | [简体中文](cli.zh.md)
 
-`android-layout` CLI 与 MCP Server 驱动同一套 core。要求：Node.js ≥ 20，Android platform-tools（`adb` 在 PATH 中，或设置 `AUI_ADB` / `ADB_PATH`）。
+`android-layout` CLI 与 MCP Server 驱动同一套 core。要求：Node.js ≥ 20，Android platform-tools（`adb` 在 PATH 中，或设置 `ALM_ADB` / `ADB_PATH`）。
 
 ## 安装
 
@@ -85,13 +85,13 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-layout fragments` | 从 `dumpsys` 读取 Activity/Fragment 结构；`--package`、`--json`、`--all`（保留 AndroidX 记账型 Fragment） |
 | `android-layout studio` | 显示用于 Compose inspection 的 Android Studio 路径、来源（explicit/env/default/process）、JBR Java；`--json` |
 | `android-layout mcp` | 启动 MCP Server（stdio）；`--print-config [--client <id>]` 按指定客户端输出配置（Claude Code、Codex、VS Code、Zed 等，见[列表](mcp.zh.md#其他客户端)），`--register-view-attributes` 先开启全局 `debug_view_attributes`（会重启 App） |
-| `android-layout compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/aui-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
+| `android-layout compose-clean` | 停止常驻 transport daemon，清理 `/data/local/tmp/alm-compose` 和 App code_cache 中的 inspector jar；`--package` 指定目标 App |
 
 所有读取树的命令都接受同一组 `--source` 取值（`auto`、`view`、`semantics`、`dumpsys`、`compose`、`both`），默认统一为 `auto`。
 
 全局选项：`-s, --serial`、`--adb <path>`、`--timeout <ms>`、`-v, --verbose`。
 Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version <v>`。
-截图兜底：抓取失败时自动保存一张 `aui-fallback-<time>.png`（默认 720px 宽）；用
+截图兜底：抓取失败时自动保存一张 `alm-fallback-<time>.png`（默认 720px 宽）；用
 `--no-fallback-screenshot` 关闭。多设备时也可用 `ANDROID_SERIAL`。
 
 ## 限制与默认值
@@ -99,7 +99,7 @@ Compose JVMTI 相关：`--studio <path>`、`--java <path>`、`--compose-version 
 - **文本树与 JSON**：`--depth`、`--max-nodes`（默认 2000）和 `--visible-only` 只影响人类可读的文本树；被截断时最后一行会说明展示到多少节点。`--json` / `--out` 写出完整 dump（`version: 1`，不裁剪），agent 端需要自己裁剪，或改用 MCP `dump_ui` 的 `depth`/`maxNodes`。
 - **搜索**：`find` 与 `hit` 的选择器默认忽略不可见/gone 节点。`contains` 不区分大小写，`exact` 区分大小写，`--match regex`（或 `/模式/标志` 形式的查询，默认标志 `i`）是真正的正则，非法正则会令命令失败。`--by class` 同时匹配全限定类名与短类名。`find` 会合并所搜索各棵树的匹配，最多返回 `--limit` 条（默认 50）；`hit` 按可见面积排序候选，用 `--index` 选择。
 - **截图**：CLI `shot` 默认保持原生分辨率，只有指定 `--max-width`/`--scale` 才降采样；`--base64` 仅在同时带 `--json` 时生效。MCP `screenshot` 默认 720px 宽。
-- **改前/改后**：改动前后各存一份 dump（`dump --json --out .aui/before.json`，再存 `.aui/after.json`），自行比对两份文件；ref 只在单次抓取内有效，请按 source、resource id、class、text 与 path 匹配。最后对新抓取跑 `analyze`。
+- **改前/改后**：改动前后各存一份 dump（`dump --json --out .alm/before.json`，再存 `.alm/after.json`），自行比对两份文件；ref 只在单次抓取内有效，请按 source、resource id、class、text 与 path 匹配。最后对新抓取跑 `analyze`。
 - **Analyze**：`compose` 数据源不评估 `deep_nesting`；未知规则名会被忽略；在低报窗口高度的 ROM（如 MIUI）上，`small_touch_target` 会跳过底部被裁的语义节点。
 - **Analyze 只读一棵树**：与页面类型匹配的那棵 —— XML 页面读 View，Compose 页面读语义树，`--source dumpsys` 读 dumpsys，`--source compose` 读 Compose。`mixed` 页面例外：View 与 Compose 区域互不重叠，两棵树都会扫描。这样同一缺陷不会按树重复上报 —— `--source dumpsys` 的抓取总带着一棵语义树，那棵树只用于补文本。`overdraw` 与 `rtl_issues` 只要抓到了 View 树就一定读它，因为只有它带原始属性表。
 - **兜底行为**：`auto` 下某棵树抓取失败会跳过并给出 warning，改用另一棵树；目标包未运行时跳过 view 抓取。warning 会出现在文本树、JSON 的 `warnings` 字段，`analyze` 还会输出到 stderr。`--window` 接受 0 起始索引或名称子串，仅对 view 源生效。
@@ -139,8 +139,8 @@ android-layout shot --out ui.png --annotate --source compose
 - 截图始终使用 `adb exec-out screencap -p`，然后可用纯 JS（`pngjs`）做面积平均降采样；
   不依赖 ImageMagick/Sharp。
 - **结构化抓取失败时自动兜底**：`dump`/`find`/`hit`/`analyze` 等命令会额外保存一张
-  `aui-fallback-<time>.png` 并在错误信息里给出路径；MCP 工具会把截图作为 image content
-  和错误文本一起返回。用 `--no-fallback-screenshot` 或 `AUI_NO_FALLBACK_SCREENSHOT=1` 关闭。
+  `alm-fallback-<time>.png` 并在错误信息里给出路径；MCP 工具会把截图作为 image content
+  和错误文本一起返回。用 `--no-fallback-screenshot` 或 `ALM_NO_FALLBACK_SCREENSHOT=1` 关闭。
 - MCP `screenshot` 默认 720px 宽以控制 payload；需要原生分辨率时传 `fullResolution=true`。
 - `--annotate` 的 SVG 会自动按截图缩放比例映射节点框。
 
@@ -180,13 +180,15 @@ android-layout hit 540 1200 --json
 
 | 变量 | 作用 |
 |---|---|
-| `AUI_ADB` / `ADB_PATH` / `--adb` | adb 路径 |
+| `ALM_ADB` / `ADB_PATH` / `--adb` | adb 路径 |
 | `ANDROID_SERIAL` / `--serial` | 多设备时的目标序列号 |
-| `AUI_ANDROID_STUDIO` / `ANDROID_STUDIO_PATH` / `--studio` | Android Studio 安装目录（Compose inspection） |
-| `AUI_JAVA` / `--java` | Compose helper 使用的 Java |
-| `AUI_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
-| `AUI_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |
-| `AUI_COMPOSE_HELPER_JAR` | 预编译的 JVMTI helper JAR |
-| `AUI_NO_FALLBACK_SCREENSHOT=1` | 关闭抓取失败时的兜底截图 |
-| `AUI_JAVAC` / `AUI_JAR` | `npm run build:helper` 使用的编译器与 jar 工具 |
-| `AUI_GATE_DEBUG=1` | 把 `PreToolUse` hook 的判定结果追加写入临时目录下的 `aui-android-gate.log` |
+| `ALM_ANDROID_STUDIO` / `ANDROID_STUDIO_PATH` / `--studio` | Android Studio 安装目录（Compose inspection） |
+| `ALM_JAVA` / `--java` | Compose helper 使用的 Java |
+| `ALM_COMPOSE_VERSION` | App 使用的 Compose 版本（默认 1.8.3） |
+| `ALM_COMPOSE_INSPECTOR_JAR` | 显式指定 `inspector.jar` |
+| `ALM_COMPOSE_HELPER_JAR` | 预编译的 JVMTI helper JAR |
+| `ALM_NO_FALLBACK_SCREENSHOT=1` | 关闭抓取失败时的兜底截图 |
+| `ALM_JAVAC` / `ALM_JAR` | `npm run build:helper` 使用的编译器与 jar 工具 |
+| `ALM_GATE_DEBUG=1` | 把 `PreToolUse` hook 的判定结果追加写入临时目录下的 `alm-android-gate.log` |
+
+1.0.x 使用 `AUI_` 前缀，本版本不再读取：已有的 `AUI_*` 配置请改名为 `ALM_*`。`compose-clean` 仍会清理 1.0.x 留下的 `aui-*` 设备产物，`.gitignore` 也仍覆盖 `.aui/` dump。

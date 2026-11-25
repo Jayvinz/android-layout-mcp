@@ -13,7 +13,7 @@
 | 斜杠命令 | 6 个 `commands/*.md`，`$ARGUMENTS` 语法 | 仅 Claude Code |
 | 门禁与分发 | `hooks/hooks.json` 的 `PreToolUse`、`plugin.json`、marketplace | 仅 Claude Code |
 
-技能可移植靠两个性质：frontmatter 只用 `name` 与 `description`；CLI 兜底路径用 `$AUI_ROOT/dist/cli.js`，而不是 `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`。在 Claude Code 里 `AUI_ROOT` 就是 `${CLAUDE_PLUGIN_ROOT}`；其他地方它是你的插件 checkout，或者把 `android-layout` 放进 `PATH`。技能的可执行命令里不会硬编码 Claude 专属路径，`test/agent-portability.test.ts` 强制这一点。
+技能可移植靠两个性质：frontmatter 只用 `name` 与 `description`；CLI 兜底路径用 `$ALM_ROOT/dist/cli.js`，而不是 `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`。在 Claude Code 里 `ALM_ROOT` 就是 `${CLAUDE_PLUGIN_ROOT}`；其他地方它是你的插件 checkout，或者把 `android-layout` 放进 `PATH`。技能的可执行命令里不会硬编码 Claude 专属路径，`test/agent-portability.test.ts` 强制这一点。
 
 Android 工程门禁只有在 Claude Code 里才是硬性的 `PreToolUse` hook。其他客户端里它是写进每个技能正文的软规则：只在 Android 工程中调用设备工具，或用户明确要求查看设备页面时才调用。
 

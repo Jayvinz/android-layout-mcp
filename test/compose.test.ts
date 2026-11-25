@@ -132,7 +132,7 @@ test("analysis and serialisation include Compose nodes", () => {
   assert.equal(dump.sources[0], "compose");
 });
 
-const cleanJavaEnv = { AUI_JAVA: undefined, JAVA_HOME: undefined };
+const cleanJavaEnv = { ALM_JAVA: undefined, JAVA_HOME: undefined };
 
 test("resolveJava warns about an explicit override that does not exist, then falls back", async () => {
   await withEnv(cleanJavaEnv, async () => {
@@ -157,12 +157,12 @@ test("resolveJava stays silent when no override is configured", async () => {
   });
 });
 
-test("resolveJava labels the AUI_JAVA override and keeps searching", async () => {
-  await withEnv({ ...cleanJavaEnv, AUI_JAVA: "C:/also/not/here/java.exe" }, async () => {
+test("resolveJava labels the ALM_JAVA override and keeps searching", async () => {
+  await withEnv({ ...cleanJavaEnv, ALM_JAVA: "C:/also/not/here/java.exe" }, async () => {
     const warnings: string[] = [];
     const studio = { java: process.execPath };
     assert.equal(await resolveJava(undefined, studio, (message) => warnings.push(message)), process.execPath);
     assert.equal(warnings.length, 1);
-    assert.match(warnings[0]!, /Ignoring AUI_JAVA: .*does not exist/);
+    assert.match(warnings[0]!, /Ignoring ALM_JAVA: .*does not exist/);
   });
 });

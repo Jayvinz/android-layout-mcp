@@ -5,7 +5,7 @@ import net from "node:net";
 import type { Adb } from "../src/core/adb.js";
 import { capture } from "../src/core/capture.js";
 import { parseDumpsys } from "../src/core/dumpsys.js";
-import { AuiError } from "../src/core/errors.js";
+import { AlmError } from "../src/core/errors.js";
 import { fragmentsFromDump, readFragments } from "../src/core/fragments.js";
 import type { ScreenInfo } from "../src/core/model.js";
 import { captureState, readWindows } from "../src/core/state.js";
@@ -87,7 +87,7 @@ function stubAdb(options: StubOptions = {}) {
     async forwardJdwp(pid: number) {
       calls.forwardPids.push(pid);
       if (options.jdwpFails !== false) {
-        throw options.jdwpError ?? new AuiError("JDWP_FAILED", "not debuggable");
+        throw options.jdwpError ?? new AlmError("JDWP_FAILED", "not debuggable");
       }
       return options.jdwpPort ?? 0;
     },
@@ -173,7 +173,7 @@ test("readFragments keeps framework fragments on request with the full shared sh
 test("readFragments requires a package to inspect", async () => {
   const { adb } = stubAdb({ packageName: null, shellOutput: dumpsys });
   await assert.rejects(readFragments(adb), (error: unknown) => {
-    assert.ok(error instanceof AuiError);
+    assert.ok(error instanceof AlmError);
     assert.equal(error.code, "BAD_INPUT");
     return true;
   });
@@ -275,21 +275,21 @@ test("readWindows reports a JDWP failure as a sentinel instead of throwing", asy
   assert.equal(result.pid, 5866);
   assert.ok(!Array.isArray(result.windows), "a failed probe is reported, not thrown");
   assert.match((result.windows as { error: string }).error, /not debuggable/);
-  assert.ok(result.error instanceof AuiError);
-  assert.equal((result.error as AuiError).code, "JDWP_FAILED");
+  assert.ok(result.error instanceof AlmError);
+  assert.equal((result.error as AlmError).code, "JDWP_FAILED");
   assert.deepEqual(calls.forwardPids, [5866]);
 });
 
 test("readWindows hands the original error back so its code and hint survive", async () => {
-  const timeout = new AuiError("TIMEOUT", "Timed out waiting for JDWP.", "Retry, or use --source semantics.");
+  const timeout = new AlmError("TIMEOUT", "Timed out waiting for JDWP.", "Retry, or use --source semantics.");
   const { adb } = stubAdb({ pids: [5866], jdwpFails: true, jdwpError: timeout });
   const result = await readWindows(adb, { packageName: "com.example.studymixed" });
   assert.ok(!Array.isArray(result.windows));
   // The same instance, so a front end that rethrows it keeps TIMEOUT + the hint
   // instead of flattening everything into JDWP_FAILED.
   assert.equal(result.error, timeout);
-  assert.equal((result.error as AuiError).code, "TIMEOUT");
-  assert.equal((result.error as AuiError).hint, "Retry, or use --source semantics.");
+  assert.equal((result.error as AlmError).code, "TIMEOUT");
+  assert.equal((result.error as AlmError).hint, "Retry, or use --source semantics.");
   assert.match((result.windows as { error: string }).error, /Timed out waiting for JDWP/);
 });
 
@@ -311,7 +311,7 @@ async function captureDumpsysOnly(dumpsysText: string) {
     pids: [5866],
     shellRawOutput: semanticsXml,
     shellRoutes: [
-      [/^uiautomator dump /, "UI hierchary dumped to: /data/local/tmp/aui-test.xml"],
+      [/^uiautomator dump /, "UI hierchary dumped to: /data/local/tmp/alm-test.xml"],
       [/^dumpsys activity /, dumpsysText],
       [/^rm -f /, ""],
     ],

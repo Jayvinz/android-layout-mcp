@@ -42,11 +42,11 @@ claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --ru
   Claude Code plugin + marketplace（`jayvinz-tools`）。
 - `npm run build:plugin-zip` 会把发布用插件包写到 `dist-plugin/android-layout-mcp-<version>.zip`；它是构建产物，已在 `.gitignore` 中。构建时会在临时目录执行 `npm ci --omit=dev`（需要 registry 网络；`--no-deps` 可跳过），使包内自带生产 `node_modules/` 与 `package-lock.json`，这样以 `--plugin-dir`/`--plugin-url` 会话级加载时也能直接运行（该路径不会自动安装依赖）。release workflow 会构建它、校验解压后的包，并附加到 GitHub Release（见 [plugin.zh.md](plugin.zh.md#插件包)）。
 - 模块系统为 ESM（TypeScript `NodeNext`）：`src/` 内相对导入必须带 `.js` 扩展名。
-- `PreToolUse` Android 工程门禁位于 `hooks/hooks.json` + `hooks/aui-android-gate.mjs`；hook 只在会话启动时加载，修改后需重启 Claude Code。
-- Compose helper 源码在 `helper/src/aui/ComposeInspectorHelper.java`，提交的构建产物是 `helper/aui-compose-helper.jar`；`npm run build:helper` 会针对本机 Android Studio 重新生成该 jar。
-- 预期内的失败统一抛 `AuiError`（`src/core/errors.ts`），带稳定的 `code` 和可选的用户提示 `hint`。
+- `PreToolUse` Android 工程门禁位于 `hooks/hooks.json` + `hooks/alm-android-gate.mjs`；hook 只在会话启动时加载，修改后需重启 Claude Code。
+- Compose helper 源码在 `helper/src/alm/ComposeInspectorHelper.java`，提交的构建产物是 `helper/alm-compose-helper.jar`；`npm run build:helper` 会针对本机 Android Studio 重新生成该 jar。
+- 预期内的失败统一抛 `AlmError`（`src/core/errors.ts`），带稳定的 `code` 和可选的用户提示 `hint`。
 - 不要提交 dump 或截图：它们可能包含设备序列号、包名和界面文本。
-  `.aui/`、`aui-fallback-*.png`、`*.annotated.svg` 已在 `.gitignore` 中。
+  `.alm/`、`alm-fallback-*.png`、`*.annotated.svg` 已在 `.gitignore` 中。
 
 ## 实现说明
 
@@ -71,6 +71,6 @@ claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --ru
 
 ### Compose 树
 
-Compose 树通过独立的 Java helper（`helper/src/aui/ComposeInspectorHelper.java`）桥接
+Compose 树通过独立的 Java helper（`helper/src/alm/ComposeInspectorHelper.java`）桥接
 Android Studio 自带的 transport/JVMTI/inspector 工件，输出 JSON 后转换为统一的节点树。
 设备侧细节、缓存策略与前置条件见 [data-sources.zh.md](data-sources.zh.md#compose-jvmti-树android-studio-级)。

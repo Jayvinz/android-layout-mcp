@@ -20,9 +20,9 @@ const GATED_TOOLS =
   /(?:^|__)(list_devices|get_state|dump_ui|find_elements|locate_code|hit_test|analyze_ui|list_fragments|screenshot)$/;
 
 function debug(value) {
-  if (process.env.AUI_GATE_DEBUG !== "1") return;
+  if (process.env.ALM_GATE_DEBUG !== "1") return;
   try {
-    appendFileSync(join(tmpdir(), "aui-android-gate.log"), `${JSON.stringify(value)}\n`);
+    appendFileSync(join(tmpdir(), "alm-android-gate.log"), `${JSON.stringify(value)}\n`);
   } catch {
     // Debug logging must never affect the decision.
   }

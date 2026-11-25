@@ -38,7 +38,7 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const INCLUDED = [
   ".claude-plugin/plugin.json",
   "dist",
-  "helper/aui-compose-helper.jar",
+  "helper/alm-compose-helper.jar",
   "helper/src",
   "hooks",
   "skills",
@@ -92,7 +92,7 @@ function walkDependencies(staging, relativePath, entries) {
 
 /** Installs production dependencies into a temp stage and collects them. */
 function collectDependencies(entries) {
-  const staging = mkdtempSync(join(tmpdir(), "aui-plugin-deps-"));
+  const staging = mkdtempSync(join(tmpdir(), "alm-plugin-deps-"));
   try {
     cpSync(join(ROOT, "package.json"), join(staging, "package.json"));
     cpSync(join(ROOT, "package-lock.json"), join(staging, "package-lock.json"));

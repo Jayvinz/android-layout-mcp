@@ -36,8 +36,8 @@ Clicking it invokes `<handler>` (`<file>:<line>`); state comes from `<ViewModel/
 ## Next steps
 - Read first: `<file>:<line>`
 - Suggested change: `<file>` (no code was modified)
-- Verify: MCP `dump_ui(savePath=".aui/before.json")` → after the change `dump_ui(savePath=".aui/after.json")` → compare those two files yourself;
-  or `mkdir -p .aui && node "$AUI_ROOT/dist/cli.js" dump --json --out .aui/after.json`;
+- Verify: MCP `dump_ui(savePath=".alm/before.json")` → after the change `dump_ui(savePath=".alm/after.json")` → compare those two files yourself;
+  or `mkdir -p .alm && node "$ALM_ROOT/dist/cli.js" dump --json --out .alm/after.json`;
   then use MCP `analyze_ui` to check touch targets, clipping, and overlap.
 ```
 

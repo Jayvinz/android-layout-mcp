@@ -1,4 +1,4 @@
-package aui;
+package alm;
 
 import com.android.tools.idea.io.grpc.ManagedChannel;
 import com.android.tools.idea.io.grpc.ManagedChannelBuilder;

@@ -102,7 +102,7 @@ test("reports how to map image coordinates back to device coordinates", () => {
 });
 
 test("writes <png>.annotated.svg next to the screenshot with the same content as renderAnnotatedSvg", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "aui-svg-"));
+  const dir = await mkdtemp(join(tmpdir(), "alm-svg-"));
   try {
     const pngPath = join(dir, "shot.png");
     await writeFile(pngPath, original);

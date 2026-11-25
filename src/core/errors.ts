@@ -14,13 +14,13 @@ export type ErrorCode =
   | "BAD_INPUT"
   | "TIMEOUT";
 
-export class AuiError extends Error {
+export class AlmError extends Error {
   readonly code: ErrorCode;
   readonly hint?: string;
 
   constructor(code: ErrorCode, message: string, hint?: string) {
     super(message);
-    this.name = "AuiError";
+    this.name = "AlmError";
     this.code = code;
     this.hint = hint;
   }
@@ -28,7 +28,7 @@ export class AuiError extends Error {
 
 export function errorMessage(error: unknown): string {
   if (error instanceof Error) {
-    if (error instanceof AuiError && error.hint) {
+    if (error instanceof AlmError && error.hint) {
       return `${error.message}\nHint: ${error.hint}`;
     }
     return error.message;

@@ -165,7 +165,7 @@ console.log(`  ${skills.join(", ")}`);
 if (!global) {
   const dirs = targets.map((target) => `.${target.variant}/skills`).join(" and ");
   console.log(
-    `\nCommit ${dirs} in that project, and point AUI_ROOT at this checkout ` +
+    `\nCommit ${dirs} in that project, and point ALM_ROOT at this checkout ` +
       `(or put the android-layout CLI on PATH) so the skills' CLI fallback resolves.`,
   );
 }

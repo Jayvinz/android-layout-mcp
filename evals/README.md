@@ -44,7 +44,7 @@ The eval workspace is empty, so it is not an Android project. Existing positive 
 
 ## Runtime gate
 
-`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/aui-android-gate.mjs`) for all nine device-touching tools: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, and `screenshot`. In a non-Android workspace it denies every one of them unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
+`hooks/hooks.json` registers a `PreToolUse` command hook (`hooks/alm-android-gate.mjs`) for all nine device-touching tools: `list_devices`, `get_state`, `dump_ui`, `find_elements`, `locate_code`, `hit_test`, `analyze_ui`, `list_fragments`, and `screenshot`. In a non-Android workspace it denies every one of them unless the latest user prompt explicitly asks about a device screen/page or mentions Android; `locate_code` additionally requires an Android project or an explicit Android mention. Hooks load at session start, so restart Claude Code after installing or updating the plugin. The eval harness does not load plugin hooks, which is why the negative checks are manual here and unit-tested separately.
 
 ## Scaffolded Android workspace
 

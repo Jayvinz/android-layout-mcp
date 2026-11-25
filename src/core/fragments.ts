@@ -1,5 +1,5 @@
 import type { Adb } from "./adb.js";
-import { AuiError } from "./errors.js";
+import { AlmError } from "./errors.js";
 import {
   allFragments,
   notableFragments,
@@ -88,7 +88,7 @@ export async function readFragments(
 ): Promise<ReadFragmentsResult> {
   const packageName = options.packageName ?? (await adb.foregroundApp()).packageName;
   if (!packageName) {
-    throw new AuiError("BAD_INPUT", "Could not determine the foreground app package.");
+    throw new AlmError("BAD_INPUT", "Could not determine the foreground app package.");
   }
   const output = await adb.shell(`dumpsys activity ${packageName}`, {
     timeoutMs: options.timeoutMs ?? 30_000,

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/aui-android-gate.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/alm-android-gate.mjs\"",
             "timeout": 10
           }
         ]

@@ -31,7 +31,7 @@
 ## 环境要求
 
 - Node.js ≥ 20（MCP 服务跑在 Node 上）
-- `adb` 在 `PATH` 中（或设置 `AUI_ADB` / `ADB_PATH`），设备或模拟器已开启 USB 调试
+- `adb` 在 `PATH` 中（或设置 `ALM_ADB` / `ADB_PATH`），设备或模拟器已开启 USB 调试
 - `view` / `compose` 源需要 debuggable 包；`semantics` / `dumpsys` 对任意 App 可用
 - 只有 `compose` 源需要本地 Android Studio + Java（每次抓取约 8–12 秒）
 
@@ -130,7 +130,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `find_elements` | 这段文本 / id / 类名 / ref 在哪？ | `query`、`by`、`match`、`clickable`、`both`、`includeInvisible`、`limit` |
 | `hit_test` | (x, y) 上是什么？ | `x`、`y`、`index`、`source` |
 | `locate_code` | 哪个源文件渲染了这个元素？ | `text[]`、`desc[]`、`id[]`、`className[]`、`composeName`、`composeFile` + `composeLine`、`root`、`limit`、`includeTests`、`exclude[]` |
-| `analyze_ui` | 布局有没有坏？ | `rules[]`、`minTouchTargetDp`（48）、`maxDepth`（14）、`includeProperties` |
+| `analyze_ui` | 布局有没有问题？ | `rules[]`、`minTouchTargetDp`（48）、`maxDepth`（14）、`includeProperties` |
 | `screenshot` | 画面长什么样？ | `maxWidth`（720）、`scale`、`fullResolution`、`savePath`、`annotate` |
 | `list_fragments` | Activity / Fragment 结构 | `package`、`includeFramework` |
 
@@ -169,7 +169,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 ### 门禁 Hook
 
-9 个会碰设备的工具都受 Android 项目门禁约束。插件里的 `PreToolUse` Hook 在非 Android 工作区会直接拒绝，除非用户最新一句话明确要求看设备屏幕或提到 Android。`locate_code` 更严：必须有 Android 项目或明确提到 Android。判定依据是 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块，或 `AndroidManifest.xml`。连着设备不代表仓库是 Android 项目。设置 `AUI_GATE_DEBUG=1` 可记录判定过程。
+9 个会碰设备的工具都受 Android 项目门禁约束。插件里的 `PreToolUse` Hook 在非 Android 工作区会直接拒绝，除非用户最新一句话明确要求看设备屏幕或提到 Android。`locate_code` 更严：必须有 Android 项目或明确提到 Android。判定依据是 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块，或 `AndroidManifest.xml`。连着设备不代表仓库是 Android 项目。设置 `ALM_GATE_DEBUG=1` 可记录判定过程。
 
 ### 脚本
 
@@ -197,10 +197,10 @@ Compose 屏幕上 `view` 源到 `AndroidComposeView` 就停了——这正是 `a
 ## 需要知道的事
 
 - **ref 只在一次抓取内有效。** `v*`（view）、`s*`（semantics）、`d*`（dumpsys）、`c*`（compose）只对产生它的那次抓取成立。做前后对比时，按来源、资源 id、类名、文本和路径匹配。
-- **产物留在本地。** 抓取流程会写 `.aui/capture.json`、`.aui/capture.png`、`.aui/capture.xml`。把 `.aui/` 加进 `.gitignore`；dump 里可能有设备序列号、包名和屏幕文本。Android Studio 的 Layout Inspector 打不开这些文件（`.li` 是私有格式）。
+- **产物留在本地。** 抓取流程会写 `.alm/capture.json`、`.alm/capture.png`、`.alm/capture.xml`。把 `.alm/` 加进 `.gitignore`；dump 里可能有设备序列号、包名和屏幕文本。Android Studio 的 Layout Inspector 打不开这些文件（`.li` 是私有格式）。
 - **图片坐标 ≠ 设备坐标。** 缩放后的截图会返回 `coordinateMapping.imageToDevice`，做命中测试或对外报坐标前先换算；`find_elements` / `hit_test` 返回的已经是设备坐标。
-- **截图是兜底，不是事实来源。** 结构化抓取失败时，会存一张缩放后的 `aui-fallback-<time>.png` 并作为图片内容返回。可用 `AUI_NO_FALLBACK_SCREENSHOT=1` 关闭。
-- **常用环境变量：** `AUI_ADB` / `ADB_PATH`、`ANDROID_SERIAL`、`AUI_ANDROID_STUDIO`、`AUI_JAVA`、`AUI_COMPOSE_VERSION`、`AUI_NO_FALLBACK_SCREENSHOT`。完整表格：[docs/cli.zh.md](docs/cli.zh.md#环境变量)。
+- **截图是兜底，不是事实来源。** 结构化抓取失败时，会存一张缩放后的 `alm-fallback-<time>.png` 并作为图片内容返回。可用 `ALM_NO_FALLBACK_SCREENSHOT=1` 关闭。
+- **常用环境变量：** `ALM_ADB` / `ADB_PATH`、`ANDROID_SERIAL`、`ALM_ANDROID_STUDIO`、`ALM_JAVA`、`ALM_COMPOSE_VERSION`、`ALM_NO_FALLBACK_SCREENSHOT`。完整表格：[docs/cli.zh.md](docs/cli.zh.md#环境变量)。
 - **JDWP 同时只允许一个调试器。** Android Studio 正在调同一个 App 时，attach 可能失败。
 - **Canvas 画出来的像素没有节点。** 自定义 `Canvas` 绘制、`SurfaceView`、`WebView` 内容没有子节点或文本；语义树只能看到 App 主动暴露给无障碍的内容。
 - **上限：** `dump_ui` 的 JSON 默认上限 800 个节点、文本树 1500 个节点，可用 `maxNodes` 提高；`savePath` 会写完整未裁剪的 dump。`compose` 源需要 Android Studio + Java 17+，每次约 8–12 秒。

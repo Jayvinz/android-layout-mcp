@@ -76,17 +76,17 @@ If nothing matches, the element may be offscreen, in another window, or labeled 
 When the user wants something to keep, save all three:
 
 ```text
-dump_ui(source="auto", savePath=".aui/capture.json", format="json")
-screenshot(savePath=".aui/capture.png")
+dump_ui(source="auto", savePath=".alm/capture.json", format="json")
+screenshot(savePath=".alm/capture.png")
 ```
 
 - **JSON** — the full untrimmed tree, for an agent or `jq` later.
 - **PNG** — the pixels, for a human.
-- **XML** — `adb shell uiautomator dump /sdcard/aui.xml && adb pull /sdcard/aui.xml .aui/capture.xml`. Standard uiautomator XML opens in any browser or editor, which JSON and `.li` do not.
+- **XML** — `adb shell uiautomator dump /sdcard/alm.xml && adb pull /sdcard/alm.xml .alm/capture.xml`. Standard uiautomator XML opens in any browser or editor, which JSON and `.li` do not.
 
 Android Studio's Layout Inspector cannot open these files. Its `.li` snapshot is an undocumented private format; there is no conversion, and no claim of one should be made. If the user wants AS's 3D view, that is AS's own inspector on a debuggable build, not this tool.
 
-Report the absolute path of every file written. `.aui/` holds device serials and screen text — remind the user not to commit it.
+Report the absolute path of every file written. `.alm/` holds device serials and screen text — remind the user not to commit it.
 
 ## Output
 
@@ -121,5 +121,5 @@ Answer in the user's language:
 - Refs (`v*` / `s*` / `d*` / `c*`) are valid for one capture only.
 - Do not describe an element that is not in the capture.
 - This skill never modifies code.
-- MCP unavailable: `AUI_ROOT` is the plugin root (the directory holding `dist/`, `scripts/`, `skills/`). Run `node "$AUI_ROOT/dist/cli.js" dump --json --out .aui/capture.json`; if `dist/` is missing, report the build requirement and stop rather than fabricating a screen.
+- MCP unavailable: `ALM_ROOT` is the plugin root (the directory holding `dist/`, `scripts/`, `skills/`). Run `node "$ALM_ROOT/dist/cli.js" dump --json --out .alm/capture.json`; if `dist/` is missing, report the build requirement and stop rather than fabricating a screen.
 - No device: run `list_devices`, then point at `adb devices` / `ANDROID_SERIAL`. Do not retry in a loop.

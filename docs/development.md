@@ -36,10 +36,10 @@ claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --ru
 - The repository is both an npm package (`android-layout-mcp`, binary `android-layout`) and a Claude Code plugin + marketplace (`jayvinz-tools`).
 - `npm run build:plugin-zip` writes the release bundle to `dist-plugin/android-layout-mcp-<version>.zip`; it is a build output and is gitignored. It stages `npm ci --omit=dev` (registry access; `--no-deps` skips it) so the archive ships a production `node_modules/` and `package-lock.json` and works when loaded as a session-scoped `--plugin-dir`/`--plugin-url` zip, which never gets an automatic dependency install. The release workflow builds it, validates the extracted bundle, and attaches it to the GitHub Release ([plugin.md](plugin.md#plugin-bundle)).
 - The module system is ESM (TypeScript `NodeNext`): relative imports in `src/` must use the `.js` extension.
-- The `PreToolUse` Android-project gate lives in `hooks/hooks.json` + `hooks/aui-android-gate.mjs`; hooks load at session start, so restart Claude Code after changing them.
-- The Compose helper source is `helper/src/aui/ComposeInspectorHelper.java` and the committed build is `helper/aui-compose-helper.jar`; `npm run build:helper` regenerates the jar against the local Android Studio.
-- Expected failures are thrown as `AuiError` from `src/core/errors.ts` with a stable `code` and an optional user-facing `hint`.
-- Do not commit dumps or screenshots: they may contain device serials, package names, and screen text. `.aui/`, `aui-fallback-*.png`, and `*.annotated.svg` are already in `.gitignore`.
+- The `PreToolUse` Android-project gate lives in `hooks/hooks.json` + `hooks/alm-android-gate.mjs`; hooks load at session start, so restart Claude Code after changing them.
+- The Compose helper source is `helper/src/alm/ComposeInspectorHelper.java` and the committed build is `helper/alm-compose-helper.jar`; `npm run build:helper` regenerates the jar against the local Android Studio.
+- Expected failures are thrown as `AlmError` from `src/core/errors.ts` with a stable `code` and an optional user-facing `hint`.
+- Do not commit dumps or screenshots: they may contain device serials, package names, and screen text. `.alm/`, `alm-fallback-*.png`, and `*.annotated.svg` are already in `.gitignore`.
 
 ## Implementation notes
 
@@ -61,4 +61,4 @@ Hit testing follows the plugin's strategy: collect all nodes containing the coor
 
 ### Compose tree
 
-The Compose tree goes through a standalone Java helper (`helper/src/aui/ComposeInspectorHelper.java`) bridging Android Studio's transport/JVMTI/inspector artifacts; its JSON output is converted into the unified node tree. On-device details, caching, and prerequisites are documented in [data-sources.md](data-sources.md#compose-jvmti-tree-android-studio-level).
+The Compose tree goes through a standalone Java helper (`helper/src/alm/ComposeInspectorHelper.java`) bridging Android Studio's transport/JVMTI/inspector artifacts; its JSON output is converted into the unified node tree. On-device details, caching, and prerequisites are documented in [data-sources.md](data-sources.md#compose-jvmti-tree-android-studio-level).

@@ -9,7 +9,7 @@ Internal notes for the two Medium drafts. Not part of the articles.
 - Figures to capture (replace the italic placeholders):
   1. A terminal running `android-layout dump`, showing the node tree with bounds, centers, and refs.
   2. A Claude Code session showing a `find_elements` result with bounds, center, and clickable state.
-  3. Two saved dumps (`.aui/before.json` and `.aui/after.json`) side by side, with one added button and one resized row.
+  3. Two saved dumps (`.alm/before.json` and `.alm/after.json`) side by side, with one added button and one resized row.
 - Canonical URL: the GitHub blob URL of this file once committed.
 
 ## Post 2: "How Android Layout MCP Reads a Screen: JDWP, UIAutomator, and JVMTI"

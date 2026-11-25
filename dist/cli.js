@@ -6,7 +6,7 @@ import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
 import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js";
-import { AuiError, errorMessage } from "./core/errors.js";
+import { AlmError, errorMessage } from "./core/errors.js";
 import { readFragments } from "./core/fragments.js";
 import { MCP_CLIENT_IDS, mcpClientConfig, isMcpClient } from "./core/mcp-config.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
@@ -25,11 +25,11 @@ program
     "screenshot and layout analysis.")
     .version(PACKAGE_VERSION)
     .option("-s, --serial <serial>", "device serial (defaults to ANDROID_SERIAL or the only device)")
-    .option("--adb <path>", "path to adb (defaults to AUI_ADB, ADB_PATH, or adb on PATH)")
+    .option("--adb <path>", "path to adb (defaults to ALM_ADB, ADB_PATH, or adb on PATH)")
     .option("--timeout <ms>", "adb/JDWP timeout in milliseconds", parsePositiveInt, 30_000)
     .option("--studio <path>", "Android Studio installation directory (Compose inspection)")
     .option("--java <path>", "Java executable for the Compose inspector helper")
-    .option("--compose-version <version>", "Compose version used to fetch inspector.jar (defaults to AUI_COMPOSE_VERSION or 1.8.3)")
+    .option("--compose-version <version>", "Compose version used to fetch inspector.jar (defaults to ALM_COMPOSE_VERSION or 1.8.3)")
     .option("-v, --verbose", "print capture progress on stderr")
     .option("--no-fallback-screenshot", "do not save a device screenshot when UI capture fails");
 program
@@ -128,9 +128,9 @@ program
     const adb = makeAdb(command);
     const target = await resolvePackage(adb, options.package, options.pid);
     if (target.pid === null)
-        throw new AuiError("NO_PID", `No running process for ${target.packageName}.`);
+        throw new AlmError("NO_PID", `No running process for ${target.packageName}.`);
     // `windows` only needs the pid, so it skips the screen/foreground probes of
-    // `state`. Rethrowing the original AuiError keeps its code and hint (a
+    // `state`. Rethrowing the original AlmError keeps its code and hint (a
     // JDWP timeout must not be flattened into JDWP_FAILED).
     const result = await readWindows(adb, {
         packageName: target.packageName ?? undefined,
@@ -139,9 +139,9 @@ program
     });
     const windows = result.windows;
     if (!Array.isArray(windows)) {
-        if (result.error instanceof AuiError)
+        if (result.error instanceof AlmError)
             throw result.error;
-        throw new AuiError("JDWP_FAILED", windows.error);
+        throw new AlmError("JDWP_FAILED", windows.error);
     }
     if (options.json) {
         printJson({ package: target.packageName, pid: target.pid, windows });
@@ -361,7 +361,7 @@ program
             return;
         }
     }
-    throw new AuiError("BAD_INPUT", `No node with ref/id "${ref}" in the current UI.`);
+    throw new AlmError("BAD_INPUT", `No node with ref/id "${ref}" in the current UI.`);
 });
 program
     .command("shot")
@@ -413,21 +413,27 @@ program
     .option("--package <package>", "package whose code_cache should be cleaned (defaults to foreground app)")
     .action(async (options, command) => {
     const adb = makeAdb(command);
-    // The bracket in `[a]ui-compose` keeps the pattern from matching this very
+    // The bracket in `[a]lm-compose` keeps the pattern from matching this very
     // shell, whose own command line contains the path. A literal path would make
     // pkill kill its own shell, so the shell dies before it can report success.
-    await adb
-        .shell("pkill -f '[a]ui-compose/daemon.config' 2>/dev/null", {
-        timeoutMs: 10_000,
+    // The legacy `aui-compose` patterns clean up a daemon staged by 1.0.x.
+    for (const pattern of ["'[a]lm-compose/daemon.config'", "'[a]ui-compose/daemon.config'"]) {
+        await adb
+            .shell(`pkill -f ${pattern} 2>/dev/null`, {
+            timeoutMs: 10_000,
+            allowFailure: true,
+        })
+            .catch(() => undefined);
+    }
+    await adb.shell("rm -rf /data/local/tmp/alm-compose /data/local/tmp/aui-compose", {
+        timeoutMs: 15_000,
         allowFailure: true,
-    })
-        .catch(() => undefined);
-    await adb.shell("rm -rf /data/local/tmp/aui-compose", { timeoutMs: 15_000, allowFailure: true });
+    });
     const foreground = await adb.foregroundApp();
     const packageName = options.package || foreground.packageName;
     if (packageName) {
         await adb
-            .shell(`run-as ${packageName} sh -c 'cd code_cache && rm -f aui-view-inspector.jar aui-compose-inspector-*.jar libjvmtiagent_*.so perfa.jar transport'`, { timeoutMs: 20_000, allowFailure: true })
+            .shell(`run-as ${packageName} sh -c 'cd code_cache && rm -f alm-view-inspector.jar alm-compose-inspector-*.jar aui-view-inspector.jar aui-compose-inspector-*.jar libjvmtiagent_*.so perfa.jar transport'`, { timeoutMs: 20_000, allowFailure: true })
             .catch(() => undefined);
         console.log(`cleaned Compose inspector artifacts for ${packageName}`);
     }
@@ -458,7 +464,7 @@ program
         ];
         const requested = options.client ?? "claude";
         if (!isMcpClient(requested)) {
-            throw new AuiError("BAD_INPUT", `unknown client "${requested}"`, `supported clients: ${MCP_CLIENT_IDS.join(", ")}`);
+            throw new AlmError("BAD_INPUT", `unknown client "${requested}"`, `supported clients: ${MCP_CLIENT_IDS.join(", ")}`);
         }
         const config = mcpClientConfig(requested, "node", args);
         process.stdout.write(config.content);
@@ -521,18 +527,18 @@ async function captureFor(command, options) {
             try {
                 const shot = await takeScreenshot(adb, { maxWidth: 720 });
                 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-                const path = join(process.cwd(), `aui-fallback-${stamp}.png`);
+                const path = join(process.cwd(), `alm-fallback-${stamp}.png`);
                 await saveScreenshot(shot, path);
                 const metadata = screenshotMetadata(shot);
-                const code = error instanceof AuiError ? error.code : "VIEW_DUMP_FAILED";
-                const hint = error instanceof AuiError ? error.hint : undefined;
-                throw new AuiError(code, `${errorMessage(error)}
+                const code = error instanceof AlmError ? error.code : "VIEW_DUMP_FAILED";
+                const hint = error instanceof AlmError ? error.hint : undefined;
+                throw new AlmError(code, `${errorMessage(error)}
 Fallback screenshot: ${path} ` +
                     `(${shot.width}x${shot.height} from ${shot.originalWidth}x${shot.originalHeight}; ` +
                     `image→device ×${metadata.coordinateMapping.imageToDevice.x}/${metadata.coordinateMapping.imageToDevice.y})`, hint);
             }
             catch (fallbackError) {
-                if (fallbackError instanceof AuiError && fallbackError.message.includes("Fallback screenshot:")) {
+                if (fallbackError instanceof AlmError && fallbackError.message.includes("Fallback screenshot:")) {
                     throw fallbackError;
                 }
             }
@@ -550,14 +556,14 @@ function parseSource(value) {
         value === "both") {
         return value;
     }
-    throw new AuiError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, dumpsys, compose, or both).`);
+    throw new AlmError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, dumpsys, compose, or both).`);
 }
 async function resolvePackage(adb, packageOption, pidOption) {
     // Only probe the foreground app when the package is not given: `windows
     // --package pkg --pid 1234` must not spend a round trip it does not need.
     const packageName = packageOption || (await adb.foregroundApp()).packageName;
     if (!packageName)
-        throw new AuiError("BAD_INPUT", "No package specified and no foreground app detected.");
+        throw new AlmError("BAD_INPUT", "No package specified and no foreground app detected.");
     const pid = pidOption ? parsePositiveInt(pidOption) : (await adb.packagePids(packageName))[0] ?? null;
     return { packageName, pid };
 }
@@ -581,7 +587,7 @@ function asString(value) {
 function parseCoordinate(value, name) {
     const parsed = typeof value === "number" ? value : Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || parsed < 0) {
-        throw new AuiError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
+        throw new AlmError("BAD_INPUT", `Invalid ${name} coordinate: ${value}`);
     }
     return parsed;
 }

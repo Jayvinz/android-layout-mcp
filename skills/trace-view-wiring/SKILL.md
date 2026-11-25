@@ -133,7 +133,7 @@ locate_code(
 If `locate_code` is unavailable, run the equivalent script:
 
 ```bash
-node "$AUI_ROOT/scripts/locate-code.mjs" \
+node "$ALM_ROOT/scripts/locate-code.mjs" \
   --root . \
   --text "Me" \
   --desc "Open profile" \

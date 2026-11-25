@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Rebuilds helper/aui-compose-helper.jar against the locally installed Android Studio jars.
+ * Rebuilds helper/alm-compose-helper.jar against the locally installed Android Studio jars.
  * Android Studio's transport/JVMTI artifacts and shaded protobuf/gRPC classes are used at
  * runtime; the helper itself only contains our bridge code.
  */
@@ -10,7 +10,7 @@ import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
 const candidates = [
-  process.env.AUI_ANDROID_STUDIO,
+  process.env.ALM_ANDROID_STUDIO,
   process.env.ANDROID_STUDIO_PATH,
   process.platform === "win32" && process.env.LOCALAPPDATA
     ? join(process.env.LOCALAPPDATA, "Programs", "Android Studio")
@@ -34,12 +34,12 @@ const studio = candidates.find((root) => {
 });
 
 if (!studio) {
-  console.error("Android Studio not found. Set AUI_ANDROID_STUDIO.");
+  console.error("Android Studio not found. Set ALM_ANDROID_STUDIO.");
   process.exit(1);
 }
 
 const javaCandidates = [
-  process.env.AUI_JAVAC,
+  process.env.ALM_JAVAC,
   process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "javac.exe" : "javac") : undefined,
   join(studio, "jbr", "bin", process.platform === "win32" ? "javac.exe" : "javac"),
   join(studio, "jbr", "Contents", "Home", "bin", "javac"),
@@ -47,7 +47,7 @@ const javaCandidates = [
 ].filter(Boolean);
 const javac = javaCandidates.find((candidate) => !candidate.includes("/") && !candidate.includes("\\") || existsSync(candidate));
 const jarCandidates = [
-  process.env.AUI_JAR,
+  process.env.ALM_JAR,
   process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "jar.exe" : "jar") : undefined,
   join(studio, "jbr", "bin", process.platform === "win32" ? "jar.exe" : "jar"),
   join(studio, "jbr", "Contents", "Home", "bin", "jar"),
@@ -67,8 +67,8 @@ const classpath = [
 const outDir = join("helper", "build", "classes");
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
-execFileSync(javac, ["-cp", classpath, "-d", outDir, join("helper", "src", "aui", "ComposeInspectorHelper.java")], {
+execFileSync(javac, ["-cp", classpath, "-d", outDir, join("helper", "src", "alm", "ComposeInspectorHelper.java")], {
   stdio: "inherit",
 });
-execFileSync(jar, ["cf", join("helper", "aui-compose-helper.jar"), "-C", outDir, "."], { stdio: "inherit" });
-console.log(`built helper/aui-compose-helper.jar using ${studio}`);
+execFileSync(jar, ["cf", join("helper", "alm-compose-helper.jar"), "-C", outDir, "."], { stdio: "inherit" });
+console.log(`built helper/alm-compose-helper.jar using ${studio}`);

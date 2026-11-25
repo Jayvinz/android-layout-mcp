@@ -65,7 +65,7 @@ export interface StudioLocation extends StudioPaths {
  * Resolves an Android Studio installation.
  *
  * Order:
- *   1. --studio / AUI_ANDROID_STUDIO / ANDROID_STUDIO_PATH
+ *   1. --studio / ALM_ANDROID_STUDIO / ANDROID_STUDIO_PATH
  *   2. the running studio64/studio process (the install the developer is actually
  *      using; also catches custom and Toolbox installs)
  *   3. standard install locations

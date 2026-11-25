@@ -121,10 +121,10 @@ Active Fragments in 1cd0568:
   `javac`/`jar`** 针对其 `plugins/android/lib/*.jar` 重新编译 helper，并按
   `Studio build + helper 源码 hash + 编译器版本` 缓存到
   `~/.cache/android-layout/helper/<key>/`。
-- **JDK 版本**：Java 选择顺序为 `--java` → `AUI_JAVA` → `JAVA_HOME` → Studio JBR → PATH。
-  显式指定的 `--java` 或 `AUI_JAVA` 若不存在，会跳过并给出 warning（继续尝试下一个候选），而不是直接失败，因此失效的覆盖配置不会让检查静默中断。
+- **JDK 版本**：Java 选择顺序为 `--java` → `ALM_JAVA` → `JAVA_HOME` → Studio JBR → PATH。
+  显式指定的 `--java` 或 `ALM_JAVA` 若不存在，会跳过并给出 warning（继续尝试下一个候选），而不是直接失败，因此失效的覆盖配置不会让检查静默中断。
   helper 编译优先使用**与运行时 Java 同一目录下的 `javac`/`jar`**，避免 class file version
-  不匹配；没有编译器时回退到仓库中已提交的 helper jar `helper/aui-compose-helper.jar`。实测：
+  不匹配；没有编译器时回退到仓库中已提交的 helper jar `helper/alm-compose-helper.jar`。实测：
   - Studio JBR 25 → helper class 69，可运行；
   - Microsoft OpenJDK 17（`--java` 指定）→ 自动用其 `javac` 编译 class 61，可运行。
 - 若使用其他 JBR/JDK，可用：
@@ -133,7 +133,7 @@ Active Fragments in 1cd0568:
   android-layout dump --source compose --java "C:/path/to/jdk/bin/java.exe"
   ```
 
-  或显式提供已编译 helper：`AUI_COMPOSE_HELPER_JAR=/path/to/helper.jar`。
+  或显式提供已编译 helper：`ALM_COMPOSE_HELPER_JAR=/path/to/helper.jar`。
 - 兼容边界：Studio 版本过旧、缺少 `layout_inspector_compose_java_proto.jar` 等工件，或
   Compose inspector proto 缺少所需消息时，helper 编译会失败并给出提示；此时请升级 Studio，
   或用 `npm run build:helper` 针对兼容的 Studio 构建，或回退到 `source=semantics`。
@@ -152,13 +152,13 @@ android-layout dump --source compose --json --out ui.json
 前置条件：
 
 - App 是可调试构建（`android:debuggable=true`）；
-- 本机安装 Android Studio（默认自动探测；可用 `AUI_ANDROID_STUDIO` 或 `--studio` 指定）；
+- 本机安装 Android Studio（默认自动探测；可用 `ALM_ANDROID_STUDIO` 或 `--studio` 指定）；
   探测顺序：`--studio`/环境变量 → **正在运行的 `studio64.exe`/`studio` 进程路径** → 常见安装路径。
   优先使用开发者实际在用的那个 Studio 安装（同时覆盖自定义/Toolbox 安装）；可用 `android-layout studio`
   查看实际命中的路径和来源；
-- Java 17+（优先用 Android Studio 自带 JBR；可用 `AUI_JAVA` 或 `--java` 指定）；
+- Java 17+（优先用 Android Studio 自带 JBR；可用 `ALM_JAVA` 或 `--java` 指定）；
 - Compose inspector jar 默认按 **1.8.3** 下载并缓存到 `~/.cache/android-layout/`；
-  如 App 的 Compose 版本不同，设置 `AUI_COMPOSE_VERSION` 或 `AUI_COMPOSE_INSPECTOR_JAR`；
+  如 App 的 Compose 版本不同，设置 `ALM_COMPOSE_VERSION` 或 `ALM_COMPOSE_INSPECTOR_JAR`；
 - 只支持 API 29+（Compose inspector 要求），并且 App 需在前台。
 
 实现上复用了 Android Studio 自带的：
@@ -171,7 +171,7 @@ android-layout dump --source compose --json --out ui.json
 
 CLI 会自动 push daemon/agent、`run-as` 安装 inspector jar、attach agent、通过 gRPC 驱动
 View inspector（只拿 root view id，关闭截图以避免 78MB 的 SKP 内存峰值）和 Compose inspector。
-daemon 会常驻在 `/data/local/tmp/aui-compose`，后续调用直接复用；用
+daemon 会常驻在 `/data/local/tmp/alm-compose`，后续调用直接复用；用
 `android-layout compose-clean` 停止 daemon 并清理设备侧文件。
 
 Android Studio 定位：显式配置 → 运行中进程的可执行文件路径 → 标准安装路径。进程探测结果在

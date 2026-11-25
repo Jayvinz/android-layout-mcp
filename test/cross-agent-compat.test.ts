@@ -112,7 +112,7 @@ test("the sync script advertises every flag the docs mention", () => {
 });
 
 test("--both writes agents + codebuddy only; --workbuddy adds the third target", () => {
-  const dest = mkdtempSync(join(tmpdir(), "aui-compat-both-"));
+  const dest = mkdtempSync(join(tmpdir(), "alm-compat-both-"));
   const script = join(repoRoot, "scripts", "sync-agent-skills.mjs");
   const run = (flags: string[]) =>
     spawnSync(process.execPath, [script, "--dest", dest, ...flags], { encoding: "utf8" });

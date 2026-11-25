@@ -1,4 +1,4 @@
-import { AuiError } from "./errors.js";
+import { AlmError } from "./errors.js";
 import { flattenNodes, intersect } from "./viewdump.js";
 import { nodePath } from "./query.js";
 export function analyzeCapture(result, options = {}) {
@@ -256,7 +256,7 @@ export function analyzeCapture(result, options = {}) {
     // as a clean screen. `capture()` already throws in this case; this keeps a
     // hand-built or future capture from producing a false "no issues" verdict.
     if (trees.length === 0) {
-        throw new AuiError("VIEW_DUMP_FAILED", "No UI tree to analyze.", "Re-capture with --source semantics (works on any app) or --source view.");
+        throw new AlmError("VIEW_DUMP_FAILED", "No UI tree to analyze.", "Re-capture with --source semantics (works on any app) or --source view.");
     }
     for (const [source, roots] of trees)
         analyzeSource(roots, source, rules);

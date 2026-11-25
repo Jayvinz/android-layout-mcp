@@ -59,10 +59,10 @@ test("skills never hard-code the Claude Code plugin root in a command", () => {
     assert.doesNotMatch(
       source,
       /\$\{CLAUDE_PLUGIN_ROOT\}\/(dist|scripts)\//,
-      `${name}: executable paths must use $AUI_ROOT so other agents can resolve them`,
+      `${name}: executable paths must use $ALM_ROOT so other agents can resolve them`,
     );
     if (source.includes("dist/cli.js")) {
-      assert.ok(source.includes("`AUI_ROOT`"), `${name}: document what AUI_ROOT points at`);
+      assert.ok(source.includes("`ALM_ROOT`"), `${name}: document what ALM_ROOT points at`);
     }
   }
   const reference = read("skills/trace-view-wiring/references/output-template.md");
@@ -70,7 +70,7 @@ test("skills never hard-code the Claude Code plugin root in a command", () => {
 });
 
 test("sync-agent-skills installs an identical, check-clean copy", () => {
-  const dest = mkdtempSync(join(tmpdir(), "aui-skills-"));
+  const dest = mkdtempSync(join(tmpdir(), "alm-skills-"));
   const script = join(repoRoot, "scripts", "sync-agent-skills.mjs");
   try {
     const copy = spawnSync(process.execPath, [script, "--dest", dest], { encoding: "utf8" });
@@ -96,7 +96,7 @@ test("sync-agent-skills installs an identical, check-clean copy", () => {
 });
 
 test("sync-agent-skills can target CodeBuddy's .codebuddy/skills", () => {
-  const dest = mkdtempSync(join(tmpdir(), "aui-codebuddy-skills-"));
+  const dest = mkdtempSync(join(tmpdir(), "alm-codebuddy-skills-"));
   const script = join(repoRoot, "scripts", "sync-agent-skills.mjs");
   try {
     const missing = spawnSync(process.execPath, [script, "--dest", dest, "--codebuddy", "--check"], {

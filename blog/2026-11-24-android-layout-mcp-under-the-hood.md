@@ -87,13 +87,13 @@ The upside is reach. The semantics tree works on release builds, on any app, and
 
 ### The Compose tree
 
-This path borrows Android Studio's own tooling. The tool locates a Studio installation (`--studio`, `AUI_ANDROID_STUDIO`, the running process, or default paths), reads its build number, and stages five artifacts on the device: the gRPC `transport` daemon, the [JVMTI](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html) agent, `perfa.jar`, the View inspector jar, and the Compose inspector jar it fetched for the app's Compose version.
+This path borrows Android Studio's own tooling. The tool locates a Studio installation (`--studio`, `ALM_ANDROID_STUDIO`, the running process, or default paths), reads its build number, and stages five artifacts on the device: the gRPC `transport` daemon, the [JVMTI](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html) agent, `perfa.jar`, the View inspector jar, and the Compose inspector jar it fetched for the app's Compose version.
 
 The Compose inspector jar does not come from the Studio install. It is extracted from the `ui-android` AAR on Google Maven for the app's Compose version (1.8.3 by default) and cached under `~/.cache/android-layout/`. The helper jar is compiled on first use against the exact Studio build and compiler version, then cached by a hash of build id, helper source, and compiler version. When no compiler is available, a committed helper jar is used instead.
 
 On the device, `run-as` copies the inspector jars into the app's `code_cache`, and the transport daemon starts with a hand-encoded protobuf config. There is no protobuf runtime in the project; the few messages needed are written as varint fields directly. The helper then drives the View and Compose inspectors over gRPC and prints JSON.
 
-Two deliberate limits reduce the cost. The capture asks for the root view id only and disables inspector screenshots, which would allocate a large SKP buffer; the project notes a 78 MB peak when screenshots are left on. The daemon stays resident in `/data/local/tmp/aui-compose`, so later captures skip startup.
+Two deliberate limits reduce the cost. The capture asks for the root view id only and disables inspector screenshots, which would allocate a large SKP buffer; the project notes a 78 MB peak when screenshots are left on. The daemon stays resident in `/data/local/tmp/alm-compose`, so later captures skip startup.
 
 The result carries what the other sources cannot: `CommunityActivity.kt:85`, Composable names, parameter text, and recompose counts. It costs 8 to 12 seconds, needs API 29 or newer, and leaves state on the device until `android-layout compose-clean` runs.
 
@@ -133,7 +133,7 @@ Four pieces turn the tree into an answer.
 
 **Analysis** runs twelve rules over the normalized tree: small touch targets, sibling overlap, clipping, children outside a non-scrollable parent, offscreen views, invisible clickables, zero sizes, unlabeled clickables, duplicate ids, deep nesting, overdraw, and RTL mirroring gaps. `deep_nesting` is skipped for the Compose source, where wrapper depth is an artifact of the framework; `overdraw` and `rtl_issues` read raw View properties, so the analyzer requests them by default.
 
-**Verifying a change** is a diff the agent performs, not a tool the server owns. Save a dump before the change and one after (`dump_ui(savePath=".aui/before.json")` / `.aui/after.json`, or `android-layout dump --json --out`), then compare the two JSON files. Refs expire with each capture, so the comparison keys on source, resource id, class, text, and path instead of `v12`/`s43`. `analyze_ui` then re-runs the rule set on the new capture.
+**Verifying a change** is a diff the agent performs, not a tool the server owns. Save a dump before the change and one after (`dump_ui(savePath=".alm/before.json")` / `.alm/after.json`, or `android-layout dump --json --out`), then compare the two JSON files. Refs expire with each capture, so the comparison keys on source, resource id, class, text, and path instead of `v12`/`s43`. `analyze_ui` then re-runs the rule set on the new capture.
 
 Source tracing is a separate pass. `locate_code` reads the repository, extracts string and layout anchors, finds `@Composable` definitions and call sites, follows layout includes, and scores candidates: 100 for a Composable definition matched by name or line, 90 for the file the inspector reported, 80 for an id usage next to a click listener, 78 for the layout that defines the id, 45 for a call site. Build output, generated code, and tests are excluded unless asked for.
 
@@ -147,7 +147,7 @@ The hook fails open on internal errors, so a broken gate cannot block a legitima
 
 ### When the agent is not Claude Code
 
-The hook is a Claude Code feature. Move the same skills into Codex CLI, CodeBuddy, or WorkBuddy and the hard gate disappears; the Android-project rule is left as prose in each skill body. That text stays effective because the files are copied unchanged. Their frontmatter carries only `name` and `description`, the portable subset of the Agent Skills standard, and executable paths resolve through `$AUI_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. A sync script writes the same files into `.agents/skills`, `.codebuddy/skills`, or `.workbuddy/skills`, so every agent reads the same gate text without a plugin cache.
+The hook is a Claude Code feature. Move the same skills into Codex CLI, CodeBuddy, or WorkBuddy and the hard gate disappears; the Android-project rule is left as prose in each skill body. That text stays effective because the files are copied unchanged. Their frontmatter carries only `name` and `description`, the portable subset of the Agent Skills standard, and executable paths resolve through `$ALM_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. A sync script writes the same files into `.agents/skills`, `.codebuddy/skills`, or `.workbuddy/skills`, so every agent reads the same gate text without a plugin cache.
 
 The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 9 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
 

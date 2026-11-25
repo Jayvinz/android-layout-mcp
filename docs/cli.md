@@ -2,7 +2,7 @@
 
 [English](cli.md) | [简体中文](cli.zh.md)
 
-The `android-layout` CLI drives the same core as the MCP server. Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `AUI_ADB` / `ADB_PATH`).
+The `android-layout` CLI drives the same core as the MCP server. Requirements: Node.js ≥ 20 and Android platform-tools (`adb` on `PATH`, or set `ALM_ADB` / `ADB_PATH`).
 
 ## Installation
 
@@ -85,20 +85,20 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `android-layout fragments` | Activity/Fragment structure from `dumpsys`; `--package`, `--json`, `--all` (keep AndroidX bookkeeping fragments) |
 | `android-layout studio` | Show the Android Studio used for Compose inspection: path, source (explicit/env/default/process), JBR Java; `--json` |
 | `android-layout mcp` | Start the MCP server (stdio); `--print-config [--client <id>]` prints a config shaped for Claude Code, Codex, VS Code, Zed, or another client ([list](mcp.md#other-clients)), `--register-view-attributes` enables the global `debug_view_attributes` setting (restarts the app) first |
-| `android-layout compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/aui-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
+| `android-layout compose-clean` | Stop the resident transport daemon, clean `/data/local/tmp/alm-compose` and the inspector jar in app code_cache; `--package` targets a specific app |
 
 Every command that reads a tree takes the same `--source` values (`auto`, `view`, `semantics`, `dumpsys`, `compose`, `both`); `auto` is the default everywhere.
 
 Global options: `-s, --serial`, `--adb <path>`, `--timeout <ms>`, `-v, --verbose`.
 Compose JVMTI options: `--studio <path>`, `--java <path>`, `--compose-version <v>`.
-Screenshot fallback: on capture failure an `aui-fallback-<time>.png` (720px wide by default) is saved automatically; disable with `--no-fallback-screenshot`. With multiple devices `ANDROID_SERIAL` also works.
+Screenshot fallback: on capture failure an `alm-fallback-<time>.png` (720px wide by default) is saved automatically; disable with `--no-fallback-screenshot`. With multiple devices `ANDROID_SERIAL` also works.
 
 ## Limits and defaults
 
 - **Text tree vs JSON**: `--depth`, `--max-nodes` (default 2000) and `--visible-only` shape only the human-readable tree; when it is cut, the last line says how many nodes were shown. `--json` / `--out` write the complete dump (`version: 1`, no trimming), so an agent should trim on its side or use MCP `dump_ui` with `depth`/`maxNodes`.
 - **Search**: `find` and `hit` selectors ignore invisible/gone nodes. `contains` is case-insensitive, `exact` is case-sensitive, and `--match regex` (or a `/pattern/flags` query, default flag `i`) is real regex — an invalid pattern fails the command. `--by class` tests both the fully-qualified and the short class name. `find` merges matches from every searched tree and returns at most `--limit` (default 50); `hit` sorts candidates by visible area and `--index` picks among them.
 - **Screenshots**: CLI `shot` keeps the native resolution unless `--max-width`/`--scale` is given; `--base64` adds data only together with `--json`. MCP `screenshot` defaults to 720px wide.
-- **Before/after**: save a dump before and after a change (`dump --json --out .aui/before.json`, then `.aui/after.json`) and compare the two files yourself; refs are per capture, so match on source, resource id, class, text, and path. Then run `analyze` on the new capture.
+- **Before/after**: save a dump before and after a change (`dump --json --out .alm/before.json`, then `.alm/after.json`) and compare the two files yourself; refs are per capture, so match on source, resource id, class, text, and path. Then run `analyze` on the new capture.
 - **Analyze**: `deep_nesting` is skipped for the `compose` source, unknown rule names are ignored, and `small_touch_target` skips bottom-clipped accessibility nodes on ROMs that under-report the window (e.g. MIUI).
 - **Analyze reads one tree**: the one that matches the screen — View for an XML screen, semantics for a Compose screen, dumpsys for `--source dumpsys`, Compose for `--source compose`. A `mixed` screen is the exception: View and Compose regions are disjoint, so both trees are scanned. This keeps a defect from being reported once per captured tree — a `--source dumpsys` capture always carries a semantics tree too, merged in only to supply text. `overdraw` and `rtl_issues` always read the View tree when it was captured, because only it carries the raw property map.
 - **Fallbacks**: with `auto`, a tree that fails to capture is skipped with a warning and the other tree is used; when the target package is not running, view capture is skipped. Warnings surface in the text tree, in JSON (`warnings`), and on stderr for `analyze`. `--window` takes a 0-based index or a name substring and applies to the view source only.
@@ -135,7 +135,7 @@ android-layout shot --out ui.png --annotate --source compose
 ```
 
 - Screenshots always use `adb exec-out screencap -p`, optionally downscaled with pure JS (`pngjs`) box filtering; no ImageMagick/Sharp required.
-- **Automatic fallback on structured capture failure**: `dump`/`find`/`hit`/`analyze` and friends also save an `aui-fallback-<time>.png` and give the path in the error message; MCP tools return the screenshot as image content alongside the error text. Disable with `--no-fallback-screenshot` or `AUI_NO_FALLBACK_SCREENSHOT=1`.
+- **Automatic fallback on structured capture failure**: `dump`/`find`/`hit`/`analyze` and friends also save an `alm-fallback-<time>.png` and give the path in the error message; MCP tools return the screenshot as image content alongside the error text. Disable with `--no-fallback-screenshot` or `ALM_NO_FALLBACK_SCREENSHOT=1`.
 - MCP `screenshot` defaults to 720px wide to keep the payload small; pass `fullResolution=true` for native resolution.
 - The SVG from `--annotate` maps node boxes by the screenshot scale factor automatically.
 
@@ -173,13 +173,15 @@ Coordinates returned by `find` / `hit` / MCP `find_elements` / `hit_test` are al
 
 | Variable | Purpose |
 |---|---|
-| `AUI_ADB` / `ADB_PATH` / `--adb` | Path to `adb` |
+| `ALM_ADB` / `ADB_PATH` / `--adb` | Path to `adb` |
 | `ANDROID_SERIAL` / `--serial` | Target device when several are connected |
-| `AUI_ANDROID_STUDIO` / `ANDROID_STUDIO_PATH` / `--studio` | Android Studio installation (Compose inspection) |
-| `AUI_JAVA` / `--java` | Java used by the Compose helper |
-| `AUI_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
-| `AUI_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |
-| `AUI_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
-| `AUI_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |
-| `AUI_JAVAC` / `AUI_JAR` | Compiler and jar tool used by `npm run build:helper` |
-| `AUI_GATE_DEBUG=1` | Append `PreToolUse` hook decisions to `aui-android-gate.log` in the temp directory |
+| `ALM_ANDROID_STUDIO` / `ANDROID_STUDIO_PATH` / `--studio` | Android Studio installation (Compose inspection) |
+| `ALM_JAVA` / `--java` | Java used by the Compose helper |
+| `ALM_COMPOSE_VERSION` | The app's Compose version (default 1.8.3) |
+| `ALM_COMPOSE_INSPECTOR_JAR` | Explicit `inspector.jar` |
+| `ALM_COMPOSE_HELPER_JAR` | Precompiled JVMTI helper JAR |
+| `ALM_NO_FALLBACK_SCREENSHOT=1` | Disable the fallback screenshot on capture failure |
+| `ALM_JAVAC` / `ALM_JAR` | Compiler and jar tool used by `npm run build:helper` |
+| `ALM_GATE_DEBUG=1` | Append `PreToolUse` hook decisions to `alm-android-gate.log` in the temp directory |
+
+Releases 1.0.x used the `AUI_` prefix, which is no longer read: rename any `AUI_*` value to `ALM_*`. `compose-clean` still removes the 1.0.x `aui-*` device artifacts, and `.gitignore` still covers `.aui/` dumps.

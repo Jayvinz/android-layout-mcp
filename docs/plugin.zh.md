@@ -35,7 +35,7 @@
 | Skill | `skills/trace-ui-logic/` | 某一块区域的 UI → 状态持有者 → 数据源链路（只读） |
 | Skill | `skills/audit-ui/` | 12 条布局与无障碍规则给出的缺陷判决 |
 | Commands | `commands/capture.md`、`inspect-view.md`、`trace-view.md`、`trace-logic.md`、`ui2logic.md`、`audit.md` | `/android-layout:capture`、`:inspect-view`、`:trace-view`、`:trace-logic`（别名 `:ui2logic`）、`:audit` |
-| Hook | `hooks/hooks.json` + `hooks/aui-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截全部 9 个接触设备的工具（`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`）；安装或更新插件后需重启 Claude Code |
+| Hook | `hooks/hooks.json` + `hooks/alm-android-gate.mjs` | `PreToolUse` Android 工程门槛，拦截全部 9 个接触设备的工具（`list_devices`/`get_state`/`dump_ui`/`find_elements`/`locate_code`/`hit_test`/`analyze_ui`/`list_fragments`/`screenshot`）；安装或更新插件后需重启 Claude Code |
 | Script | `scripts/locate-code.mjs` | 纯 Node 内置模块的代码锚点扫描器，不需要先 `npm install` |
 | Script | `scripts/sync-agent-skills.mjs` | 把 `skills/` 复制到 `.agents/skills/`（Codex CLI、Gemini CLI、Cline、Goose）、`.codebuddy/skills/`（CodeBuddy，`--codebuddy`）或 `.workbuddy/skills/`（WorkBuddy，`--workbuddy`） |
 | Marketplace | `.claude-plugin/marketplace.json` | `jayvinz-tools` 目录；仓库根目录的第一个插件就是本项目 |
@@ -164,8 +164,8 @@ serial/adb/Studio 参数时，优先用环境变量，或在项目级 `.mcp.json
 ## 只读与权限
 
 - 所有技能都是只读的：插件观察和分析设备，但从不点击、滑动、输入文本或发送按键。
-- 抓取流程会在仓库内写 `.aui/capture.json`、`.aui/capture.png`、`.aui/capture.xml`；
-  建议把 `.aui/` 加入 `.gitignore`（本仓库已加入）。
+- 抓取流程会在仓库内写 `.alm/capture.json`、`.alm/capture.png`、`.alm/capture.xml`；
+  建议把 `.alm/` 加入 `.gitignore`（本仓库已加入）。
 - 不要提交 dump：其中可能包含设备序列号、前台包名和界面文本。
 
 ## 以后添加第二个插件

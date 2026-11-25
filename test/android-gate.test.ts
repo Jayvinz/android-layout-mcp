@@ -6,10 +6,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const hook = fileURLToPath(new URL("../hooks/aui-android-gate.mjs", import.meta.url));
+const hook = fileURLToPath(new URL("../hooks/alm-android-gate.mjs", import.meta.url));
 
 function makeWorkspace(android: boolean): string {
-  const root = mkdtempSync(join(tmpdir(), "aui-gate-"));
+  const root = mkdtempSync(join(tmpdir(), "alm-gate-"));
   const project = join(root, "project");
   mkdirSync(project);
   if (android) writeFileSync(join(project, "settings.gradle.kts"), "");

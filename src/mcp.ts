@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson, type RuleName } from "./core/analyze.js";
 import { capture, treesFor, type CaptureOptions } from "./core/capture.js";
-import { AuiError, errorMessage } from "./core/errors.js";
+import { AlmError, errorMessage } from "./core/errors.js";
 import { readFragments } from "./core/fragments.js";
 import type { CaptureResult, SourceMode, UiNode } from "./core/model.js";
 import { findNodes, hitTest, nodePath, nodeSummary, type FindBy, type MatchMode } from "./core/query.js";
@@ -98,8 +98,8 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
   async function errorResultWithScreenshot(error: unknown): Promise<CallToolResult> {
     if (
       !screenshotFallbackEnabled ||
-      process.env.AUI_NO_FALLBACK_SCREENSHOT === "1" ||
-      (error instanceof AuiError && error.code === "BAD_INPUT")
+      process.env.ALM_NO_FALLBACK_SCREENSHOT === "1" ||
+      (error instanceof AlmError && error.code === "BAD_INPUT")
     ) {
       return errorResult(error);
     }
@@ -308,13 +308,13 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
           Boolean(args.composeFile) ||
           (args.className?.length ?? 0) > 0;
         if (!hasAnchor) {
-          throw new AuiError(
+          throw new AlmError(
             "BAD_INPUT",
             "locate_code needs at least one anchor: text, desc, id, composeName, composeFile, or className.",
           );
         }
         if (!existsSync(LOCATOR_SCRIPT)) {
-          throw new AuiError(
+          throw new AlmError(
             "BAD_INPUT",
             `Code locator script not found at ${LOCATOR_SCRIPT}.`,
             "Reinstall the plugin, or run npm run build in the plugin directory.",
@@ -350,7 +350,7 @@ export async function startMcpServer(options: McpServerOptions = {}): Promise<vo
             typeof error === "object" && error !== null && "stderr" in error
               ? String((error as { stderr?: string }).stderr ?? "")
               : "";
-          throw new AuiError("BAD_INPUT", stderr.trim() || errorMessage(error));
+          throw new AlmError("BAD_INPUT", stderr.trim() || errorMessage(error));
         }
         return jsonResult(JSON.parse(stdout));
       } catch (error) {

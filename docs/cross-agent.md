@@ -13,7 +13,7 @@ The plugin is three layers. Only the top two cross agent boundaries.
 | Slash commands | Six `commands/*.md`, `$ARGUMENTS` syntax | Claude Code only |
 | Gate + distribution | `hooks/hooks.json` `PreToolUse`, `plugin.json`, marketplace | Claude Code only |
 
-Two properties make the skills portable: their frontmatter contains only `name` and `description`, and their CLI fallback uses `$AUI_ROOT/dist/cli.js` instead of `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`. In Claude Code `AUI_ROOT` is `${CLAUDE_PLUGIN_ROOT}`; elsewhere it is your plugin checkout, or you can put `android-layout` on `PATH`. Skills never hard-code a Claude-only path in an executable command; `test/agent-portability.test.ts` enforces this.
+Two properties make the skills portable: their frontmatter contains only `name` and `description`, and their CLI fallback uses `$ALM_ROOT/dist/cli.js` instead of `${CLAUDE_PLUGIN_ROOT}/dist/cli.js`. In Claude Code `ALM_ROOT` is `${CLAUDE_PLUGIN_ROOT}`; elsewhere it is your plugin checkout, or you can put `android-layout` on `PATH`. Skills never hard-code a Claude-only path in an executable command; `test/agent-portability.test.ts` enforces this.
 
 The Android-project gate is a hard `PreToolUse` hook only in Claude Code. In other clients it is the soft rule written in every skill body: call device tools only in an Android project, or when the user explicitly asks about the device screen.
 

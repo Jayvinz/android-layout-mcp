@@ -23,7 +23,7 @@ test("serialises a capture into a versioned dump", () => {
 });
 
 test("dump round-trips through disk and exposes both sources", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "aui-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "alm-test-"));
   try {
     const path = join(dir, "nested", "deeper", "dump.json");
     await saveDump(capture, path);

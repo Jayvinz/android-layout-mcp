@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Adb } from "./core/adb.js";
 import { analyzeCapture, issuesToJson } from "./core/analyze.js";
 import { capture, treesFor } from "./core/capture.js";
-import { AuiError, errorMessage } from "./core/errors.js";
+import { AlmError, errorMessage } from "./core/errors.js";
 import { readFragments } from "./core/fragments.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
 import { renderCapture, renderSource } from "./core/render.js";
@@ -67,8 +67,8 @@ export async function startMcpServer(options = {}) {
     };
     async function errorResultWithScreenshot(error) {
         if (!screenshotFallbackEnabled ||
-            process.env.AUI_NO_FALLBACK_SCREENSHOT === "1" ||
-            (error instanceof AuiError && error.code === "BAD_INPUT")) {
+            process.env.ALM_NO_FALLBACK_SCREENSHOT === "1" ||
+            (error instanceof AlmError && error.code === "BAD_INPUT")) {
             return errorResult(error);
         }
         try {
@@ -251,10 +251,10 @@ export async function startMcpServer(options = {}) {
                 Boolean(args.composeFile) ||
                 (args.className?.length ?? 0) > 0;
             if (!hasAnchor) {
-                throw new AuiError("BAD_INPUT", "locate_code needs at least one anchor: text, desc, id, composeName, composeFile, or className.");
+                throw new AlmError("BAD_INPUT", "locate_code needs at least one anchor: text, desc, id, composeName, composeFile, or className.");
             }
             if (!existsSync(LOCATOR_SCRIPT)) {
-                throw new AuiError("BAD_INPUT", `Code locator script not found at ${LOCATOR_SCRIPT}.`, "Reinstall the plugin, or run npm run build in the plugin directory.");
+                throw new AlmError("BAD_INPUT", `Code locator script not found at ${LOCATOR_SCRIPT}.`, "Reinstall the plugin, or run npm run build in the plugin directory.");
             }
             const argv = [
                 LOCATOR_SCRIPT,
@@ -295,7 +295,7 @@ export async function startMcpServer(options = {}) {
                 const stderr = typeof error === "object" && error !== null && "stderr" in error
                     ? String(error.stderr ?? "")
                     : "";
-                throw new AuiError("BAD_INPUT", stderr.trim() || errorMessage(error));
+                throw new AlmError("BAD_INPUT", stderr.trim() || errorMessage(error));
             }
             return jsonResult(JSON.parse(stdout));
         }
