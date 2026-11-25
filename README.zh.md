@@ -2,217 +2,224 @@
 
 [English](README.md) | [简体中文](README.zh.md)
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org/)
-[![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml)
+![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
+![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-green.svg)
+![CI](https://github.com/Jayvinz/android-layout-mcp/actions/workflows/validate.yml/badge.svg)
 
-**Android Layout MCP，面向 coding agent。** 基于 ADB 的布局抓取与 UI 代码定位：读取真实设备/模拟器上的实时界面，支持搜索、命中测试、带节点标注的截图、布局/无障碍问题排查，并能把任意控件追溯到其 Compose/XML 源码与业务逻辑。
+**一个 MCP 服务 + 编码 Agent 插件，让 Agent 看见真机上的 Android 界面，并找到界面背后的代码。**
 
-参考 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
+编码 Agent 读仓库很强，但看不见手机。这个项目补上这一环：通过 ADB 抓取当前屏幕，把四种 Android 数据源归一成同一棵带短 ref 的节点树，然后回答：
 
-## 核心特性
+- 当前界面有什么？→ `dump_ui`
+- 这个元素在哪、能不能点？→ `find_elements` / `hit_test`
+- 布局有没有问题？→ `analyze_ui`（12 条规则）
+- 这块 UI 由哪个 Compose / XML 文件渲染，业务逻辑在哪？→ `locate_code` + 内置技能
 
-- **数据源自适应** —— `auto` 按页面选择正确的数据树：XML 用 ViewDebug v2，Compose 用无障碍语义树，混合页面两者并用；需要 Composable 名称与 `file:line` 时可显式启用 Compose JVMTI 树。
-- **查找与命中测试** —— 按文本 / content-description / resource-id / class / ref 搜索，解析某个坐标下的全部元素（按面积从小到大排序）。全程只读，不点击、不滑动、不输入。
-- **可视化验证** —— 截图支持 SVG 节点标注与图片坐标→设备坐标的自动映射；结构化抓取失败时会自动保存一张兜底截图。
-- **检查与回归** —— 12 条布局/无障碍规则；改码前后各存一份 dump，自行比对两份 JSON，再重跑检查。
-- **UI → 源码定位** —— 以 UI 锚点扫描仓库，返回排序后的 `file:line` 候选、string/layout/Compose 定义与点击处理逻辑。全程只读，不修改仓库。
-- **一个内核，两个前端** —— CLI 与 MCP server 共享同一套 `capture()` / `treesFor()` 流程，行为不会分叉。
+全程只读：只观察设备，不点击、不滑动、不输入。灵感来自 [LayoutInspectorV2-Pro](https://plugins.jetbrains.com/plugin/21047-layoutinspectorv2-pro)。
 
-## 命名
+## 亮点
 
-| 层级 | 名字 |
-| --- | --- |
-| GitHub 仓库 | `Jayvinz/android-layout-mcp` |
-| MCP server key（所有客户端） | `android-layout` |
-| CLI 命令 | `android-layout` |
-| Claude Code 插件与 marketplace 条目 | `android-layout` |
-| 插件显示名 | Android Layout MCP |
+| 亮点 | 对使用者意味着什么 |
+|---|---|
+| **四种数据源，一棵树** | View 层级（JDWP）、无障碍语义树（uiautomator）、`dumpsys activity`、Compose 检查器（JVMTI）输出同一种 `UiNode`，换屏幕类型不用换工作流。 |
+| **`auto` 零配置** | 按屏幕自动选源：XML 用 View，Compose 用语义树，混合屏幕两棵都抓。日常使用不用记参数。 |
+| **Release 包也能读** | `dumpsys` 不需要 debuggable，就能拿到真实 View 类、资源 id 和 Fragment 结构；文本按实测几何偏差合并，不写死状态栏高度。 |
+| **UI → 源码，不用索引** | `locate_code` 以文本、id、类名、Composable 为锚点扫描仓库，返回打分排序的 `file:line` 候选。不需要 Gradle sync、语言服务器或构建。 |
+| **在你已有的工具里可用** | 9 个 MCP 工具 + 编码 Agent 插件（5 个技能、5 个命令、门禁 Hook）+ 20 个 MCP 客户端的现成配置。 |
+| **无原生依赖** | 纯 JavaScript，Node ≥ 20。截图在 JS 内缩放；除可选的 Compose helper 外无需编译。 |
 
-仓库名与 npm 包名保留 `-mcp` 后缀，CLI 命令、MCP server key 与插件名使用更短的 `android-layout`。
-MCP server 与 CLI 适用于任何 MCP 客户端；Claude Code 只是受支持的前端之一，并非唯一选择。
-客户端矩阵与各客户端的接入方式见[跨 agent 指南](docs/cross-agent.zh.md)。
+## 环境要求
 
-1.0.0 是当前名字下的首个正式版本。此前用过的名字都从未发布，因此没有需要迁移的内容：接入客户端后
-直接使用 `android-layout` 即可。在 Claude Code 中门禁 hook 只在会话启动时读取，安装或更新插件后
-重启一次。
+- Node.js ≥ 20（MCP 服务跑在 Node 上）
+- `adb` 在 `PATH` 中（或设置 `AUI_ADB` / `ADB_PATH`），设备或模拟器已开启 USB 调试
+- `view` / `compose` 源需要 debuggable 包；`semantics` / `dumpsys` 对任意 App 可用
+- 只有 `compose` 源需要本地 Android Studio + Java（每次抓取约 8–12 秒）
 
-## 架构
+## 安装与接入
 
-```
-CLI (android-layout) ──────┐
-                               ├── core ──┬── JDWP + DDM → ViewDebug v2 视图树
-MCP Server ────────────────────┘          ├── adb uiautomator → Semantics 树
-                                          └── Android Studio transport + JVMTI → Compose 树
-```
+### 编码 Agent 插件（推荐）
 
-## 快速上手
-
-### 前置条件
-
-- Node.js ≥ 20（插件 / MCP / CLI 均需要）
-- Android platform-tools：`adb` 在 PATH 中，或设置 `AUI_ADB` / `ADB_PATH`
-- 已开启 USB 调试的设备或模拟器，目标 App 运行在前台
-- `view` / `compose` 数据源要求 App 为可调试构建（`android:debuggable=true`）；`semantics` 无此要求
-- 客户端需能调用 `node`（Claude Code 还需 `npm` 来安装插件）
-
-### 1. 接入 Claude Code 插件
+在 Claude Code 中：
 
 ```text
 /plugin marketplace add Jayvinz/android-layout-mcp
 /plugin install android-layout@jayvinz-tools
 ```
 
-安装成功后即获得：
+插件会自动拉起 MCP 服务，并带来技能、命令和门禁 Hook。安装后 `/mcp` 应能看到 `android-layout`，`/help` 应列出 `/android-layout:*` 命令。**重启一次 Claude Code**，Hook 才会加载。
 
-| 组件 | 内容 |
-|---|---|
-| MCP server `android-layout` | 共 9 个工具：`list_devices`、`get_state`、`dump_ui`、`find_elements`、`hit_test`、`analyze_ui`、`screenshot`、`list_fragments`、`locate_code` |
-| Slash 命令 | `/android-layout:capture`（UI 事实+产物）、`:inspect-view`（控件属性）、`:trace-view`（控件→源码）、`:trace-logic` / `:ui2logic`（区块→数据链）、`:audit`（布局缺陷+对应源码） |
-| Skills | `capture-ui`、`inspect-view-attribute`、`trace-view-wiring`、`trace-ui-logic`、`audit-ui` |
-
-可用 `/mcp` 确认 server 已加载，`/help` 中能看到上述命令。
-
-不想添加 marketplace 时，每个 Release 还附带一个自包含的插件包（构建好的 `dist/`、helper jar 与生产依赖），可免克隆直接加载，详见 [docs/plugin.zh.md](docs/plugin.zh.md#插件包)：
-
-```text
-claude --plugin-dir ./android-layout-mcp-<version>.zip
-```
-
-**本地开发/调试**：先在仓库根目录执行 `npm install && npm run build`，再把 marketplace 指向本地路径（换成你自己的克隆路径）：
-
-```text
-/plugin marketplace add E:/repo/android-layout-mcp
-/plugin install android-layout@jayvinz-tools
-```
-
-组件清单、发布、版本号等细节见 [docs/plugin.zh.md](docs/plugin.zh.md)。
-
-### 2. 接入 MCP Server（其他客户端）
+离线或本地方式：
 
 ```bash
-node dist/cli.js mcp --print-config --client cursor
+# 发布包（自包含，已带 production node_modules）
+claude --plugin-dir ./android-layout-mcp-<version>.zip
+
+# 本地仓库（先构建；从本地路径添加的市场不会替你装依赖）
+npm install && npm run build
+claude --plugin-dir E:/repo/android-layout-mcp
 ```
 
-`--client` 支持 `claude`、`claude-desktop`、`codebuddy`、`workbuddy`、`cursor`、`windsurf`、`devin`、`cline`、`kiro`、`gemini`、
-`antigravity`、`qwen`、`trae`、`vscode`、`codex`、`zed`、`opencode`、`goose`、`amp`、`generic`。
-它按目标客户端的格式输出（Codex 用 TOML、VS Code 用 `servers`、Zed 用 `context_servers`、Goose 用
-`extensions`……），并把目标文件路径打印到 stderr。默认输出 `mcpServers` 对象：
+### 其他 MCP 客户端
+
+服务本身是标准 stdio MCP，任何客户端都能拉起。克隆仓库、构建一次，然后让客户端指向 `dist/mcp.js`：
 
 ```json
 {
   "mcpServers": {
     "android-layout": {
       "command": "node",
-      "args": ["E:/repo/android-layout-mcp/dist/mcp.js"]
+      "args": ["<你的克隆路径>/dist/mcp.js"]
     }
   }
 }
 ```
 
-支持技能加载的客户端还能复用这 5 个技能：`node scripts/sync-agent-skills.mjs --dest ../my-android-app`
-会把它们写入 `.agents/skills/`；CodeBuddy 要加 `--codebuddy` 写入 `.codebuddy/skills/`，WorkBuddy 加
-`--workbuddy` 写入 `.workbuddy/skills/`，`--both` 写 `.agents/skills/` 与 `.codebuddy/skills/` 两处，
-再叠加 `--workbuddy` 则三处都写（Cursor 与 VS Code 直接读 `.claude/skills/`）。斜杠命令与
-门禁 hook 仍然只在 Claude Code 中可用。
+需要固定设备或工具链时，往 `args` 里加 `--serial`、`--adb`、`--timeout`，或 Compose 相关参数（`--studio`、`--java`、`--compose-version`）。VS Code、Codex、Zed、Goose、OpenCode、Amp 等客户端的外壳不同，[docs/mcp.zh.md](docs/mcp.zh.md) 列出了全部 20 个 id 和各自的写法。
 
-工具清单、参数、推荐调用顺序与[本机实测的客户端矩阵](docs/mcp.zh.md#本机实测)见
-[docs/mcp.zh.md](docs/mcp.zh.md)（OpenCode、CodeBuddy Code、Codex CLI、WorkBuddy；WorkBuddy 需要
-在 GUI 中一次性启用自定义 server）。
-
-### 3. 作为 CLI 使用
+想把 5 个技能也带过去，复制到你使用 Agent 的技能目录：
 
 ```bash
-npm install && npm run build
-npm link                       # 提供全局 android-layout 命令
-
-android-layout devices       # 已连接设备
-android-layout state         # 屏幕、前台 App、pid
-android-layout dump          # 抓取当前 UI（默认 auto）
-android-layout find "开拍"   # 按文本查找
-android-layout shot          # 保存截图，可附节点标注
+node scripts/sync-agent-skills.mjs --dest <你的-Android-项目>
+# --codebuddy、--workbuddy、--both、--global、--check、--dry-run
 ```
 
-完整命令表、分析规则、截图与坐标映射见 [docs/cli.zh.md](docs/cli.zh.md)。
+Cursor 和 VS Code 直接读 `.claude/skills/`，无需复制。斜杠命令和强门禁只在 Claude Code 中存在，其他客户端靠每个技能正文里的软规则。
 
-### 跑通第一个任务
+命名：仓库和 npm 包是 `android-layout-mcp`；MCP 服务名和插件名是 `android-layout`。npm 包没有发布到 registry：装插件或加载发布 zip。
 
-把目标 App 摆到想要的页面，在 Claude Code 里直接说：
-
-> 定位当前页面中的 **个人页** 按钮，以及其相关代码逻辑。
-
-或运行命令：
+## 第一次运行
 
 ```text
-/android-layout:trace-view 个人页
+/mcp                        # 确认 android-layout 服务已加载
+/android-layout:capture     # 抓取当前屏幕
 ```
 
-工具会依次：确认前台 App → 抓取 UI 树 → 锁定目标节点 → 扫描仓库得到 `file:line` 候选 → 阅读代码输出定位报告。
+或者直接问：“当前界面有什么？” 一次 `dump_ui(source="auto", format="tree")` 的返回大致是：
 
-如果要追的是一整块区域而不是单个控件，可以说“分析这块区域的业务逻辑”，或运行 `/android-layout:trace-logic`（别名 `:ui2logic`）：它把该区块映射到源码，再追 ViewModel、数据源与两者的连接。
+```
+device <serial> (Pixel 7)  android 13 (sdk 33)
+screen 1080x2400 @ 440dpi (2.75x) portrait
+target com.example.app.debug pid=9597 activity=...MainActivity debuggable
+primary source: view (captured: view, semantics)
+ui kind: xml
+view window: .../android.view.ViewRootImpl@60b9a5d (100ms)
+semantics rotation=0 (900ms)
 
-**仅支持 Android 工程。** 激活前会确认当前目录（或用户指定的仓库根目录）是 Android 工程（`settings.gradle(.kts)`、`gradlew`、应用 `com.android.*` 的模块 `build.gradle(.kts)`，或 `AndroidManifest.xml`）。在非 Android 仓库中，只有用户明确要求查看设备页面/界面或明确提到 Android 时才会激活；连接了设备并不代表仓库是 Android 工程。`PreToolUse` hook 会对全部 9 个接触设备的工具（`list_devices`、`get_state`、`dump_ui`、`find_elements`、`locate_code`、`hit_test`、`analyze_ui`、`list_fragments`、`screenshot`）强制执行同一门槛，其中 `locate_code` 还额外要求 Android 工程或明确提到 Android。Hook 在会话启动时加载，安装或更新插件后需要重启 Claude Code。
+v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
+  v1 FrameLayout [0,0][1080,2400] 1080x2400 @(540,1200)
+    v2 FrameLayout id/content [0,0][1080,2400] 1080x2400 @(540,1200)
+```
 
-## 能做什么
+然后把 App 停在目标页面，直接说：
 
-| 想做的事 | 入口 |
-|---|---|
-| UI 事实：结构、Activity、`uiKind`，存下 json/png/xml | `/android-layout:capture` / `capture-ui` |
-| 单个控件的内外边距、padding、实测尺寸、文字度量、RTL | `/android-layout:inspect-view` / `inspect-view-attribute` |
-| 单个控件的实现类、点击处理、显隐控制、内容来源 | `/android-layout:trace-view` / `trace-view-wiring` |
-| 某一块区域的 UI → ViewModel → 数据源链路 | `/android-layout:trace-logic` / `trace-ui-logic` |
-| 布局缺陷（12 条规则）并关联到对应 XML/Composable | `/android-layout:audit` / `audit-ui` |
-| 查找元素 / 命中测试 | `find_elements` / `hit_test` |
-| 截图（SVG 节点标注、图片坐标→设备坐标） | `screenshot` / `android-layout shot` |
+> 定位当前屏幕上的 **Me** 按钮，并追踪到相关代码逻辑。
 
-## 数据来源速览
+或运行 `/android-layout:trace-view Me`。Agent 会确认前台 App、抓取节点树、锁定目标节点、扫描 `file:line` 候选，再打开代码阅读。要追一整个区块，说“分析这块区域的业务逻辑”，它会沿 UI → 状态 → 数据走。
 
-| 数据源 | 要求 | 适用场景 |
+## 上层组件用法
+
+技能、命令、MCP 工具都是同一个 core 之上的层。
+
+### MCP 工具（9 个）
+
+| 工具 | 回答什么 | 主要参数 |
 |---|---|---|
-| `view` | 可调试 App | 完整 View 类名、resource id、layout params、可见性 |
-| `semantics` | 无 | 任意 App 上的 Compose 文本、content description、可点击边界 |
-| `dumpsys` | 无 | 不可调试 App 上的真实 View 类名、resource id、边界，以及 **Activity/Fragment 结构**；没有文本，需与 `semantics` 合用 |
-| `compose` | 可调试 App + 本地 Android Studio + Java 17+ | Composable 名称、`file:line`、边界、参数、重组次数 |
+| `list_devices` | 连了哪些设备？ | — |
+| `get_state` | 屏幕、前台 App、pid、ViewRootImpl 窗口 | `serial`、`package` |
+| `dump_ui` | 整棵树是什么样？ | `source`、`format=json\|tree`、`depth`、`maxNodes`、`includeProperties`、`visibleOnly`、`window`、`savePath` |
+| `find_elements` | 这段文本 / id / 类名 / ref 在哪？ | `query`、`by`、`match`、`clickable`、`both`、`includeInvisible`、`limit` |
+| `hit_test` | (x, y) 上是什么？ | `x`、`y`、`index`、`source` |
+| `locate_code` | 哪个源文件渲染了这个元素？ | `text[]`、`desc[]`、`id[]`、`className[]`、`composeName`、`composeFile` + `composeLine`、`root`、`limit`、`includeTests`、`exclude[]` |
+| `analyze_ui` | 布局有没有坏？ | `rules[]`、`minTouchTargetDp`（48）、`maxDepth`（14）、`includeProperties` |
+| `screenshot` | 画面长什么样？ | `maxWidth`（720）、`scale`、`fullResolution`、`savePath`、`annotate` |
+| `list_fragments` | Activity / Fragment 结构 | `package`、`includeFramework` |
 
-`auto`（默认）会抓取 `view` + `semantics` 并按页面选择：XML 用 `view`，Compose 用 `semantics`，混合页面两者并用。发布包等不可调试场景用 `--source dumpsys`；需要 Composable 级别的细节时再显式使用 `--source compose`（约 8–12s）。详见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
+推荐调用顺序：`get_state` → `dump_ui(source="auto", format="tree")` → `find_elements` 或 `hit_test` → 按需 `screenshot` / `analyze_ui`。只有用户要看源码时才调用 `locate_code`。完整参考：[docs/mcp.zh.md](docs/mcp.zh.md)。
+
+### 技能（Claude Code 及其他 Agent）
+
+5 个技能按两个维度切分——粒度与意图——每个格子只有一个归属：
+
+| | 事实 | 属性值 | 源码 | 缺陷 |
+|---|---|---|---|---|
+| **单个元素** | `capture-ui`（定位部分） | `inspect-view-attribute` | `trace-view-wiring` | — |
+| **一个区块** | — | — | `trace-ui-logic` | — |
+| **整个屏幕** | `capture-ui` | — | — | `audit-ui` |
+
+| 技能 | 交给它什么 | 典型说法 |
+|---|---|---|
+| `capture-ui` | 结构、Activity、`uiKind`、可点击入口、坐标、保存的产物 | "当前界面有什么"、"抓取当前页面布局" |
+| `inspect-view-attribute` | 单个 View 的 margin、padding、测量尺寸、文字度量、背景、RTL | "这个按钮的边距是多少" |
+| `trace-view-wiring` | 单个元素的实现类、点击处理、显隐规则、内容注入 | "这个按钮在哪实现的" |
+| `trace-ui-logic` | 一个区块的 UI → 状态持有者 → 数据源链路（只读） | "这块区域的业务逻辑"、"这个列表数据从哪来" |
+| `audit-ui` | 缺陷判定，并逐条对应到造成问题的 XML / Composable | "有没有重叠"、"布局有没有问题" |
+
+### 斜杠命令（Claude Code）
+
+| 命令 | 参数 |
+|---|---|
+| `/android-layout:capture` | 可选：区块或包名 |
+| `/android-layout:inspect-view` | 元素文本 / id / ref |
+| `/android-layout:trace-view` | 元素文本 / id / ref |
+| `/android-layout:trace-logic` | 要追踪的区块 |
+| `/android-layout:ui2logic` | `trace-logic` 的别名 |
+| `/android-layout:audit` | 可选：区块 |
+
+命令只是入口：绑定 `$ARGUMENTS`、点名对应技能、带一行门禁指引。规则只写在技能里，不在两处重复。
+
+### 门禁 Hook
+
+9 个会碰设备的工具都受 Android 项目门禁约束。插件里的 `PreToolUse` Hook 在非 Android 工作区会直接拒绝，除非用户最新一句话明确要求看设备屏幕或提到 Android。`locate_code` 更严：必须有 Android 项目或明确提到 Android。判定依据是 `settings.gradle(.kts)`、`gradlew(.bat)`、应用 `com.android.*` 的模块，或 `AndroidManifest.xml`。连着设备不代表仓库是 Android 项目。设置 `AUI_GATE_DEBUG=1` 可记录判定过程。
+
+### 脚本
+
+```bash
+# 从 UI 锚点给源码候选排序，无需 npm install
+node scripts/locate-code.mjs --root . --text "登录" --id "login_btn" --compose-name "LoginScreen" --json
+
+# 把 5 个技能复制到其他 Agent 的技能目录
+node scripts/sync-agent-skills.mjs --dest ../my-android-app --both
+```
+
+`locate-code.mjs` 只给候选排序，务必打开文件确认；它不会修改仓库。
+
+## 屏幕是怎么读出来的
+
+| 数据源 | 前提 | 能拿到 | 耗时 |
+|---|---|---|---|
+| `view`（JDWP） | debuggable 包 | 真实 View 类、资源 id、文本、padding/margin、layout params、可见性 | ~100 ms |
+| `semantics`（uiautomator） | 无 | 文本、contentDescription、可点击边界；类名是无障碍角色而非真实类 | ~0.5–3 s |
+| `dumpsys`（ActivityManager） | 无 | 真实 View 类、资源 id、窗口边界、Activity/Fragment 记录；文本从语义树合并 | ~100–300 ms |
+| `compose`（JVMTI） | debuggable 包 + Android Studio + Java | Composable 名称、`file:line`、边界、参数、重组次数 | ~8–12 s |
+
+Compose 屏幕上 `view` 源到 `AndroidComposeView` 就停了——这正是 `auto` 改用语义树、以及需要 Composable 级答案时用 `source=compose` 的原因。各源的实测对比：[docs/data-sources.zh.md](docs/data-sources.zh.md)。
+
+## 需要知道的事
+
+- **ref 只在一次抓取内有效。** `v*`（view）、`s*`（semantics）、`d*`（dumpsys）、`c*`（compose）只对产生它的那次抓取成立。做前后对比时，按来源、资源 id、类名、文本和路径匹配。
+- **产物留在本地。** 抓取流程会写 `.aui/capture.json`、`.aui/capture.png`、`.aui/capture.xml`。把 `.aui/` 加进 `.gitignore`；dump 里可能有设备序列号、包名和屏幕文本。Android Studio 的 Layout Inspector 打不开这些文件（`.li` 是私有格式）。
+- **图片坐标 ≠ 设备坐标。** 缩放后的截图会返回 `coordinateMapping.imageToDevice`，做命中测试或对外报坐标前先换算；`find_elements` / `hit_test` 返回的已经是设备坐标。
+- **截图是兜底，不是事实来源。** 结构化抓取失败时，会存一张缩放后的 `aui-fallback-<time>.png` 并作为图片内容返回。可用 `AUI_NO_FALLBACK_SCREENSHOT=1` 关闭。
+- **常用环境变量：** `AUI_ADB` / `ADB_PATH`、`ANDROID_SERIAL`、`AUI_ANDROID_STUDIO`、`AUI_JAVA`、`AUI_COMPOSE_VERSION`、`AUI_NO_FALLBACK_SCREENSHOT`。完整表格：[docs/cli.zh.md](docs/cli.zh.md#环境变量)。
+- **JDWP 同时只允许一个调试器。** Android Studio 正在调同一个 App 时，attach 可能失败。
+- **Canvas 画出来的像素没有节点。** 自定义 `Canvas` 绘制、`SurfaceView`、`WebView` 内容没有子节点或文本；语义树只能看到 App 主动暴露给无障碍的内容。
+- **上限：** `dump_ui` 的 JSON 默认上限 800 个节点、文本树 1500 个节点，可用 `maxNodes` 提高；`savePath` 会写完整未裁剪的 dump。`compose` 源需要 Android Studio + Java 17+，每次约 8–12 秒。
+- **参与开发：** `dist/` 是刻意提交的（市场安装后直接运行，不做构建），`package.json` 是唯一版本来源。改完 `src/` 要跑 `npm run build` 并在同一次提交里带上 `dist/`。详见 [AGENTS.md](AGENTS.md) 和 [docs/development.zh.md](docs/development.zh.md)。
 
 ## 文档
 
 | 文档 | 内容 |
 |---|---|
-| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 四个数据源原理与对照、`auto` 选择策略、Compose JVMTI 细节 |
-| [docs/cli.zh.md](docs/cli.zh.md) | CLI 安装、命令一览、限制与默认值、分析规则、截图与坐标映射、环境变量 |
-| [docs/mcp.zh.md](docs/mcp.zh.md) | MCP Server 配置、工具表、限制与默认值、推荐调用顺序 |
-| [docs/cross-agent.zh.md](docs/cross-agent.zh.md) | 在其他 agent 中使用：配置外壳、实测客户端、技能安装、兼容测试 |
-| [docs/plugin.zh.md](docs/plugin.zh.md) | Claude Code 插件组件、安装、典型流程、发布与版本号 |
-| [docs/development.zh.md](docs/development.zh.md) | 开发、测试与实现说明 |
+| [docs/plugin.zh.md](docs/plugin.zh.md) | 编码 Agent 插件：安装方式、发布包、发版 |
+| [docs/mcp.zh.md](docs/mcp.zh.md) | 工具参考、客户端配置、默认值、上限、调用顺序 |
+| [docs/cli.zh.md](docs/cli.zh.md) | 分析规则、环境变量、共享参数 |
+| [docs/data-sources.zh.md](docs/data-sources.zh.md) | 每种树怎么读、读到哪停 |
+| [docs/cross-agent.zh.md](docs/cross-agent.zh.md) | 20 个客户端、技能可移植性、已实测客户端 |
+| [docs/development.zh.md](docs/development.zh.md) | 开发、测试、打包约束 |
+| [blog/](blog/) | 两篇走读：快速上手，以及抓取原理 |
 
-## 限制
+对应英文版是 `docs/*.md`。
 
-- `view` / `compose` 要求 App `android:debuggable=true`；release 包可以用 `semantics` 或 `dumpsys`（结构 + id，没有文本）。
-- JDWP 同一时间通常只允许一个调试客户端；Android Studio 正在调试时可能无法 attach。
-- `compose` 额外需要本机 Android Studio 与 Java 17+，单次抓取约 8–12s。
-- `input text` 只可靠支持 ASCII；每次命令都是全新快照，没有实时监听。
-- 文本输出默认截断到 2000 节点（`--max-nodes`/`--depth`/`--visible-only` 只影响文本树）；`--json`/`--out` 写出完整 dump，MCP `dump_ui` 的 JSON 默认上限 800 节点，可调高 `maxNodes`。
-- `find`/`hit` 的选择器只匹配可见节点。涉及坐标时需要截图元数据（`coordinateMapping`）把图片像素换算成设备坐标。MCP `screenshot` 默认 720px 宽，CLI `shot` 保持原生分辨率。
-- 直接画到 `Canvas` 上的内容（自定义 View、`SurfaceView`、`WebView` 像素）没有文本和子节点；语义树只能看到 App 暴露给无障碍的信息。
-- 激活面向 Android 工程；在其他仓库中需要用户明确要求查看设备页面/界面，或明确提到 Android。
+## 许可
 
-各数据源的完整边界见 [docs/data-sources.zh.md](docs/data-sources.zh.md)。
-
-## 开发
-
-```bash
-npm test          # 基于 fixture 的单元测试，无需真机
-npm run typecheck
-npm run build     # 重新生成 dist/（需随源码一起提交）
-```
-
-详见 [docs/development.zh.md](docs/development.zh.md)。
-
-## 致谢 / Attribution
-
-- 协议与命中测试算法参考 [CoXier/LayoutInspectorV2-Pro](https://github.com/CoXier/LayoutInspectorV2-Pro)（Apache-2.0）。
-- ViewDebug / DDM 协议来自 AOSP `android.view.ViewDebug`、`DdmHandleViewDebug` 与 ddmlib。
-- Compose 树复用本机 Android Studio 的 transport/JVMTI agent 与 `androidx.compose.ui:ui-inspection`，协议来自 AOSP `tools/base` 的 `transport` / `app-inspection` / `dynamic-layout-inspector` 和 AndroidX `compose/ui/ui-inspection`（均为 Apache-2.0）。本项目不重新分发这些二进制，运行时从用户已安装的 Android Studio 读取。
-- 本项目代码为独立实现，以 MIT License 发布；详见 `NOTICE`。
+MIT，见 [LICENSE](LICENSE)。TypeScript 代码为独立实现；协议与命中测试行为参考 [CoXier/LayoutInspectorV2-Pro](https://github.com/CoXier/LayoutInspectorV2-Pro)（Apache-2.0）和 AOSP 的 `android.view.ViewDebug` / `DdmHandleViewDebug` / ddmlib；Compose 树在运行时读取本地 Android Studio 的 transport、JVMTI agent 和 `androidx.compose.ui:ui-inspection`。[NOTICE](NOTICE) 记录完整来源。
