@@ -112,7 +112,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 
 > 定位当前屏幕上的 **Me** 按钮，并追踪到相关代码逻辑。
 
-或运行 `/android-layout:trace-view Me`。Agent 会确认前台 App、抓取节点树、锁定目标节点、扫描 `file:line` 候选，再打开代码阅读。要追一整个区块，说“分析这块区域的业务逻辑”，它会沿 UI → 状态 → 数据走。
+或运行 `/android-layout:trace-view Me`。Agent 会确认前台 App、抓取节点树、锁定目标节点、扫描 `file:line` 候选，再打开代码阅读。要追一整个区块，说“这块区域的业务逻辑”或“从这块 UI 追到业务代码”：区块就是切入点，Agent 会沿 UI → 状态 → 数据回溯到产生它的业务代码与逻辑，每一跳给出 `file:line`。
 
 ## 上层组件用法
 
@@ -149,7 +149,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `capture-ui` | 结构、Activity、`uiKind`、可点击入口、坐标、保存的产物 | "当前界面有什么"、"抓取当前页面布局" |
 | `inspect-view-attribute` | 单个 View 的 margin、padding、测量尺寸、文字度量、背景、RTL | "这个按钮的边距是多少" |
 | `trace-view-wiring` | 单个元素的实现类、点击处理、显隐规则、内容注入 | "这个按钮在哪实现的" |
-| `trace-ui-logic` | 一个区块的 UI → 状态持有者 → 数据源链路（只读） | "这块区域的业务逻辑"、"这个列表数据从哪来" |
+| `trace-ui-logic` | 一个 UI 区块背后的业务代码与逻辑 —— 区块是切入点，答案是带 `file:line` 的 UI → 状态 → 数据（只读） | "这块区域的业务逻辑"、"从这块 UI 追到业务代码" |
 | `audit-ui` | 缺陷判定，并逐条对应到造成问题的 XML / Composable | "有没有重叠"、"布局有没有问题" |
 
 ### 斜杠命令（Claude Code）
@@ -159,7 +159,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 | `/android-layout:capture` | 可选：区块或包名 |
 | `/android-layout:inspect-view` | 元素文本 / id / ref |
 | `/android-layout:trace-view` | 元素文本 / id / ref |
-| `/android-layout:trace-logic` | 要追踪的区块 |
+| `/android-layout:trace-logic` | 作为切入点的 UI 区块 |
 | `/android-layout:ui2logic` | `trace-logic` 的别名 |
 | `/android-layout:audit` | 可选：区块 |
 

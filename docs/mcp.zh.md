@@ -137,14 +137,14 @@ get_state → dump_ui(source="auto") → (Compose 页面) dump_ui(source="compos
 `locate_code` 的参数就是上一步得到的 text/desc/id/Compose name/file/line/class；它只做候选排序，
 不修改仓库。定位脚本 `scripts/locate-code.mjs` 的独立用法见 [plugin.zh.md](plugin.zh.md#定位脚本)。
 
-### 分析当前页面/弹窗的代码与业务逻辑
+### 从 UI 区块溯源业务代码与逻辑
 
 ```text
 get_state → dump_ui(source="auto", format="tree") → (独立弹窗窗口) dump_ui(source="view", window=...)
 → locate_code → 读候选文件 → ViewModel/状态 → Repository/API/缓存 → 带 confirmed|inferred 的状态/数据链路
 ```
 
-适用于“分析当前界面/弹窗的代码和业务逻辑”：先判断是页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
+适用于“这块区域的业务逻辑”“从这块 UI 追到业务代码”：以用户指认的区块为切入点，先判断它属于页面、弹窗还是底部弹层，把各区块映射到 `file:line`，
 再追 1–3 跳状态与数据。全程只读，不修改代码。`trace-ui-logic` skill 与
 `/android-layout:trace-logic` 命令就是这条流程。
 

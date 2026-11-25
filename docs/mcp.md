@@ -118,14 +118,14 @@ get_state → dump_ui(source="auto") → (Compose screens) dump_ui(source="compo
 
 `locate_code` takes the text/desc/id/Compose name/file/line/class found in the previous step; it only ranks candidates and never modifies the repository. Standalone usage of the locate script `scripts/locate-code.mjs` is documented in [plugin.md](plugin.md#locate-script).
 
-### Analyzing the current screen/dialog logic
+### Tracing a UI block to its business code and logic
 
 ```text
 get_state → dump_ui(source="auto", format="tree") → (separate dialog window) dump_ui(source="view", window=...)
 → locate_code → read candidate files → ViewModel/state → Repository/API/cache → state/data chain with confirmed|inferred hops
 ```
 
-Use this for "分析当前界面/弹窗的代码和业务逻辑": identify whether the surface is a page, dialog, or bottom sheet; map its sections to `file:line`; then follow state and data 1–3 hops. It is read-only and never edits code. The `trace-ui-logic` skill and `/android-layout:trace-logic` command encode this workflow.
+Use this for "这块区域的业务逻辑" or "从这块 UI 追到业务代码": start from the named UI block, identify whether it belongs to a page, dialog, or bottom sheet, map its sections to `file:line`, then follow state and data 1–3 hops. It is read-only and never edits code. The `trace-ui-logic` skill and `/android-layout:trace-logic` command encode this workflow.
 
 ## Environment variables
 

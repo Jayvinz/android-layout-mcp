@@ -1,12 +1,19 @@
 ---
 name: trace-ui-logic
 description: >-
-  Android-only. Use when the user asks how a BLOCK of the current screen works end to end: a feed list, a card group, a form, a dialog body, or a bottom sheet section — how its UI maps to state and where the data comes from. Triggers include "分析这块区域的业务逻辑", "分析这个 feed 列表", "这个卡片组的数据从哪来", "这块 UI 到数据层是怎么走的", "分析当前弹窗的业务逻辑", "ui2logic", "analyze this block's logic", "where does this list's data come from", "trace this block from UI to data". Owns: one block's logic chain — UI block, state holder, data source, and the wiring between them. Not: one element's wiring (trace-view-wiring), screen facts (capture-ui), attribute values (inspect-view-attribute), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
+  Android-only. Use when the user points at a BLOCK of the current screen as the entry point and asks for the business code and logic behind it: a feed list, a card group, a form, a dialog body, or a bottom sheet section — which source builds it, how its UI maps to state, and where the data comes from. Triggers include "分析这块区域的业务逻辑", "从这块 UI 追到业务代码", "分析这个 feed 列表", "这个卡片组的数据从哪来", "这块 UI 到数据层是怎么走的", "分析当前弹窗的业务逻辑", "ui2logic", "analyze this block's logic", "trace this UI block to its business code", "where does this list's data come from", "trace this block from UI to data". Owns: one block's business code and logic chain — the UI block as entry point, the state holder, the data source, and the wiring between them. Not: one element's wiring (trace-view-wiring), screen facts (capture-ui), attribute values (inspect-view-attribute), defect judgments (audit-ui). Only in Android projects; in a non-Android repository use only when the user explicitly mentions Android.
 ---
 
-# Tracing a Block's UI to Its Logic
+# Tracing a UI Block to Its Business Code and Logic
 
-Take one visible block of the screen — a list, a card group, a form, a dialog body — and explain how it is built and where its data comes from. Core principle: **capture the block once, anchor it in source, then follow state and data 1–3 hops. Every hop is marked `confirmed` or `inferred`.**
+Start from one visible UI block — a list, a card group, a form, a dialog body — and trace back to the business code and logic that produce it: which source builds it, what state feeds it, and where the data comes from. The block is the entry point, not the answer; the answer ends in `file:line`.
+
+```text
+UI block (entry point) → owner: Activity / Fragment / Composable / dialog class
+→ state holder → data source
+```
+
+Core principle: **capture the block once, anchor it in source, then follow state and data 1–3 hops. Every hop is marked `confirmed` or `inferred`.**
 
 ## Scope
 
@@ -63,7 +70,7 @@ For Compose screens, add `dump_ui(source="compose", maxNodes=2000)` when you nee
 
 Refs (`v*` / `s*` / `c*`) are valid only for this capture; re-capture after the screen changes.
 
-## Step 2 — Scope the block
+## Step 2 — Scope the entry block
 
 Before touching source, describe the block the user named. If they named a list, a card group, or a section, that is the boundary — do not expand to the whole screen unless they ask.
 

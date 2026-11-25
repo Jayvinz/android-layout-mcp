@@ -112,7 +112,7 @@ Then put the app on the page you care about and ask:
 
 > Locate the **Me** button on the current screen and trace it to its related code logic.
 
-Or run `/android-layout:trace-view Me`. The agent confirms the foreground app, captures the tree, locks onto the node, scans for `file:line` candidates, and reads the code. For a whole block, say "分析这块区域的业务逻辑" (or "analyze this block's logic") and it follows UI → state → data instead.
+Or run `/android-layout:trace-view Me`. The agent confirms the foreground app, captures the tree, locks onto the node, scans for `file:line` candidates, and reads the code. For a whole block, say "分析这块区域的业务逻辑" (or "analyze this block's logic"): the block becomes the entry point, and the agent traces back to the business code and logic that produce it — UI → state → data, with `file:line` for each hop.
 
 ## Upper-layer components
 
@@ -149,7 +149,7 @@ Five skills split on two axes — granularity and intent — so each cell has ex
 | `capture-ui` | Structure, Activity, `uiKind`, entry points, coordinates, saved artifacts | "当前界面有什么", "抓取当前页面布局" |
 | `inspect-view-attribute` | One View's margins, padding, measured size, text metrics, background, RTL | "这个按钮的边距是多少" |
 | `trace-view-wiring` | One element's class, click handler, visibility rule, content injection | "这个按钮在哪实现的" |
-| `trace-ui-logic` | One block's UI → state holder → data source chain (read-only) | "这块区域的业务逻辑", "这个列表数据从哪来" |
+| `trace-ui-logic` | The business code and logic behind one UI block — the block is the entry point, the answer is UI → state → data with `file:line` (read-only) | "这块区域的业务逻辑", "从这块 UI 追到业务代码" |
 | `audit-ui` | Defect judgments, each tied to the XML/Composable that causes it | "有没有重叠", "布局有没有问题" |
 
 ### Slash commands (Claude Code)
@@ -159,7 +159,7 @@ Five skills split on two axes — granularity and intent — so each cell has ex
 | `/android-layout:capture` | optional block or package |
 | `/android-layout:inspect-view` | element text / id / ref |
 | `/android-layout:trace-view` | element text / id / ref |
-| `/android-layout:trace-logic` | the block to trace |
+| `/android-layout:trace-logic` | the UI block that starts the trace |
 | `/android-layout:ui2logic` | alias of `trace-logic` |
 | `/android-layout:audit` | optional block |
 

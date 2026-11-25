@@ -1,11 +1,11 @@
 ---
-description: Alias of /trace-logic — trace one block of the screen from its UI to the state holder and data source
-argument-hint: <block to trace, e.g. "the feed list" or "this dialog body">
+description: Alias of /trace-logic — trace a UI block to the business code and logic behind it
+argument-hint: <UI block that starts the trace, e.g. "the feed list" or "this dialog body">
 ---
 
-# Trace a block's UI to its logic
+# Trace a UI block to its business code and logic
 
-`$ARGUMENTS` names the block — a feed list, a card group, a form, a dialog body. When it is empty, ask which block the user means rather than silently tracing the whole screen.
+`$ARGUMENTS` names the UI block that starts the trace — a feed list, a card group, a form, a dialog body. It is the entry point, not the scope of the answer: the report has to end in the code that builds it and the logic that feeds it. When it is empty, ask which block the user means rather than silently tracing the whole screen.
 
 This is the short alias of `/trace-logic`; both run the same skill.
 
