@@ -25,7 +25,7 @@ Look for an Android project in the cwd or any parent: `settings.gradle(.kts)`, `
 | Workspace | User asked about | Allowed |
 |---|---|---|
 | Android project | anything | everything |
-| Not Android | a device screen/page, or mentioned Android | observation only |
+| Not Android | a device screen/page, or mentioned Android | observation only — no `locate_code` |
 | Not Android | anything else | **no tool at all** |
 
 **HARD STOP** on the third row: call nothing, reply in one sentence that this workspace is not an Android project, then offer device observation or ask for the Android module path. A bare "这个按钮/这个页面/这个弹窗" is not an explicit device request, and a connected device does not make the repository Android.

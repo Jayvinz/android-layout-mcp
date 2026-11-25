@@ -165,6 +165,53 @@ test("every skill carries the Android project gate", () => {
   }
 });
 
+/**
+ * The gate is one policy, so its text must be one text. The five copies exist
+ * because each skill directory has to stay independently copyable to
+ * `.agents/skills/` and may not reference a sibling (`test("skills never reach
+ * into another skill")`). Duplication is the price of portability, but the
+ * copies must never drift: before this guard, three of the five said the device
+ * cue allows "observation only" / "observation tools only" without excluding
+ * `locate_code`, which read as permission to scan source.
+ *
+ * A skill may append a paragraph of its own after the gate; only the shared
+ * core is compared.
+ */
+function gateCore(source: string): string {
+  const section = /## Step 0 — Android project gate\r?\n([\s\S]*?)(?=\n## )/.exec(source);
+  assert.ok(section, "expected a \"## Step 0 — Android project gate\" section");
+  const body = section[1];
+  const hardStop = /^\*\*HARD STOP\*\*.*$/m.exec(body);
+  assert.ok(hardStop, "the gate core must end with its HARD STOP paragraph");
+  // Compare text, not line endings: the working tree mixes CRLF and LF files
+  // and core.autocrlf rewrites them per machine, which is not a policy drift.
+  return body
+    .slice(0, (hardStop.index ?? 0) + hardStop[0].length)
+    .replace(/\r\n/g, "\n")
+    .trim();
+}
+
+test("the five gate cores are byte-identical", () => {
+  const [firstName, ...rest] = Object.keys(skills);
+  const canonical = gateCore(skills[firstName as keyof typeof skills]);
+  for (const name of rest) {
+    assert.equal(
+      gateCore(skills[name as keyof typeof skills]),
+      canonical,
+      `skills/${name}/SKILL.md gate core drifted from skills/${firstName}/SKILL.md; the Android gate is one policy and must read identically`,
+    );
+  }
+});
+
+test("the gate core excludes locate_code on a device cue", () => {
+  const canonical = gateCore(skills["capture-ui"]);
+  assert.match(
+    canonical,
+    /observation only — no `locate_code`/,
+    "the observation row must exclude locate_code; a device cue never justifies source scanning",
+  );
+});
+
 test("every skill opens with a Scope table routing its neighbours", () => {
   for (const [name, source] of Object.entries(skills)) {
     assert.match(source, /^## Scope$/m, `${name} needs a "## Scope" section`);
