@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1180px; padding: 30px 34px 24px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .chart { background: #fff; border: 1px solid #dfe6ee; border-radius: 10px; padding: 16px 20px 10px; }
+  .chart h4 { margin: 0 0 3px; font-size: 14px; }
+  .chart .sub { font-size: 12px; color: #7c8894; margin-bottom: 16px; }
+  .chart .sub code { font: 600 11.5px/1 ui-monospace, Consolas, monospace; color: #0f172a; background: #f1f5f9; padding: 2px 5px; border-radius: 3px; }
+
+  .plot { position: relative; height: 170px; margin: 0 56px 0 44px; }
+  .axis { position: absolute; left: 0; right: 0; bottom: 0; top: 0; border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+  .gl { position: absolute; left: 0; right: 0; border-top: 1px dashed #eef2f7; }
+  .ytick { position: absolute; left: -44px; width: 36px; text-align: right; font: 11px/1 ui-monospace, Consolas, monospace; color: #94a3b8; }
+  .xtick { position: absolute; bottom: -19px; font: 11px/1 ui-monospace, Consolas, monospace; color: #94a3b8; transform: translateX(-50%); }
+  .bar { position: absolute; bottom: 0; width: 18px; border-radius: 3px 3px 0 0; transform: translateX(-50%); }
+  .quietzone { position: absolute; top: 0; bottom: 0; background: rgba(5,150,105,.075); border-left: 1px solid rgba(5,150,105,.28); }
+  .qlab { position: absolute; top: 5px; font: 600 10.5px/1 -apple-system, sans-serif; color: #047857; white-space: nowrap; }
+  .budget { position: absolute; top: -4px; bottom: -4px; right: 0; border-right: 1.5px dashed #f97316; }
+  .blab { position: absolute; top: -22px; right: 0; transform: translateX(50%); font: 600 10.5px/1 ui-monospace, Consolas, monospace; color: #c2410c; white-space: nowrap; }
+
+  .legend { display: flex; gap: 20px; font-size: 12px; color: #64748b; margin: 26px 0 6px 44px; }
+  .lg { display: flex; align-items: center; gap: 7px; }
+  .sq { width: 10px; height: 10px; border-radius: 2px; }
+
+  .outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+  .o { background: #fff; border: 1px solid #dfe6ee; border-radius: 9px; padding: 11px 13px; }
+  .o .h { font: 700 12px/1 ui-monospace, Consolas, monospace; margin-bottom: 6px; }
+  .o p { margin: 0; font-size: 12.4px; line-height: 1.5; color: #475569; }
+  .o p code { font: 600 11.4px/1 ui-monospace, Consolas, monospace; color: #0f172a; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .o.yes { border-left: 3px solid #059669; } .o.yes .h { color: #047857; }
+  .o.no { border-left: 3px solid #dc2626; } .o.no .h { color: #b91c1c; }
+  .o.unk { border-left: 3px solid #94a3b8; } .o.unk .h { color: #475569; }
+
+  .json { margin-top: 14px; background: #0d1117; border-radius: 9px; padding: 12px 16px; font: 12.3px/1.7 ui-monospace, "SF Mono", Consolas, monospace; color: #c9d1d9; white-space: pre; }
+  .json .k { color: #79c0ff; } .json .s { color: #a5d6ff; } .json .n { color: #ffa657; } .json .b { color: #ff7b72; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="chart">
+    <h4>settle samples the frame counter until the screen goes quiet</h4>
+    <div class="sub">one <code>dumpsys gfxinfo</code> sample every 250 ms, default budget 3000 ms</div>
+
+    <div class="plot">
+      <div class="axis"></div>
+      <div class="gl" style="bottom:33.3%"></div>
+      <div class="gl" style="bottom:66.6%"></div>
+      <div class="ytick" style="bottom:calc(33.3% - 6px)">20</div>
+      <div class="ytick" style="bottom:calc(66.6% - 6px)">40</div>
+      <div class="ytick" style="bottom:-6px">0</div>
+
+      <div class="quietzone" style="left:58%; right:0;"></div>
+      <div style="position:absolute; left:58%; right:0; bottom:0; height:3px; background:#10b981; border-radius:2px;"></div>
+      <div class="qlab" style="left:60%">two quiet intervals → <span style="color:#047857">stable: yes</span></div>
+
+      <!-- 12 samples, x = (i+0.5)/12 -->
+      <div class="bar" style="left:4.2%;  height:86%; background:#f59e0b"></div>
+      <div class="bar" style="left:12.5%; height:100%; background:#f59e0b"></div>
+      <div class="bar" style="left:20.8%; height:93%; background:#f59e0b"></div>
+      <div class="bar" style="left:29.2%; height:74%; background:#f59e0b"></div>
+      <div class="bar" style="left:37.5%; height:55%; background:#f59e0b"></div>
+      <div class="bar" style="left:45.8%; height:33%; background:#f59e0b"></div>
+      <div class="bar" style="left:54.2%; height:11%; background:#f59e0b"></div>
+      
+      
+      
+      
+      
+
+      <div class="budget"></div>
+      <div class="blab" style="right:auto; left:calc(100% + 6px); transform:none; top:-2px; line-height:1.4; white-space:normal; width:48px;">budget ends</div>
+
+      <div class="xtick" style="left:4.2%">0</div>
+      <div class="xtick" style="left:29.2%">750</div>
+      <div class="xtick" style="left:54.2%">1500</div>
+      <div class="xtick" style="left:79.2%">2250 ms</div>
+      
+    </div>
+
+    <div class="legend">
+      <span class="lg"><span class="sq" style="background:#f59e0b"></span>frames produced since the previous sample</span>
+      <span class="lg"><span class="sq" style="background:#10b981"></span>no frames — quiet</span>
+      <span style="margin-left:auto">values are illustrative; the shape is what the probe waits for</span>
+    </div>
+  </div>
+
+  <div class="outcomes">
+    <div class="o yes">
+      <div class="h">stable: <b>yes</b></div>
+      <p>Two consecutive quiet intervals. The bounds describe the screen you are looking at. JSON: <code>"stable": true</code>.</p>
+    </div>
+    <div class="o no">
+      <div class="h">stable: <b>no</b></div>
+      <p>Frames all the way to the budget. The capture still happens, and the header names the moving screen. JSON: <code>"stable": false</code>.</p>
+    </div>
+    <div class="o unk">
+      <div class="h">stable: <b>unknown</b></div>
+      <p>The process or ROM has no counter. Unknown is reported rather than guessed. JSON: <code>"stable": null</code>.</p>
+    </div>
+  </div>
+
+  <div class="json">"stability": {
+  <span class="k">"stable"</span>: <span class="b">false</span>,  <span class="k">"reason"</span>: <span class="s">"timeout"</span>,  <span class="k">"waitedMs"</span>: <span class="n">3094</span>,
+  <span class="k">"framesPerInterval"</span>: <span class="n">20</span>,  <span class="k">"measuredIntervalMs"</span>: <span class="n">328</span>
+}</div>
+</div>
+</body>
+</html>

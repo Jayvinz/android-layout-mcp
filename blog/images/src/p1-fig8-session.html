@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: #0d1117; }
+  .frame { width: 1180px; background: #0b0f14; }
+  .bar {
+    display: flex; align-items: center; gap: 7px;
+    height: 34px; padding: 0 14px;
+    background: #1b2430; border-bottom: 1px solid #263140;
+    font: 12px/34px -apple-system, "Segoe UI", sans-serif; color: #7d8896;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .dot.r { background: #ff5f56; } .dot.y { background: #ffbd2e; } .dot.g { background: #27c93f; }
+  .title { margin-left: 8px; }
+  .body { padding: 18px 22px 20px; font: 14px/1.6 "Cascadia Mono", "SF Mono", Consolas, monospace; }
+
+  .you { color: #c9d1d9; margin-bottom: 3px; }
+  .you .chev { color: #f778ba; margin-right: 8px; }
+
+  .call { margin: 12px 0 0; }
+  .call .h { color: #8b949e; font-size: 13px; }
+  .call .h b { color: #d2a8ff; font-weight: 600; }
+  .call .h .arrow { color: #58a6ff; }
+  .out {
+    margin: 5px 0 0 0; padding: 9px 12px; background: #11161d;
+    border-left: 2px solid #30363d; color: #8b949e; font-size: 13px; white-space: pre; line-height: 1.62;
+  }
+  .out .k { color: #79c0ff; } .out .v { color: #e3b341; }
+  .out .g { color: #7ee787; } .out .m { color: #6e7681; }
+
+  .answer { margin-top: 14px; color: #c9d1d9; }
+  .answer .bullet { color: #58a6ff; margin-right: 8px; }
+  .answer table { border-collapse: collapse; margin: 8px 0 0 22px; font-size: 13px; }
+  .answer td { padding: 3px 16px 3px 0; color: #c9d1d9; }
+  .answer td:first-child { color: #8b949e; }
+  .answer .note { color: #8b949e; font-size: 13px; margin: 8px 0 0 22px; }
+  .answer code { color: #7ee787; background: #11161d; padding: 1px 5px; border-radius: 3px; }
+
+  .prompt { margin-top: 16px; padding-top: 12px; border-top: 1px solid #21262d; color: #6e7681; font-size: 13px; }
+  .prompt .chev { color: #f778ba; margin-right: 8px; }
+  .caret { background: #c9d1d9; width: 7px; height: 15px; display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="bar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="title">claude — ai-course/stage1-mediapipe</span>
+  </div>
+  <div class="body">
+
+    <div class="you"><span class="chev">&gt;</span>dump the screen, find the 下载 button, and trace it to source</div>
+
+    <div class="call">
+      <div class="h">dump_ui <span class="arrow">→</span> <b>format=compact, settle=true</b></div>
+      <div class="out"><span class="k">target</span>   com.aicourse.stage1 pid=16748 activity=.MainActivity
+<span class="k">ui kind</span>  compose · <span class="k">primary source</span> semantics
+<span class="k">stats</span>    nodes=73 kept=48 dropped=25 truncated=false
+s18 <span class="g">TextView</span> <span class="v">"下载"</span> [880,735][948,783] 68x48 @(914,759)
+  <span class="m">(parent s17 marked {click})</span></div>
+    </div>
+
+    <div class="call">
+      <div class="h">find_elements <span class="arrow">→</span> <b>text="下载", match=exact</b></div>
+      <div class="out">matches: 1 · tree=semantics · matchedField=text
+ref=<span class="k">s18</span> class=<span class="g">android.widget.TextView</span> clickable=<span class="k">false</span>
+bounds=<span class="k">[880,735][948,783]</span> center=<span class="k">(914,759)</span> depth=8</div>
+    </div>
+
+    <div class="call">
+      <div class="h">locate_code <span class="arrow">→</span> <b>text=["下载"]</b></div>
+      <div class="out">scanned: 12 files (3 skipped)
+anchors: none
+
+  <span class="v">48</span> app/src/main/java/com/aicourse/stage1/ui/ChatScreen.kt:<span class="k">233</span> [literal-text]
+     <span class="m">Button(onClick = { vm.downloadModel(url) }, modifier = Modifier.padding(start = 8.dp)) { Text("下载") }</span></div>
+    </div>
+
+    <div class="call">
+      <div class="h">Read <span class="arrow">→</span> <b>ChatScreen.kt, offset 222, limit 20</b></div>
+      <div class="out"><span class="m">228</span>         OutlinedTextField(
+<span class="m">229</span>             value = url,
+<span class="m">230</span>             onValueChange = onUrlChange,
+<span class="m">231</span>             placeholder = { Text(<span class="v">"模型直链 URL"</span>) },
+<span class="m">232</span>         )
+<span class="m">233</span>         <span class="g">Button</span>(onClick = { vm.downloadModel(url) }, modifier = Modifier.padding(start = 8.dp)) { Text(<span class="v">"下载"</span>) }</div>
+    </div>
+
+    <div class="answer">
+      <span class="bullet">●</span>The text sits at <code>[880,735][948,783]</code>, center <code>(914,759)</code>, and the <code>TextView</code> itself is not clickable — the click belongs to the parent row.
+      <table>
+        <tr><td>ref</td><td><code>s18</code>, <span style="color:#8b949e">semantics tree, depth 8</span></td></tr>
+        <tr><td>label</td><td><code>"下载"</code>, a Compose string literal, not a string resource</td></tr>
+        <tr><td>handler</td><td><code>vm.downloadModel(url)</code> at <span style="color:#7ee787">ChatScreen.kt:233</span></td></tr>
+      </table>
+      <div class="note">locate_code found no string resource and no layout id, which is the expected result on a pure Compose screen.</div>
+    </div>
+
+    <div class="prompt"><span class="chev">&gt;</span><span class="caret"></span></div>
+  </div>
+</div>
+</body>
+</html>

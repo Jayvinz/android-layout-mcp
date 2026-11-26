@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: #0d1117; }
+  .frame { width: 1330px; background: #11161d; }
+  .bar {
+    display: flex; align-items: center; gap: 7px;
+    height: 34px; padding: 0 14px;
+    background: #1b2430; border-bottom: 1px solid #263140;
+    font: 12px/34px -apple-system, "Segoe UI", sans-serif; color: #7d8896;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .dot.r { background: #ff5f56; } .dot.y { background: #ffbd2e; } .dot.g { background: #27c93f; }
+  .title { margin-left: 8px; }
+  .body {
+    padding: 16px 20px 20px;
+    font: 15px/1.55 "Cascadia Mono", "SF Mono", Consolas, monospace;
+    white-space: pre; color: #c9d1d9;
+  }
+  .dim { color: #6e7681; }
+  .head { color: #58a6ff; }
+  .ref { color: #d2a8ff; }
+  .cls { color: #7ee787; }
+  .txt { color: #e3b341; }
+  .flag { color: #ff7b72; }
+  .num { color: #79c0ff; }
+  .arrow { color: #f778ba; }
+  .path { color: #8b949e; }
+  .star { color: #f0883e; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="bar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="title">zsh — android-layout find / hit</span>
+  </div>
+  <div class="body"><span class="dim">$</span> android-layout find <span class="txt">"Re-run checks"</span>
+<span class="ref">v9</span> [view] <span class="cls">android.widget.Button</span> <span class="txt">"Re-run checks"</span> [<span class="num">38,953</span>][<span class="num">540,1085</span>] center=(<span class="num">289,1019</span>) <span class="flag">click</span>
+    <span class="path">DecorView > ActionBarOverlayLayout id/decor_content_parent > FrameLayout id/content > LinearLayout > LinearLayout > Button</span>
+
+<span class="dim">$</span> android-layout hit <span class="num">289</span> <span class="num">1019</span>
+<span class="head">── view ──</span>
+(<span class="num">289, 1019</span>) -&gt; <span class="ref">v9</span> <span class="cls">Button</span> <span class="txt">"Re-run checks"</span>
+  bounds [<span class="num">38,953</span>][<span class="num">540,1085</span>] center (<span class="num">289,1019</span>)
+  path DecorView &gt; ActionBarOverlayLayout id/decor_content_parent &gt; FrameLayout id/content &gt; LinearLayout &gt; LinearLayout &gt; Button
+  6 candidates at this point:
+    <span class="star">*</span> <span class="ref">v9</span> <span class="cls">Button</span> [<span class="num">502x132</span>] <span class="txt">"Re-run checks"</span>
+      <span class="ref">v8</span> <span class="cls">LinearLayout</span> [<span class="num">1004x132</span>]
+      <span class="ref">v3</span> <span class="cls">LinearLayout</span> [<span class="num">1080x2122</span>]
+      <span class="ref">v2</span> <span class="cls">FrameLayout</span> [<span class="num">1080x2122</span>]
+      <span class="ref">v1</span> <span class="cls">ActionBarOverlayLayout</span> [<span class="num">1080x2356</span>]
+      <span class="ref">v0</span> <span class="cls">DecorView</span> [<span class="num">1080x2400</span>]
+  </div>
+</div>
+</body>
+</html>

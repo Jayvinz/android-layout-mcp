@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1180px; padding: 30px 34px 26px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .row { display: grid; grid-template-columns: 1fr 26px 1fr 26px 1fr 26px 1fr 26px 1fr; align-items: stretch; }
+  .stage { background: #fff; border: 1px solid #dfe6ee; border-radius: 10px; padding: 13px 14px; position: relative; }
+  .stage .n { position: absolute; top: 10px; right: 11px; font: 700 10.5px/1 -apple-system, sans-serif; color: #b6c2cf; letter-spacing: .06em; }
+  .stage h3 { margin: 0 0 3px; font-size: 15px; letter-spacing: -0.1px; }
+  .stage .sub { font-size: 11.5px; color: #7c8894; margin-bottom: 9px; }
+  .stage code { display: block; font: 600 11.5px/1.5 ui-monospace, "SF Mono", Consolas, monospace; color: #0f172a; background: #f1f5f9; border-radius: 4px; padding: 5px 7px; word-break: break-all; }
+  .stage .out { margin-top: 9px; font-size: 11.5px; line-height: 1.45; color: #475569; border-top: 1px dashed #e8edf3; padding-top: 8px; }
+  .ar { display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 17px; }
+
+  .legend { margin-top: 16px; display: flex; gap: 20px; align-items: center; font-size: 12px; color: #64748b; flex-wrap: wrap; }
+  .lg { display: flex; align-items: center; gap: 7px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; }
+  .foot { margin-top: 12px; padding-top: 11px; border-top: 1px solid #e2e8f0; font-size: 12.5px; line-height: 1.55; color: #64748b; }
+  .foot b { color: #0f172a; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="row">
+    <div class="stage">
+      <span class="n">01</span>
+      <h3>Connect</h3>
+      <div class="sub">once per machine</div>
+      <code>/plugin install</code>
+      <div class="out">Server on stdio, five skills, project gate.</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="stage">
+      <span class="n">02</span>
+      <h3>State</h3>
+      <div class="sub">resolve the target</div>
+      <code>android-layout state</code>
+      <div class="out">Device, screen, foreground activity, pid, windows.</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="stage">
+      <span class="n">03</span>
+      <h3>Capture</h3>
+      <div class="sub">the screen as nodes</div>
+      <code>dump</code>
+      <div class="out">Class, id, text, bounds, center, flags, refs.</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="stage">
+      <span class="n">04</span>
+      <h3>Locate</h3>
+      <div class="sub">answer a question</div>
+      <code>find / hit</code>
+      <div class="out">Which node, where exactly, what it does.</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="stage">
+      <span class="n">05</span>
+      <h3>Trace</h3>
+      <div class="sub">close the loop</div>
+      <code>locate_code</code>
+      <div class="out">Ranked <span style="font-family:ui-monospace,Consolas,monospace">file:line</span> anchors, then read the code.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="lg"><span class="sw" style="background:#58a6ff"></span>device-facing steps</span>
+    <span class="lg"><span class="sw" style="background:#7c3aed"></span>repository-facing steps</span>
+    <span style="margin-left:auto">Read-only throughout: nothing taps, swipes, or edits</span>
+  </div>
+
+  <div class="foot"><b>Every step is a fresh capture.</b> Refs are valid for one call only, so a workflow that spans minutes should re-run <code>dump</code> or match on text and resource id instead of on <code>v12</code>.</div>
+</div>
+</body>
+</html>

@@ -1,127 +1,166 @@
-# Inspect a Live Android Screen from Your Coding Agent
+# Give Your Coding Agent a Live View of the Android Screen
 
-*Part 1 of two: connect a client, read the screen, trace an element to source. [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-under-the-hood.md) opens the implementation.*
+#### Part 1 of two: capture, locate, and trace
 
-*[Figure 1: a captured screen tree in the terminal, with bounds, centers, and refs]*
+*This is the first of two posts about [Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp), a CLI and [MCP](https://modelcontextprotocol.io/) server that reads the live screen of a connected Android device. Part 2 follows the four capture paths and what each one costs.*
 
-Coding agents read repositories well. Ask why a button is disabled and the agent will open the ViewModel, the state holder, the theme, and the click handler. What it cannot do on its own is look at the phone.
+![A terminal running android-layout dump. The header names the device, the screen size and density, the foreground activity, and which sources were captured. Below it, a tree of nodes where each line carries a ref, a class, raw bounds, a size, a center, and flags such as click and scroll. The "开拍" tab label is one of the nodes, listed with its bounds and center.](images/p1-fig1-dump.png)
 
-[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) gives it that view. It is a CLI and an [MCP](https://modelcontextprotocol.io/) server that captures the live screen of a connected device or emulator over [ADB](https://developer.android.com/tools/adb), then answers questions about the screen with structured data instead of pixels. It ships as a Claude Code plugin and connects to Codex CLI, Cursor, Gemini CLI, CodeBuddy, WorkBuddy, OpenCode, and other MCP clients through generated config.
+*One `dump` call. The header is where the capture explains itself; the tree is what an agent reads instead of a screenshot.*
 
-By the end of this post you will have a client connected, a first inspection running, and a visible element traced back to its Compose or XML source. You will also know which screens it cannot read, before you build a workflow on top of it.
+A coding agent reads a repository well. Ask why a button is disabled and it will open the ViewModel, the state holder, the theme, and the click handler. What it cannot do on its own is look at the phone.
 
-### What it does
+[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) adds that step. It captures the current screen through [ADB](https://developer.android.com/tools/adb) and answers questions about it with structured nodes: class names, resource ids, text, bounds, centers, click and scroll flags, and, on [Compose](https://developer.android.com/develop/ui/compose) screens, the file and line of the composable behind an element. The core is exposed as a CLI and as a 9-tool MCP server, and the package ships as a Claude Code plugin with five skills, five commands, and a project gate.
 
-The tool captures the current screen through up to four data sources and normalizes them into one node tree. The default mode, `auto`, picks per screen: the debug View hierarchy for XML layouts, the accessibility semantics tree for Compose screens, and both for screens that mix the two. Two more are explicit: `--source dumpsys` reads the View hierarchy and Activity/Fragment structure on a release build, and `--source compose` talks to Android Studio's Compose inspector for Composable names and `file:line`.
+By the end of this post you will have a client connected, a captured tree with device coordinates, and one visible element traced to a file and line. You will also see where the capture stops, before you build a workflow on top of it.
 
-On top of that tree it exposes 9 MCP tools:
+- 🧱 **Part 1 (this post):** connect, state, capture, locate, trace.
+- 🔎 **[Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-under-the-hood.md):** what the view, accessibility, `dumpsys`, and Compose paths each return, and where they fail.
 
-- capture and inspection (`list_devices`, `get_state`, `dump_ui`, `find_elements`, `hit_test`)
-- verification (`analyze_ui` with 12 layout and accessibility rules, `screenshot`)
-- source tracing (`locate_code`, `list_fragments`)
+![Five stages in a row: connect, state, capture, locate, trace. The first three face the device, the last two face the repository. A legend notes that every stage is read-only.](images/p1-fig2-pipeline.png)
 
-Every tool is read-only: the plugin observes the device, it never drives it.
-
-There is also a test suite that runs without a device, and a set of Claude Code skills and slash commands that decide when each capability should run.
-
-Why not let the model read a screenshot instead? Pixels give labels and positions but no resource ids, clickable bounds, or source lines. A tree gives the agent values it can query and compare between captures.
+*The five stages this post walks through. Nothing here taps, swipes, or edits anything.*
 
 ### Connect a client
 
-You need Node.js 20 or newer, `adb` on your `PATH` (or `ALM_ADB` set to its path), a device or emulator with USB debugging enabled, and the target app in the foreground. The `view` and `compose` sources also require a debuggable build (`android:debuggable="true"`); the semantics source works on any app.
+You need Node.js 20 or newer, `adb` on your `PATH` (or `ALM_ADB` pointing at it), a device or emulator with USB debugging enabled, and the app in the foreground. The `view` and `compose` sources also need a debuggable build; `semantics` and `dumpsys` work on any app.
 
-Pick the path for the agent you use.
-
-**Claude Code** has the fullest install: skills, slash commands, and the gate hook come with the plugin. Add the marketplace and install:
+In [Claude Code](https://code.claude.com/docs), the plugin install pulls in the skills, the slash commands, and the gate hook:
 
 ```text
 /plugin marketplace add Jayvinz/android-layout-mcp
 /plugin install android-layout@jayvinz-tools
 ```
 
-The repository is both the marketplace (`jayvinz-tools`) and its first plugin (`android-layout`); the [plugin reference](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/plugin.md) lists every component. Claude Code copies the plugin into its cache and installs the Node dependencies from the lockfile, so `dist/` ships prebuilt and there is no compile step. After installing, run `/mcp` to confirm the server is loaded and `/help` to see the commands. Restart Claude Code once, because the gate hook is read at session start.
+The repository is both the marketplace and its first plugin. `/mcp` shows whether the server connected, and `/help` lists the commands. Restart Claude Code once, because the `PreToolUse` hook is read when a session starts.
 
-**Other agents** connect to the same MCP server through a generated config. Clone the repository, build once, then print the snippet for your client:
+Every other MCP client runs the same stdio server and needs only a config envelope. The CLI prints the right shape for 20 client ids:
 
 ```bash
 npm install && npm run build
 node dist/cli.js mcp --print-config --client cursor > .cursor/mcp.json
 ```
 
-The [connect section below](#connect-another-mcp-client) covers all 20 client ids and the four verified locally. Codex CLI, Cursor, Gemini CLI, CodeBuddy, and WorkBuddy get the tools; in Claude Code you also get the skills, commands, and hook unless you copy the skills with the sync script.
+Without `--client` you get the `mcpServers` shape that Claude Code, Cursor, Cline, Windsurf, Gemini CLI, CodeBuddy, and WorkBuddy read. Redirecting stdout into a config file gives a clean result, because the destination path goes to stderr. `--serial`, `--adb`, and `--studio` are carried into the snippet when you need to pin a device.
 
-**The CLI** works with no agent at all. `npm link` after the build gives you the global `android-layout` command used in the terminal examples throughout this post.
-
-If you prefer not to add a marketplace, each release also attaches a self-contained zip of about 6 MB with the built server and its production dependencies. Claude Code can load it directly:
+If you would rather not add a marketplace, each release attaches a self-contained zip of about 6.4 MB with the built server and its production dependencies, which Claude Code can load directly:
 
 ```bash
-claude --plugin-dir ./android-layout-mcp-0.9.0.zip
+claude --plugin-dir ./android-layout-mcp-0.10.0.zip
 ```
 
-**Note**: all activation paths first check that the workspace is an Android project (`settings.gradle(.kts)`, `gradlew`, a module applying `com.android.*`, or `AndroidManifest.xml`). In a non-Android repository the plugin only activates when you explicitly ask about a connected device screen or mention Android.
+**Note**: every activation path first checks that the workspace is an Android project: `settings.gradle(.kts)`, `gradlew`, a module build file applying `com.android.*`, or an `AndroidManifest.xml`. In a non-Android repository the plugin activates only when you explicitly ask about a connected device screen or mention Android. A connected phone does not make a repository Android.
 
 ### Point it at a device
 
-Start with the device list and the foreground app. These are the same data the MCP server uses to resolve a target:
+Two commands resolve the target the same way the MCP server does:
 
 ```bash
 android-layout devices
 android-layout state
 ```
 
-`state` reports the device model and API level, the screen size and density, the foreground package, the Activity, the pid, and the JDWP windows, including dialogs and popups. Every later claim about bounds or clickability is anchored to that target.
+`state` reports the model and API level, the screen size, density, and rotation, the foreground package, the Activity, the pid, and the `ViewRootImpl` windows, dialogs and popups included. Every later number, including a button center you pass to a tap command, is anchored to that target.
 
-If the app is a release build, the `view` and `compose` sources fail. `semantics` still gives labels and clickable bounds, and `--source dumpsys` adds real View classes, resource ids, and Activity/Fragment structure, but no text.
+### Capture the screen
 
-### Ask for the screen
-
-In Claude Code you can ask in plain language: "capture the current screen layout", "summarize the current screen", or "why is this button grayed out". The `capture-ui` skill maps those requests to `get_state`, `dump_ui`, and the query tools, and it stops at device evidence without opening the repository.
-
-From a terminal, the same path looks like this:
+From a terminal, three commands cover the common cases:
 
 ```bash
-android-layout dump
-android-layout find "Sign in" --both
-android-layout hit 540 2239 --index 0
+android-layout dump                      # auto source, full tree
+android-layout dump --settle             # wait until the UI stops animating
+android-layout dump --format compact     # only nodes that say or do something
 ```
 
-`find` matches text, content descriptions, resource ids, class names, and refs. `hit` returns every node under a coordinate, sorted by visible area, with `--index` to step through overlapping candidates. Search is case-insensitive for `contains`, and `/pattern/flags` is accepted as a regular expression.
+With no flags, `--source auto` picks per screen. XML layouts come from the debug view hierarchy, Compose screens from the accessibility tree, and mixed screens from both. `--source dumpsys` adds real View classes and ids on a release build, and `--source compose` asks the [Android Studio](https://developer.android.com/studio) Compose inspector for composable names and `file:line`.
 
-Refs such as `v12` or `s43` are valid only for the capture that produced them. The tool re-captures on every command, so a new screen means new refs.
+In Claude Code you can ask for the screen in plain language; the `capture-ui` skill maps phrases such as "抓取当前页面布局" or "summarize the current screen" to `get_state` and `dump_ui`.
 
-The text output is compact by design:
+The text output is meant to be read:
 
 ```text
 device 10.0.0.5 (Pixel 7)  android 13 (sdk 33)
-screen 1080x2400 @ 440dpi (2.75x) portrait
-target com.example.app pid=9597 activity=...MainActivity debuggable
+screen 1080x2400 @ 440dpi (2.75x) portrait rotation=0
+target com.example.spi pid=1234 activity=.MainActivity debuggable
+view window: com.example.spi/.MainActivity/android.view.ViewRootImpl@60b9a5d (100ms)
 v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
-  v1 FrameLayout ...
+  v1 ActionBarOverlayLayout id/decor_content_parent [0,0][1080,2356] 1080x2356 @(540,1178)
+    v2 FrameLayout id/content [0,234][1080,2356] 1080x2122 @(540,1295)
+      v3 LinearLayout [0,234][1080,2356] 1080x2122 @(540,1295)
+        v4 TextView "Android SPI · variant self-check" [38,300][1042,358] 1004x58 @(540,329)
+        …   (v5-v7, three more TextView rows)
+        v8 LinearLayout [38,953][1042,1085] 1004x132 @(540,1019)
+          v9 Button "Re-run checks" [38,953][540,1085] 502x132 @(289,1019) {click}
 ```
 
-JSON adds `visibleBounds`, `center`, `clickable`, `enabled`, `className`, and the parent path for every node. On a Compose screen `uiKind` is `compose` and refs start with `s`; on a mixed screen both trees appear, and search plus hit testing query both. The [data source guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md) explains which tree wins on each screen type.
+Each line carries a ref, a class, an id or label, raw bounds, a size, a center, and flags such as `click`, `scroll`, `checked`, `disabled`, or `hidden`. JSON adds `visibleBounds` (the part that survives ancestor clipping), the parent path, and raw View properties.
 
-*[Figure 2: a `find` result in Claude Code, showing bounds, center, and clickable state]*
+Two flags are worth knowing before you trust a capture. The first is `--settle`. A snapshot taken while a list scrolls or a spinner turns describes a state that is already gone; with `--settle`, the tool samples the app's frame counter from `dumpsys gfxinfo` before capturing and waits for two quiet 250 ms intervals. The header then reads `stable: yes (settled in 814ms, 3 samples)`.
 
-**Note**: the human-readable tree is truncated at 2000 nodes by default. `--json` and `--out` write the complete dump; MCP `dump_ui` caps JSON at 800 nodes unless you raise `maxNodes`.
+If the screen keeps animating through the budget (three seconds by default), the capture still happens and the header says `stable: no` with the frame count in the last interval. A ROM without the counter reports `stable: unknown`. JSON carries the same object as `stability`, samples included.
 
-### Trace an element to source
+![A bar chart of frame counts sampled every 250 ms. The bars decay from a full interval at the left to zero at the right, where a shaded region marks two consecutive quiet intervals. A dashed line at the budget marks where waiting stops. Three cards below give the three outcomes both ways: the header says stable yes, no, or unknown, and the JSON field says true, false, or null.](images/p1-fig3-settle-probe.png)
 
-This is the part a coding agent cannot do from a screenshot. The `trace-view-wiring` skill and the `locate_code` tool take the anchors from the captured screen (text, content description, resource id, Compose file and line, or View class) and scan the repository for ranked `file:line` candidates:
+*The probe does not guess. It reports two quiet intervals, or a timeout, or that the counter was unavailable.*
+
+The second is `--format compact`. Most nodes in a long tree are layout wrappers, so compact keeps the ones that carry text, a description, or an action, then promotes the children of the wrappers it drops. On the XML fixture used by the test suite, 20 nodes become 9; the payload reports `stats` (`nodes`, `kept`, `dropped`, `truncated`). `--format flat` emits the same nodes in pre-order with `depth`, so parent-child relationships stay recoverable.
+
+![Two trees side by side. On the left, the full 20-node tree with dropped wrappers greyed out: DecorView, ActionBarOverlayLayout, FrameLayout, two LinearLayouts, a Toolbar, and the system bars. On the right, the 9 kept nodes, with the two buttons promoted one level up and the full stats object printed below.](images/p1-fig4-compact.png)
+
+*The same capture before and after pruning. Nothing that says or does anything is lost; only the scaffolding goes.*
+
+**Note**: the human-readable tree stops at 2000 nodes. `--json` and `--out` write the complete dump, while MCP `dump_ui` caps JSON at 800 nodes and 5000 at most, so a huge screen needs `maxNodes` raised or a `savePath`.
+
+A tree answers questions about structure. Sometimes you also want to see the boxes, which is what `shot --annotate` is for: it saves the screenshot and an SVG overlay built from the same `visibleBounds` the payload reports.
+
+![A DroidReel feed screen beside a terminal. Dashed orange boxes mark the two clickable cards at the bottom of the feed, thin blue boxes mark the labelled tabs, and a red box marks the 开拍 tab. The terminal shows shot --annotate saving both files, find "开拍" returning the s43 TextView at centre (570,2260), its parent s42 View carrying the click flag, and analyze reporting two unlabeled_clickable issues on s37 and s38.](images/p1-fig5-annotated.png)
+
+*Three answers from one capture: where the label sits, which node handles the tap, and which clickables a screen reader cannot name. A screenshot alone only shows the first.*
+
+### Locate one element
+
+Two commands answer "where is it" and "what is here":
+
+```bash
+android-layout find "Re-run checks" --both
+android-layout hit 289 1019 --index 0
+```
+
+`find` matches text, content descriptions, resource ids, class names, and refs. `contains` ignores case, `exact` does not, and `/pattern/flags` compiles to a regular expression. `hit` returns every node under a coordinate sorted by visible area, with `--index` to step through overlapping candidates. Both skip invisible nodes by default.
+
+Refs such as `v12` or `s43` are valid for one capture only. Every command re-captures, so a new screen means new refs; pass the id or the text when you need something stable.
+
+Dialogs are where a single-window capture misleads: JDWP lists windows in creation order, so the window behind a translucent activity can come first. The tool compares the list with `mCurrentFocus` and captures the focused window by default. To get the rest:
+
+```bash
+android-layout dump --source view --window all
+```
+
+The text output grows one section per window; JSON returns `view.windows` with the primary marked `selected`. `find`, `hit`, and `inspect` accept the same selector, so an unfocused dialog can still be searched.
+
+![Two commands in a terminal. find "Re-run checks" reports one node with its bounds, center and click flag, plus the full parent path. hit 289 1019 lists the six nodes stacked under that point, smallest first, with the button on top.](images/p1-fig6-find-hit.png)
+
+*`find` answers "which node", `hit` answers "what is under this point". The candidate list from `hit` is why the smallest element wins.*
+
+### Trace it to source
+
+This is the step a screenshot cannot provide. `locate_code` takes the anchors from the captured screen (text, content description, resource id, composable name or file and line, or View class) and scans the repository for ranked `file:line` candidates:
 
 ```text
-/android-layout:trace-view "Sign in"
+/android-layout:trace-view "Re-run checks"
 ```
 
-The scan returns string resources, layout definitions, Compose definitions and call sites, ViewBinding usage, and click handlers, each with a score, a reason, and a code snippet. A ranking of 100 marks a `@Composable` definition matched by name or line; 78 marks a layout that defines the resource id; 45 marks a call site. Test sources, `build/`, `.gradle/`, and generated code are excluded by default.
+The scan returns string resources, layout definitions, `@Composable` definitions and call sites, ViewBinding usage, and click handlers, each with a score, reason, and snippet. A score of 100 marks a composable definition matched by name or line, 90 the file the Compose inspector reported, 80 an id usage next to a click listener, 78 the layout that defines the id, 48 a literal string, and 45 a call site. Test sources, `build/`, and `.gradle/` are excluded by default.
 
-A typical report points at `ProfileScreen.kt:120` for the Composable, `fragment_profile.xml:34` for the layout id, and `ProfileFragment.kt:88` for the click handler. Those are ranked candidates, and opening the files is still required.
+![A ladder of five scores from 100 down to 45. The top four — compose definition, compose location, strong id usage, layout id — are grouped as strong evidence, where the code defines the thing the anchor names. The bottom two — literal text and call site — are grouped as weaker, where the anchor merely appears. Below, a real locate_code run against a Compose app prints four candidates: 100 for the composable, two 48s from the same literal in two stages, and 45 for the call site.](images/p1-fig7-locate-ladder.png)
 
-The tool is read-only. It ranks files; you or the agent still open them and follow the business chain one to three hops.
+*The scores are a confidence ladder, not a popularity ranking. The definition outranks the usage, and the usage outranks a line that merely mentions the same string.*
+
+The tool ranks files; opening them is still your job. On a different screen, a typical result points at `ProfileScreen.kt:120` for the composable, `fragment_profile.xml:34` for the layout id, and `ProfileFragment.kt:88` for the handler.
 
 ### Verify a change
 
-Before and after a UI change, capture the same page twice and compare the two dumps yourself:
+Before and after a UI change, capture the same page twice and compare the dumps:
 
 ```bash
 android-layout dump --json --out .alm/before.json
@@ -130,67 +169,49 @@ android-layout dump --json --out .alm/after.json
 android-layout analyze
 ```
 
-Refs change between captures, so match nodes by source, resource id, class, text, and path rather than by `v12`/`s43`. The two JSON files are the same format the MCP `dump_ui(savePath=...)` tool writes, so an agent can save `.alm/before.json`, apply the change, save `.alm/after.json`, and read both. `analyze` then runs the rule set: small touch targets, overlapping clickables, clipped nodes, invisible clickables, duplicate ids, deep nesting, overdraw, RTL mirroring gaps, and four more.
+Refs differ between captures, so match nodes on source, resource id, class, text, and path rather than on `v12` or `s43`. The two files use the same format as MCP `dump_ui(savePath=...)`, which means an agent can save the before state, make the change, save the after state, and read both.
 
-*[Figure 3: two saved dumps side by side, with one added button and one resized row]*
+`analyze` then runs twelve rules: small touch targets, overlapping clickables, clipped nodes, children outside a non-scrollable parent, offscreen views, invisible clickables, zero sizes, unlabeled clickables, duplicate ids, deep nesting, overdraw, and RTL mirroring gaps. Two rules need raw View properties, which the capture requests by default and lists under `skipped` for `--no-props`.
 
-Keep `.alm/` in your `.gitignore`. Dumps contain the device serial, the package name, and the text on screen.
+**Note**: keep `.alm/` in your `.gitignore`. Dumps contain the device serial, the package name, and the text on screen.
 
-### Connect another MCP client
+### The result
 
-The plugin wires the server for Claude Code. Every other client starts the same stdio server; only the config shape changes. The CLI writes the right envelope for 20 clients:
+An agent can now answer the question that started the post. "Re-run checks" sits at `[38,953][540,1085]`, center `(289,1019)`, clickable, in a row with the equally sized "Camera module". One `find` returned the node and its parent path; one `trace-view` returned the files that mention the label.
 
-```bash
-node dist/cli.js mcp --print-config --client codex      # TOML for ~/.codex/config.toml
-node dist/cli.js mcp --print-config --client vscode     # servers object for .vscode/mcp.json
-node dist/cli.js mcp --print-config --client cursor     # mcpServers object for .cursor/mcp.json
-```
+![A Claude Code session against a Compose app. The prompt asks to dump the screen, find the 下载 button, and trace it to source. Four tool calls follow: dump_ui reports the node tree and stats, find_elements returns the TextView with bounds and center, locate_code ranks ChatScreen.kt:233 as a literal-text candidate, and Read opens that file. The answer names the bounds, the label, and the click handler.](images/p1-fig8-session.png)
 
-Without `--client` you get the `mcpServers` object that Claude Code, Cursor, Cline, Windsurf, Gemini CLI, CodeBuddy, WorkBuddy, and several others read. The snippet goes to stdout and its destination path goes to stderr, so redirecting the output into a config file gives a clean result:
-
-```json
-{
-  "mcpServers": {
-    "android-layout": {
-      "command": "node",
-      "args": ["/absolute/path/to/android-layout/dist/mcp.js"]
-    }
-  }
-}
-```
-
-`--serial`, `--adb`, and `--studio` carry into the snippet when you need to pin a device or an Android Studio installation. Four clients were exercised end to end on one machine: OpenCode 1.19.5 listed all 9 tools, CodeBuddy Code 2.186.0 and Codex CLI 0.172.0 each called `list_devices` and got a real device back, and WorkBuddy exposed the tools after a one-time GUI approval. The [client matrix](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md#other-clients) records the config file and shape for each one. The remaining clients follow their documented schemas but were not run here.
-
-The five skills travel as well. Their frontmatter uses only `name` and `description`, and their CLI fallback resolves through `ALM_ROOT`, so `node scripts/sync-agent-skills.mjs --dest ../my-app` installs them into `.agents/skills` for Codex CLI, Gemini CLI, Cline, and Goose. Add `--codebuddy` or `--workbuddy` for those clients' directories; `--both` writes both `.agents` and `.codebuddy`, and combining it with `--workbuddy` writes all three. Slash commands and the gate hook stay Claude Code specific. The [cross-agent guide](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md) records the per-client gotchas and the checklist for adding another client.
+*The whole loop in one session: capture, locate, rank, open. Every number in the final answer came from a tool result, not from the model's memory of the screen.*
 
 ### Where it stops
 
-- `view` and `compose` need a debuggable app; release builds fall back to `semantics` and `dumpsys`.
-- JDWP usually allows one debugger at a time. Attaching may fail while Android Studio is debugging.
-- `compose` needs a local Android Studio, Java 17+, API 29+, and 8 to 12 seconds per capture. It leaves a resident transport daemon on the device; `android-layout compose-clean` removes it.
-- The semantics tree only sees what the app exposes to accessibility. Text drawn directly to a canvas, a `SurfaceView`, or a `WebView` has no text or children to find.
-
-- There is no live monitoring. Every command captures a fresh snapshot.
-- The plugin never drives the device. There is no tap, swipe, text input, or key event: you get evidence and coordinates, and you perform the action.
+- `view` and `compose` need a debuggable app. Release builds fall back to `semantics` and `dumpsys`.
+- JDWP usually allows one debugger per process, so attaching can fail while Android Studio is debugging.
+- `compose` needs a local Android Studio, Java 17+, and API 29 or newer, takes 8 to 12 seconds per capture, and leaves a resident transport daemon that `android-layout compose-clean` removes.
+- The accessibility tree only reports what the app exposes. Text drawn straight to a `Canvas`, a `SurfaceView`, or inside a `WebView` has no text or children to find.
+- There is no live monitoring. Every command starts a new capture, and without `--settle` nothing tells you whether the screen was moving.
+- The plugin never drives the device. There is no tap, swipe, or text input: you get evidence and coordinates, and the action stays with you.
 
 ### What's next
 
-0.9.0 is the first release under this name, MIT licensed, and the CLI is usable on its own if you prefer scripts to chat. Connect the client you already use, put a debug build in the foreground, and ask for the screen. The first useful answer usually arrives within one capture.
+Android has no single API that reports the screen, so the interesting engineering is in the four paths and in merging what they return into one tree an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-under-the-hood.md).
 
-The interesting part, at least for me, is how four unrelated Android interfaces end up in one tree that an agent can query. That is [Part 2](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-under-the-hood.md).
-
-**Resources**
-
-- [Repository and release notes](https://github.com/Jayvinz/android-layout-mcp)
-- [CLI reference](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cli.md)
-- [MCP tools and limits](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md)
-- [Cross-agent compatibility](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md)
-- [Data sources](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md)
-- [Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
+If you try it, start with `android-layout state` and one `dump`, and tell me which screen type broke first. The gate and the source tables are easy to extend, and reports from real apps are the only way they get better.
 
 *The code snippets in this post use the project's MIT license:*
 
 ```text
 // Copyright (c) Jayvinz. SPDX-License-Identifier: MIT
 ```
+
+**Resources**
+
+- [Repository and releases](https://github.com/Jayvinz/android-layout-mcp)
+- [CLI reference](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cli.md)
+- [MCP tools and limits](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/mcp.md)
+- [Data sources](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/data-sources.md)
+- [Cross-agent compatibility](https://github.com/Jayvinz/android-layout-mcp/blob/main/docs/cross-agent.md)
+- [Claude Code plugins](https://code.claude.com/docs/en/plugins-reference)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+
+*P.S. Thanks to everyone who ran the tool against a real app and reported the screens it could not read.*

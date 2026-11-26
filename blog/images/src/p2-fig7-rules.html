@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1188px; padding: 28px 32px 24px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .top { margin-bottom: 16px; }
+  .t { font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+  .s { font-size: 12.6px; line-height: 1.6; color: #64748b; margin-top: 4px; }
+
+  .cols { display: grid; align-items: stretch; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .col { display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; padding: 12px 13px 13px; }
+  .col .hd { font-size: 12.2px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; margin-bottom: 2px; }
+  .col .hint { font-size: 11.2px; line-height: 1.45; color: #94a3b8; margin-bottom: 9px; }
+
+  .r { padding: 6px 0; border-top: 1px solid #f1f5f9; }
+  .r .rh { display: flex; align-items: center; gap: 6px; }
+  .r .n { font: 600 11.3px/1.4 ui-monospace, Consolas, monospace; color: #0f172a; }
+  .r .d { display: block; font-size: 11.4px; line-height: 1.42; color: #64748b; margin-top: 2px; }
+  .r .sev { margin-left: auto; font: 700 9.2px/1 ui-monospace, monospace; padding: 2px 4px; border-radius: 2px; flex: none; }
+  .sev.w { background: #fef3c7; color: #92400e; }
+  .sev.i { background: #e0f2fe; color: #075985; }
+
+  .col.geom { border-top: 3px solid #2563eb; } .col.geom .hd { color: #1d4ed8; }
+  .col.vis  { border-top: 3px solid #7c3aed; } .col.vis .hd { color: #6d28d9; }
+  .col.lbl  { border-top: 3px solid #0d9488; } .col.lbl .hd { color: #0f766e; }
+  .col.raw  { border-top: 3px solid #ea580c; } .col.raw .hd { color: #c2410c; }
+
+  .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .note { background: #fff; border: 1px solid #e2e8f0; border-radius: 9px; padding: 11px 13px; font-size: 12.3px; line-height: 1.6; color: #475569; }
+  .note b { color: #0f172a; }
+  .note .tag { font: 700 10.4px/1 ui-monospace, monospace; color: #b45309; background: #fef3c7; padding: 2px 5px; border-radius: 3px; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="top">
+    <div class="t">Twelve rules, four kinds of evidence</div>
+    <div class="s">Every rule reads a different field of the node. That is why the last group only fires on a capture that asked for raw View properties.</div>
+  </div>
+
+  <div class="cols">
+    <div class="col geom">
+      <div class="hd">Geometry</div>
+      <div class="hint">Measured from bounds and visibleBounds.</div>
+      <div class="r"><div class="rh"><span class="n">zero_size</span><span class="sev w">WARN</span></div><span class="d">0x0</span></div>
+      <div class="r"><div class="rh"><span class="n">offscreen</span><span class="sev w">WARN</span></div><span class="d">outside the screen</span></div>
+      <div class="r"><div class="rh"><span class="n">small_touch_target</span><span class="sev w">WARN</span></div><span class="d">&lt; 48dp</span></div>
+      <div class="r"><div class="rh"><span class="n">outside_parent</span><span class="sev w">WARN</span></div><span class="d">escapes a fixed parent</span></div>
+    </div>
+
+    <div class="col vis">
+      <div class="hd">Visibility</div>
+      <div class="hint">What the clip rectangle and the screen edge hide.</div>
+      <div class="r"><div class="rh"><span class="n">clipped</span><span class="sev i">INFO</span></div><span class="d">visibleBounds cut</span></div>
+      <div class="r"><div class="rh"><span class="n">invisible_clickable</span><span class="sev w">WARN</span></div><span class="d">can be tapped, cannot be seen</span></div>
+      <div class="r"><div class="rh"><span class="n">overlap</span><span class="sev w">WARN</span></div><span class="d">two clickables share pixels</span></div>
+    </div>
+
+    <div class="col lbl">
+      <div class="hd">Identity</div>
+      <div class="hint">What the node says about itself, or fails to say.</div>
+      <div class="r"><div class="rh"><span class="n">unlabeled_clickable</span><span class="sev i">INFO</span></div><span class="d">no text, desc, or id</span></div>
+      <div class="r"><div class="rh"><span class="n">duplicate_id</span><span class="sev w">WARN</span></div><span class="d">same id, many nodes</span></div>
+      <div class="r"><div class="rh"><span class="n">deep_nesting</span><span class="sev i">INFO</span></div><span class="d">depth past the limit</span></div>
+    </div>
+
+    <div class="col raw">
+      <div class="hd">Raw properties</div>
+      <div class="hint">Needs the debug dump, not accessibility.</div>
+      <div class="r"><div class="rh"><span class="n">overdraw</span><span class="sev i">INFO</span></div><span class="d">opaque on opaque</span></div>
+      <div class="r"><div class="rh"><span class="n">rtl_issues</span><span class="sev w">WARN</span></div><span class="d">hard-coded left / right</span></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="note"><span class="tag">compose</span><b>deep_nesting is skipped on the Compose source.</b> Wrapper depth there is an artifact of how the runtime builds the tree, so a limit would flag every screen.</div>
+    <div class="note"><span class="tag">--no-props</span><b>The last group reports itself as skipped rather than silent.</b> Without raw properties there is no background colour to compare and no resolved layout direction to check.</div>
+  </div>
+</div>
+</body>
+</html>

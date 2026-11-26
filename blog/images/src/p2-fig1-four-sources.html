@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1600px; height: 628px; padding: 34px 44px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .src {
+    background: #fff; border: 1px solid #dfe6ee; border-radius: 10px;
+    padding: 16px 18px 18px; position: relative; height: 236px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  .src::before { content: ""; position: absolute; inset: -1px -1px auto -1px; height: 4px; border-radius: 10px 10px 0 0; }
+  .s-view::before { background: #2563eb; }
+  .s-sem::before { background: #7c3aed; }
+  .s-dump::before { background: #059669; }
+  .s-comp::before { background: #ea580c; }
+  .name { font: 700 19px/1.2 ui-monospace, "SF Mono", Consolas, monospace; margin: 6px 0 2px; }
+  .s-view .name { color: #2563eb; } .s-sem .name { color: #7c3aed; }
+  .s-dump .name { color: #059669; } .s-comp .name { color: #ea580c; }
+  .how { font: 13px/1.35 ui-monospace, "SF Mono", Consolas, monospace; color: #64748b; margin-bottom: 12px; }
+  .facts { font-size: 13.5px; line-height: 1.55; color: #334155; }
+  .facts li { margin: 0 0 5px; list-style: none; padding-left: 14px; text-indent: -14px; }
+  .facts li::before { content: "·"; margin-right: 8px; color: #94a3b8; }
+  .cost { position: absolute; bottom: 14px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: center; padding-top: 9px; border-top: 1px dashed #e2e8f0; font-size: 12.5px; color: #64748b; }
+  .ms { font: 700 15px/1 ui-monospace, Consolas, monospace; }
+  .s-view .ms { color: #2563eb; } .s-sem .ms { color: #7c3aed; }
+  .s-dump .ms { color: #059669; } .s-comp .ms { color: #ea580c; }
+  .badge { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #94a3b8; }
+
+  .funnel { margin: 22px 0 0; text-align: center; }
+  .funnel .lbl { display: inline-block; font: 13.5px/1 -apple-system, sans-serif; color: #64748b; background: #eef2f7; border: 1px solid #dfe6ee; border-radius: 999px; padding: 7px 14px; }
+  .stem { width: 2px; height: 26px; background: linear-gradient(#cbd5e1, #94a3b8); margin: 0 auto; }
+
+  .norm { margin-top: 8px; background: #fff; border: 1px solid #dfe6ee; border-left: 4px solid #0f172a; border-radius: 10px; padding: 14px 20px; display: flex; align-items: baseline; gap: 16px; }
+  .norm .t { font: 700 15px/1.2 ui-monospace, Consolas, monospace; color: #0f172a; white-space: nowrap; }
+  .norm .d { font-size: 13.5px; color: #475569; line-height: 1.5; }
+
+  .bottom { display: grid; grid-template-columns: 1fr 460px; gap: 22px; margin-top: 20px; }
+  .tree { background: #0d1117; border-radius: 10px; padding: 15px 18px; font: 13.5px/1.62 ui-monospace, "SF Mono", Consolas, monospace; color: #c9d1d9; white-space: pre; }
+  .tree .ref { color: #d2a8ff; } .tree .cls { color: #7ee787; } .tree .num { color: #79c0ff; }
+  .tree .txt { color: #e3b341; } .tree .flag { color: #ff7b72; } .tree .cm { color: #6e7681; }
+  .note { font-size: 13.5px; line-height: 1.62; color: #334155; }
+  .note b { color: #0f172a; }
+  .note .row2 { display: flex; gap: 10px; margin-top: 12px; align-items: flex-start; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; flex: none; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="row">
+    <div class="src s-view">
+      <div class="badge">1 / debuggable</div>
+      <div class="name">view</div>
+      <div class="how">JDWP · DDMS 0xC7</div>
+      <ul class="facts">
+        <li>View classes, layout params</li>
+        <li>padding, margins, visibility</li>
+        <li>raw properties for overdraw</li>
+      </ul>
+      <div class="cost"><span>~100 ms</span><span class="ms">10 nodes</span></div>
+    </div>
+    <div class="src s-sem">
+      <div class="badge">2 / any app</div>
+      <div class="name">semantics</div>
+      <div class="how">adb · uiautomator dump</div>
+      <ul class="facts">
+        <li>Text, content descriptions</li>
+        <li>clickable / enabled bounds</li>
+        <li>the only zero-setup text source</li>
+      </ul>
+      <div class="cost"><span>0.5–3 s</span><span class="ms">49 nodes</span></div>
+    </div>
+    <div class="src s-dump">
+      <div class="badge">3 / any app</div>
+      <div class="name">dumpsys</div>
+      <div class="how">adb · dumpsys activity</div>
+      <ul class="facts">
+        <li>Real View classes + ids</li>
+        <li>Activity and Fragment records</li>
+        <li>no text: joined by geometry</li>
+      </ul>
+      <div class="cost"><span>100–300 ms</span><span class="ms">— text</span></div>
+    </div>
+    <div class="src s-comp">
+      <div class="badge">4 / Studio required</div>
+      <div class="name">compose</div>
+      <div class="how">JVMTI · Studio inspector</div>
+      <ul class="facts">
+        <li>Composable names</li>
+        <li><code>file:line</code>, parameters</li>
+        <li>recomposition counts</li>
+      </ul>
+      <div class="cost"><span>8–12 s</span><span class="ms">489 nodes</span></div>
+    </div>
+  </div>
+
+  <div class="funnel"><span class="lbl">each path answers a different subset — none answers all of it</span></div>
+  <div class="stem"></div>
+
+  <div class="norm">
+    <span class="t">UiNode</span>
+    <span class="d">ref · id path · class · text · bounds · visibleBounds · center · flags<br><span style="color:#94a3b8">source</span> is kept per node, so a payload can say which path produced the number.</span>
+  </div>
+
+  <div class="bottom">
+    <div class="tree"><span class="cm"># one tree, four provenance tags</span>
+<span class="ref">s0</span> <span class="cls">FrameLayout</span> [<span class="num">0,0</span>][<span class="num">1080,2276</span>] <span class="cm">semantics</span>
+  <span class="ref">s3</span> <span class="cls">ComposeView</span> [<span class="num">0,0</span>][<span class="num">1080,2276</span>]
+    <span class="ref">s5</span> <span class="cls">TextView</span> <span class="txt">"DroidReel"</span> [<span class="num">44,117</span>][<span class="num">921,186</span>]
+    <span class="ref">s16</span> <span class="cls">View</span> [<span class="num">0,355</span>][<span class="num">1080,2180</span>] <span class="flag">{scroll}</span>
+      <span class="ref">s17</span> <span class="cls">View</span> [<span class="num">33,388</span>][<span class="num">526,1187</span>] <span class="flag">{click}</span>
+<span class="ref">v4</span> <span class="cls">AndroidComposeView</span> <span class="cm">view — stops here</span>
+<span class="ref">c12</span> <span class="cls">FeedGrid</span> <span class="cm">compose · Feed.kt:64</span></div>
+    <div class="note">
+      <b>Same screen, four answers.</b> The Compose fixture is the clearest case: the view source stops at <code>AndroidComposeView</code> and returns 10 nodes, accessibility carries the text in 49, and the Studio inspector knows 489 composables.
+      <div class="row2"><span class="sw" style="background:#2563eb"></span><span>Only <code>compose</code> can name a function and a line.</span></div>
+      <div class="row2"><span class="sw" style="background:#7c3aed"></span><span>Only <code>semantics</code> works without a debug build.</span></div>
+      <div class="row2"><span class="sw" style="background:#059669"></span><span>Only <code>dumpsys</code> reports Fragments.</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

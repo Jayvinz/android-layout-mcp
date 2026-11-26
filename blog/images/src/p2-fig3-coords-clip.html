@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1180px; padding: 32px 34px 26px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .grid { display: grid; grid-template-columns: 620px 1fr; gap: 26px; align-items: start; }
+
+  .stage { position: relative; width: 620px; height: 420px; }
+  .frame { position: absolute; border: 1.5px solid #2563eb; background: #eef4ff; border-radius: 4px; }
+  .frame .tag {
+    position: absolute; top: 6px; left: 9px;
+    font: 600 10.5px/1.4 ui-monospace, Consolas, monospace; color: #1d4ed8; white-space: nowrap;
+  }
+  .frame.root { left: 0; top: 14px; width: 604px; height: 384px; background: #f8fbff; }
+  .frame.scroll { left: 26px; top: 46px; width: 552px; height: 320px; background: #eef4ff; }
+  .clip { position: absolute; left: 26px; top: 152px; width: 552px; height: 214px;
+          border: 1.5px solid #ea580c; background: rgba(234,88,12,.055); border-radius: 4px; }
+  .clip .tag { position:absolute; bottom:6px; left:9px; font: 600 10.5px/1.4 ui-monospace, Consolas, monospace; color:#c2410c; }
+
+  .node { position: absolute; border: 1.5px dashed #7c3aed; background: rgba(124,58,237,.10); border-radius: 4px; }
+  .node .tag { position: absolute; top: 5px; left: 8px; font: 600 10.5px/1.45 ui-monospace, Consolas, monospace; color: #5b21b6; white-space: nowrap; }
+  .node .res { position: absolute; bottom: 3px; left: 8px; font: 600 10px/1.3 ui-monospace, Consolas, monospace; color: #7c3aed; }
+
+  .n17 { left: 60px; top: 84px; width: 240px; height: 60px; }
+  .n22 { left: 330px; top: 124px; width: 200px; height: 84px; }
+  .n24 { left: 356px; top: 258px; width: 150px; height: 64px; }
+
+  .n22 .tag { top: 28px; }
+  .cut { position: absolute; left: 330px; top: 124px; width: 200px; height: 26px;
+         background: repeating-linear-gradient(45deg, #ea580c 0 3px, transparent 3px 7px); opacity: .5; }
+
+  .note { font-size: 12.5px; line-height: 1.5; color: #64748b; margin-top: 6px; padding-left: 2px; }
+
+  .right { display: flex; flex-direction: column; gap: 13px; padding-top: 8px; }
+  .card { background: #fff; border: 1px solid #dfe6ee; border-radius: 9px; padding: 12px 14px; }
+  .card .h { font: 700 11px/1 -apple-system, sans-serif; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .card p { margin: 0; font-size: 12.8px; line-height: 1.6; color: #475569; }
+  .card code { font: 600 12px/1.5 ui-monospace, Consolas, monospace; color: #0f172a; background: #f1f5f9; padding: 2px 5px; border-radius: 3px; }
+  .c1 { border-left: 3px solid #2563eb; } .c1 .h { color: #2563eb; }
+  .c2 { border-left: 3px solid #ea580c; } .c2 .h { color: #ea580c; }
+  .c3 { border-left: 3px solid #7c3aed; } .c3 .h { color: #7c3aed; }
+
+  .code { margin-top: 18px; background: #0d1117; border-radius: 9px; padding: 14px 18px; font: 12.5px/1.75 ui-monospace, "SF Mono", Consolas, monospace; color: #c9d1d9; white-space: pre; }
+  .code .k { color: #ff7b72; } .code .c { color: #6e7681; } .code .n { color: #79c0ff; } .code .v { color: #d2a8ff; }
+
+  .legend { margin-top: 14px; display: flex; gap: 22px; font-size: 12px; color: #64748b; }
+  .lg { display: flex; align-items: center; gap: 7px; }
+  .swl { width: 18px; height: 0; border-top: 1.5px solid; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="grid">
+    <div>
+      <div class="stage">
+        <div class="frame root"><span class="tag">s0 DecorView · left=0 top=0</span></div>
+        <div class="frame scroll"><span class="tag">s16 View {scroll} · left=26 top=32 scrollY=120</span></div>
+        <div class="clip"><span class="tag">clip propagated from s16</span></div>
+
+        <div class="node n17"><span class="tag">s17 View · entirely above the clip</span><span class="res">visibleBounds: null</span></div>
+        <div class="node n22"><span class="tag">s22 View · straddles the edge</span><span class="res">visibleBounds: cropped</span></div>
+        <div class="cut"></div>
+        <div class="node n24"><span class="tag">s24 TextView "开拍"</span><span class="res">visibleBounds: = bounds</span></div>
+      </div>
+      <div class="note">Every box is drawn to scale in screen coordinates, which is exactly what the text tree prints.</div>
+    </div>
+
+    <div class="right">
+      <div class="card c1">
+        <div class="h">1 · accumulate</div>
+        <p><code>left</code> and <code>top</code> are parent-relative, and parents scroll and translate. One top-down walk adds them up.</p>
+      </div>
+      <div class="card c2">
+        <div class="h">2 · clip</div>
+        <p>A container with <code>clipChildren</code> narrows the rectangle its descendants may paint into, and that rectangle is passed down.</p>
+      </div>
+      <div class="card c3">
+        <div class="h">3 · report both</div>
+        <p><code>bounds</code> stays raw and <code>visibleBounds</code> is the cropped part — <code>null</code> means clipped away, which is different from "the view is gone".</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code"><span class="c">// one walk, two rectangles per node</span>
+<span class="k">const</span> <span class="v">absX</span> = parentAbsX + details.left - parentScrollX + details.translationX;
+<span class="k">const</span> <span class="v">absY</span> = parentAbsY + details.top  - parentScrollY + details.translationY;
+
+node.visibleBounds = visible &amp;&amp; clip ? intersect(raw, clip) : <span class="n">null</span>;
+<span class="k">const</span> <span class="v">childClip</span> = details.clipChildren &amp;&amp; clip ? intersect(clip, raw) : clip;</div>
+
+  <div class="legend">
+    <span class="lg"><span class="swl" style="border-color:#2563eb"></span>container, absolute origin</span>
+    <span class="lg"><span class="swl" style="border-color:#ea580c"></span>clip region</span>
+    <span class="lg"><span class="swl" style="border-color:#7c3aed; border-top-style:dashed"></span>node</span>
+    <span style="margin-left:auto">the analyzer measures touch targets from <code style="font-family:ui-monospace,Consolas,monospace">visibleBounds</code></span>
+  </div>
+</div>
+</body>
+</html>

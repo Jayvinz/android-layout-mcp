@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1180px; padding: 30px 34px 26px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .pane { background: #fff; border: 1px solid #dfe6ee; border-radius: 10px; padding: 13px 15px; }
+  .pane h4 { margin: 0 0 9px; font: 700 12px/1 -apple-system, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+  .pane h4 span { font-weight: 400; letter-spacing: 0; text-transform: none; color: #7c8894; margin-left: 7px; }
+  .mono { font: 12px/1.75 ui-monospace, "SF Mono", Consolas, monospace; color: #334155; white-space: pre; }
+  .mono .class { color: #059669; font-weight: 600; }
+  .mono .dim { color: #94a3b8; }
+  .mono .id { color: #b45309; }
+
+  .mid { display: flex; align-items: center; gap: 14px; margin: 14px 0; }
+  .mid .line { flex: 1; height: 1px; background: #dfe6ee; }
+  .mid .pill { font: 600 12px/1 ui-monospace, Consolas, monospace; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 8px 13px; border-radius: 999px; white-space: nowrap; }
+
+  .stage3 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .stage3 .pane { border-color: #a7f3d0; background: #f7fefb; }
+
+  .rules { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .rule { background: #fff; border: 1px solid #dfe6ee; border-radius: 8px; padding: 10px 12px; }
+  .rule .h { font: 700 11.5px/1 -apple-system, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #059669; margin-bottom: 6px; }
+  .rule p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #475569; }
+  .rule p b { color: #0f172a; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="top">
+    <div class="pane">
+      <h4>dumpsys activity<span>real classes, no text</span></h4>
+      <div class="mono">View Hierarchy:
+  <span class="class">LinearLayout</span>{<span class="dim">1080x2122</span>}
+    <span class="dim">…</span>
+    <span class="class">MaterialButton</span> {<span class="id">id/btnXml</span> <span class="dim">948x132</span>}
+      <span class="dim">mText = (none)</span>
+    <span class="class">MaterialButton</span> {<span class="id">id/btnCompose</span>}
+      <span class="dim">mText = (none)</span></div>
+    </div>
+    <div class="pane">
+      <h4>semantics<span>text, weaker classes</span></h4>
+      <div class="mono">Node bounds=[66,432][1014,564]
+  class=<span class="class">android.widget.Button</span>
+  text=<span class="id">"Open XML screen"</span>
+Node bounds=[66,597][1014,729]
+  class=<span class="class">android.widget.Button</span>
+  text=<span class="id">"Open Compose screen"</span></div>
+    </div>
+  </div>
+
+  <div class="mid">
+    <span class="line"></span>
+    <span class="pill">join by geometry — median top delta, bounded to 10% of screen height</span>
+    <span class="line"></span>
+  </div>
+
+  <div class="stage3">
+    <div class="pane">
+      <h4>before<span>a release build tells you nothing about labels</span></h4>
+      <div class="mono">MaterialButton id/btnXml <span class="dim">[66,432][1014,564]</span></div>
+    </div>
+    <div class="pane">
+      <h4>after<span>class from dumpsys, text from accessibility</span></h4>
+      <div class="mono"><span class="class">MaterialButton</span> id/btnXml <span class="id">"Open XML screen"</span></div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="rule">
+      <div class="h">unique match only</div>
+      <p>A node is joined when exactly one candidate shares its rectangle. Two candidates, no join.</p>
+    </div>
+    <div class="rule">
+      <div class="h">same class family</div>
+      <p><b>TextView</b> may take text from a <b>MaterialTextView</b>; an <b>ImageView</b> may not.</p>
+    </div>
+    <div class="rule">
+      <div class="h">measured offset</div>
+      <p>The window-vs-screen gap differs per device, so it is measured from the two trees, not hard-coded.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

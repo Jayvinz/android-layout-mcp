@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1180px; padding: 28px 30px 24px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+  .title { font-size: 13px; color: #64748b; margin-bottom: 14px; }
+  .title b { color: #0f172a; }
+
+  .cols { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: stretch; }
+  .host {
+    background: #fff; border: 1px solid #dfe6ee; border-radius: 10px; padding: 14px 16px;
+  }
+  .host h3, .dev h3 { font: 700 12px/1 -apple-system, sans-serif; letter-spacing: .07em; text-transform: uppercase; margin: 0 0 12px; }
+  .host h3 { color: #7c3aed; }
+  .dev h3 { color: #2563eb; }
+  .item { font-size: 12.8px; line-height: 1.45; color: #334155; padding: 7px 0; border-bottom: 1px dashed #edf2f7; }
+  .item:last-child { border-bottom: 0; }
+  .item code { font: 600 12px/1 ui-monospace, Consolas, monospace; color: #0f172a; }
+  .item span.tag { float: left; margin-right: 7px; font: 600 10.5px/1.7 ui-monospace, Consolas, monospace; color: #64748b; background: #f1f5f9; padding: 0 6px; border-radius: 3px; }
+  .cache { margin-top: 10px; padding: 9px 11px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 7px; font: 12px/1.5 ui-monospace, Consolas, monospace; color: #475569; }
+
+  .dev {
+    background: #fff; border: 1px solid #dfe6ee; border-radius: 10px; padding: 14px 16px;
+    position: relative;
+  }
+  .staged { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+  .art {
+    border: 1px solid #dfe6ee; border-radius: 7px; padding: 9px 8px; text-align: center;
+    background: #fbfcfe; font: 600 11.5px/1.3 ui-monospace, Consolas, monospace; color: #1e293b;
+  }
+  .art small { display: block; font: 400 10.5px/1.35 -apple-system, sans-serif; color: #7c8894; margin-top: 4px; }
+  .art.hi { border-color: #fdba74; background: #fff7ed; }
+
+  .flow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .box {
+    border:.1px solid #dfe6ee; border: 1px solid #dfe6ee; border-radius: 8px; padding: 10px 12px; background: #fbfcfe;
+  }
+  .box .h { font: 700 11.5px/1 -apple-system, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #2563eb; margin-bottom: 7px; }
+  .box p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #475569; }
+  .box p code { font: 600 11.5px/1 ui-monospace, Consolas, monospace; color: #0f172a; }
+
+  .strip { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font: 12px/1 ui-monospace, Consolas, monospace; color: #64748b; flex-wrap: wrap; }
+  .chip { background: #eef2f7; border: 1px solid #dfe6ee; border-radius: 999px; padding: 6px 11px; }
+  .chip.on { background: #fff7ed; border-color: #fdba74; color: #9a3412; font-weight: 600; }
+  .ar { color: #94a3b8; }
+
+  .foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12.5px; line-height: 1.55; color: #64748b; }
+  .foot b { color: #0f172a; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="title"><b>compose</b> capture: what comes from the host, what is pushed to the device, and what stays resident.</div>
+
+  <div class="cols">
+    <div class="host">
+      <h3>Host</h3>
+      <div class="item"><span class="tag">studio</span>Locate Android Studio, read its build number</div>
+      <div class="item"><span class="tag">maven</span>Fetch <code>inspector.jar</code> for the app's Compose version</div>
+      <div class="item"><span class="tag">javac</span>Compile the helper against that exact build</div>
+      <div class="item"><span class="tag">adb</span>Stage, start, and talk to the daemon</div>
+      <div class="item"><span class="tag">once</span>Everything above is cached, so the second capture is cheaper</div>
+      <div class="cache">~/.cache/android-layout/<br>inspector-1.8.3.jar<br>helper-&lt;studio-build&gt;/</div>
+    </div>
+
+    <div class="dev">
+      <h3>Device · /data/local/tmp/alm-compose</h3>
+      <div class="staged">
+        <div class="art">transport<small>gRPC, ARM binary</small></div>
+        <div class="art">agent<small>JVMTI .so</small></div>
+        <div class="art">perfa.jar<small>ArtTooling</small></div>
+        <div class="art">view-inspector<small>app code_cache</small></div>
+        <div class="art hi">compose-inspector<small>app code_cache</small></div>
+      </div>
+
+      <div class="flow">
+        <div class="box">
+          <div class="h">start once</div>
+          <p><code>run-as &lt;pkg&gt; cp</code> puts the two jars in <code>code_cache</code>. The daemon starts from a hand-encoded protobuf config, because the project ships no protobuf runtime.</p>
+        </div>
+        <div class="box">
+          <div class="h">then reuse</div>
+          <p>The process stays alive between commands. Later captures skip the startup cost and only re-query the trees.</p>
+        </div>
+      </div>
+
+      <div class="strip">
+        <span class="chip on">screenshots off</span><span class="ar">→</span>
+        <span>no SKP capture, no 78 MB peak on a 256 MB heap</span>
+      </div>
+      <div class="strip" style="margin-top:8px">
+        <span class="chip">root view id only</span><span class="ar">→</span>
+        <span class="chip">composable names, file:line, params, recompose counts</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><b>Why this is opt-in.</b> The path needs a debuggable build, a local Android Studio, Java 17+, API 29+, and 8–12 s per capture — and the daemon outlives the command until <code>android-layout compose-clean</code> removes it.</div>
+</div>
+</body>
+</html>

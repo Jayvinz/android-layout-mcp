@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1188px; padding: 28px 32px 26px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .grid { display: grid; grid-template-columns: 352px 1fr; gap: 30px; align-items: start; }
+
+  .phone { width: 352px; padding: 11px; border-radius: 30px; background: #1f2933; box-shadow: 0 10px 26px rgba(15,23,42,.17); }
+  .scr { position: relative; width: 330px; height: 733px; border-radius: 22px; overflow: hidden; background: #0b0f14; }
+  .scr img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .box { position: absolute; border: 1.3px solid rgba(37,99,235,.95); border-radius: 3px; }
+  .box.warn { border: 1.5px dashed #f59e0b; border-radius: 3px; }
+  .box.hot { border: 2px solid #dc2626; background: rgba(220,38,38,.16); }
+
+  .lab {
+    position: absolute; font: 700 9.5px/1 ui-monospace, Consolas, monospace;
+    background: #b45309; color: #fff; padding: 2px 4px; border-radius: 2px; white-space: nowrap;
+  }
+  .lab.hot { background: #dc2626; }
+
+  .right { display: flex; flex-direction: column; gap: 14px; }
+  .h { font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+  .sub { font-size: 12.8px; line-height: 1.62; color: #64748b; }
+
+  .code { background: #0d1117; border-radius: 9px; padding: 12px 15px; font: 11.5px/1.74 ui-monospace, "SF Mono", Consolas, monospace; color: #c9d1d9; white-space: pre; }
+  .code .ref { color: #d2a8ff; } .code .cls { color: #7ee787; } .code .num { color: #79c0ff; }
+  .code .txt { color: #e3b341; } .code .flag { color: #ff7b72; } .code .cm { color: #6e7681; }
+
+  .rows { display: flex; flex-direction: column; gap: 9px; border-top: 1px solid #e2e8f0; padding-top: 13px; }
+  .row { display: grid; grid-template-columns: 16px 62px 1fr; gap: 10px; align-items: baseline; font-size: 12.6px; }
+  .sw { width: 15px; height: 10px; border-radius: 2px; border: 1.3px solid rgba(37,99,235,.95); }
+  .sw.hot { border: 2px solid #dc2626; background: rgba(220,38,38,.16); }
+  .sw.warn { border: 1.5px dashed #f59e0b; }
+  .sid { font: 700 11.6px/1 ui-monospace, Consolas, monospace; color: #0f172a; }
+  .row span { color: #64748b; }
+  .note { font-size: 11.6px; line-height: 1.55; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="grid">
+    <div>
+      <div class="phone"><div class="scr">
+        <img src="phone.png" alt="captured screen">
+        <!-- device px scaled by 330/1080 onto the 330x733 render of the 1080x2400 capture -->
+        <div class="box warn" style="left:10.1px;  top:630.7px; width:150.6px; height:55.6px;">
+          <span class="lab" style="left:3px; top:3px;">s37</span>
+        </div>
+        <div class="box warn" style="left:169.3px; top:630.7px; width:150.6px; height:55.6px;">
+          <span class="lab" style="right:3px; top:3px;">s38</span>
+        </div>
+        <div class="box" style="left:15.3px;  top:672.8px; width:101.1px; height:22.6px;"></div>
+        <div class="box" style="left:213.3px; top:672.8px; width:101.4px; height:22.6px;"></div>
+        <div class="box hot" style="left:125.0px; top:672.8px; width:79.8px; height:22.6px;"></div>
+      </div></div>
+      <div class="note" style="margin-top:11px; width:352px;">Dashed boxes run under the floating bottom bar. That is where the node bounds end, not where the pixels stop being visible.</div>
+    </div>
+
+    <div class="right">
+      <div>
+        <div class="h">One capture, three different questions</div>
+        <div class="sub" style="margin-top:5px">Where is a label, which node handles the tap, and which clickables say nothing at all.</div>
+      </div>
+
+      <div class="code"><span class="cm">$ android-layout shot --annotate --scale 0.5</span>
+<span class="cm">saved screenshot.png (540x1200, downscaled from 1080x2400)</span>
+<span class="cm">saved screenshot.annotated.svg</span>
+
+<span class="cm">$ android-layout find "开拍"</span>
+<span class="ref">s43</span> [semantics] <span class="cls">android.widget.TextView</span> <span class="txt">"开拍"</span> [<span class="num">536,2244</span>][<span class="num">604,2276</span>] center=(<span class="num">570,2260</span>)
+   <span class="cm">FrameLayout > … > ComposeView > View > View > TextView "开拍"</span>
+
+<span class="cm"># the label does not handle the tap; its container does</span>
+<span class="ref">s42</span> <span class="cls">View</span> [<span class="num">409,2202</span>][<span class="num">670,2276</span>] <span class="num">261x74</span> <span class="flag">{click}</span>
+
+<span class="cm">$ android-layout analyze</span>
+<span class="cm">2 issue(s) in 57 nodes (density 2.75dp):</span>
+
+<span class="cm">unlabeled_clickable (2)</span>
+  <span class="flag">s37</span> View [<span class="num">33,2064</span>][<span class="num">526,2246</span>] — Clickable element has no text,
+       content description, or resource id.
+  <span class="flag">s38</span> View [<span class="num">554,2064</span>][<span class="num">1047,2246</span>] — Clickable element has no text,
+       content description, or resource id.</div>
+
+      <div class="rows">
+        <div class="row"><span class="sw hot"></span><span class="sid">s42</span><span>the container that receives the tap — a 261x74 View with no text of its own</span></div>
+        <div class="row"><span class="sw"></span><span class="sid">s43</span><span>the label inside it — what you see, and what <code>find</code> matches on</span></div>
+        <div class="row"><span class="sw warn"></span><span class="sid">s37 s38</span><span>clickable cards with no name at all — invisible to a screen reader</span></div>
+      </div>
+
+      <div class="sub">The same payload answers all three: the label's rectangle, the container that owns the click, and the two cards a screen reader cannot name. A screenshot shows only the first.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

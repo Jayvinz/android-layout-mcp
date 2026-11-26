@@ -1,22 +1,29 @@
-# How Android Layout MCP Reads a Screen: JDWP, UIAutomator, and JVMTI
+# Four Android APIs, One Screen Tree: how a capture works
 
-*Part 2 of two. [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-getting-started.md) covers installation and everyday use.*
+#### Part 2 of two: JDWP, UIAutomator, dumpsys, and the Compose inspector
 
-*[Figure 1: one screen captured by several sources, merged into a single tree]*
+*This is the second of two posts about [Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp). [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-getting-started.md) covers installation, capture, and source tracing.*
 
-Android has no single API that answers "what is on this screen". There is the View hierarchy, reachable through the debugger or through `dumpsys activity`; the accessibility tree, exposed by `uiautomator`; and the Compose inspector, which lives inside Android Studio and speaks gRPC. Each returns different data at a different cost.
+![Four source cards — view over JDWP, semantics over uiautomator, dumpsys, and compose over JVMTI — each listing what it returns, what it requires, and its cost, feeding one normalized UiNode record. Below, a sample tree shows the same provenance tags on real nodes, and a side note gives measured node counts for one Compose screen.](images/p2-fig1-four-sources.png)
 
-[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) uses all four and normalizes them into one node tree with short refs. This post follows each path, shows where the raw data changes shape, and explains the decisions that keep the output usable by a coding agent.
+*The four paths do not compete; each answers a different subset of "what is on this screen".*
 
-### Four answers to one question
+Android has no single API that answers "what is on this screen". The view hierarchy knows classes, padding, and resource ids. The accessibility tree knows what a screen reader would announce. `dumpsys activity` prints a hierarchy and the Fragment records. The [Compose](https://developer.android.com/develop/ui/compose) inspector knows composable names and source lines, provided [Android Studio](https://developer.android.com/studio) is running.
 
-The View hierarchy is the most detailed source. Every `View` reports its class, resource id, bounds, padding, margins, visibility, and layout params. On a Compose screen it stops at `AndroidComposeView`, which is a container with no children.
+[Android Layout MCP](https://github.com/Jayvinz/android-layout-mcp) uses all four and normalizes them into one node tree with short refs. This post follows each path, shows where the raw data changes shape, and ends with the parts the tree cannot see.
 
-The accessibility tree is the cheapest source. `adb shell uiautomator dump` writes an XML file describing what accessibility services see. Compose text, content descriptions, and clickable bounds show up on any app, debug or release. Layout params and custom View classes do not.
+### One question, four APIs
 
-The Compose tree reaches inside the composition. It returns Composable names, source file and line, bounds, parameter text, and recomposition counts. Getting it requires a running Android Studio, a debuggable app, and about ten seconds per capture.
+Each source answers a different subset of the question, at a different cost:
 
-The fourth path needs neither a debugger nor accessibility: `dumpsys activity <package>` prints an indented `View Hierarchy` and the `Active Fragments` records. It gives real View classes, resource ids, and window bounds on a release build, but no text, so the tool captures semantics alongside it and joins the two by geometry.
+| Source | Returns | Requires | Speed |
+|---|---|---|---|
+| `view` over JDWP | Full View classes, layout params, padding, margins, visibility | A debuggable app | ~100 ms |
+| `semantics` over uiautomator | Text, content descriptions, clickable bounds | Nothing | ~0.5–3 s |
+| `dumpsys activity` | Real View classes, ids, bounds, Activity and Fragment records | Nothing | ~100–300 ms |
+| `compose` over JVMTI | Composable names, `file:line`, bounds, parameters, recompose counts | Debuggable app, local Android Studio, Java | ~8–12 s |
+
+The gap is easiest to see in the repository's captured fixtures (API 33). A traditional XML screen yields 20 nodes from the view source and 18 from accessibility, where class names degrade to roles such as `Button` and `ViewGroup`. A Compose screen flips it: 10 View nodes, because the dump stops at `AndroidComposeView`; 49 accessibility nodes that carry the text; and 489 Composable nodes from the Compose inspector.
 
 ### The view tree over JDWP
 
@@ -27,11 +34,9 @@ adb shell pidof com.example.app
 adb forward tcp:0 jdwp:12345
 ```
 
-A TCP connection to that port must complete the `JDWP-Handshake` exchange, after which the client can send DDMS chunks. Android's view debugging lives in command set `0xC7`, with two chunk types: `VULW` lists windows and `VURT` dumps one window's hierarchy.
+The socket must complete the [`JDWP-Handshake`](https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/jdwp-spec.html) exchange before any command. After that the client sends DDMS chunks in command set `0xC7`. `VULW` lists windows; `VURT` dumps one of them.
 
-`VULW` replies with a count followed by UTF-16BE strings of the form `package/activity`. That is how the tool reports the foreground Activity and finds dialogs and popups in separate windows.
-
-`VURT` takes a small binary payload. The flags matter: skip nothing, include properties, and request version 2 of the encoding.
+`VURT` takes a small binary payload, and every field matters:
 
 ```ts
 const payload = Buffer.concat([
@@ -44,64 +49,88 @@ const payload = Buffer.concat([
 ]);
 ```
 
-The reply is the buffer produced by [`android.view.ViewDebug.dumpv2`](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/view/ViewDebug.java). The client resumes the VM after attaching, so the app keeps rendering while the hierarchy is read.
+The reply is the buffer produced by [`android.view.ViewDebug.dumpv2`](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/view/ViewDebug.java). The client resumes the VM after the handshake, so the app keeps rendering while the tree is read.
 
-*[Figure 2: JDWP handshake, the VULW and VURT chunks, and the dumpv2 reply]*
+`VULW` returns windows in creation order, which is not the order a user sees. With a translucent activity or a dialog on top, the first entry can be the invisible window behind it. The tool resolves the focused component from `mCurrentFocus` and sorts that window first. Capturing all of them is opt-in: `window=all` dumps every window the process reports, marks the focused one as `selected`, and shares one node budget across the result.
 
-### Decoding dumpv2
+![A four-part sequence diagram across three lanes: the client, the app process, and android.view.ViewDebug. Step one is the handshake; step two is VULW listing windows with the reply arriving in creation order; step three is the VURT payload and the dumpv2 call; step four is the tagged-value reply decoded on the client.](images/p2-fig2-jdwp-sequence.png)
 
-The buffer is a stream of tagged values: `Z` boolean, `B` byte, `S` short, `I` int, `J` long, `F` float, `D` double, `R` string, `M` map, and a zero byte that ends a map. Maps nest, and child views appear as `meta:__child__0`, `meta:__child__1`, and so on.
+*Four exchanges, one of which is the whole point: the app walks its own hierarchy on request.*
 
-The last map in the stream is not a view. It is the property-name string table: the earlier maps store property keys as integers, and the table maps those integers to names such as `layout:left`. That indirection is why a dump of a few hundred views stays compact.
+#### Decoding dumpv2
 
-Property names are also where version differences show up. API 33 emits `layout:left`, `drawing:translationX`, and `misc:visibility`; older dumps and custom Views use names like `mLeft`. The decoder checks a list of aliases per property instead of hardcoding one spelling.
+The reply is a stream of tagged values: `Z` for boolean, `B`, `S`, `I`, `J`, `F`, `D` for numbers, `R` for strings, and `M` for maps, with a zero key closing each map. Child views appear as `meta:__child__0`, `meta:__child__1`, and so on.
 
-Coordinates need a second pass. A View's `left` and `top` are relative to its parent, and parents scroll and translate. The tool walks the tree once and accumulates:
+The last map is not a view. It is the property-name table, and the earlier maps store property keys as integers that index into it:
+
+```ts
+const table = maps[maps.length - 1];
+const viewMaps = maps.slice(0, -1);
+const propertyNames = new Map<number, string>();
+for (const [key, value] of table.entries) {
+  if (typeof value === "string") propertyNames.set(key, value);
+}
+```
+
+That indirection keeps a dump of several hundred views small, and it is where Android version drift shows up: API 33 emits `layout:left`, `misc:visibility`, and `drawing:translationX`, while older dumps and custom Views use `mLeft`, `mVisibility`, and `mTranslationX`. The decoder keeps an alias list per property instead of hardcoding one spelling.
+
+#### Coordinates, clipping, and refs
+
+A View's `left` and `top` are relative to its parent, and parents scroll and translate. One walk accumulates absolute coordinates and tracks the clip rectangle:
 
 ```ts
 const absX = parentAbsX + details.left - parentScrollX + details.translationX;
 const absY = parentAbsY + details.top - parentScrollY + details.translationY;
-const raw = {
-  left: Math.round(absX),
-  top: Math.round(absY),
-  // ...right and bottom from the measured size
-};
 
 node.visibleBounds = visible && clip ? intersect(raw, clip) : null;
 const childClip = details.clipChildren && clip ? intersect(clip, raw) : clip;
 ```
 
-`visibleBounds` is the part of a node that survives ancestor clipping. The analyzer sizes touch targets from it, and the screenshot overlay draws it as the node box. A node clipped away entirely has `visibleBounds: null` while its raw `bounds` stay intact.
+`visibleBounds` is the part of a node that survives ancestor clipping. The analyzer measures touch targets from it, and the screenshot overlay draws it as the node box. A node clipped away entirely keeps its raw `bounds` and gets `visibleBounds: null`, which says something different from "the view is gone".
 
-Refs (`v0`, `v1`, ...) are assigned during the same walk. They are short because agents pass them between tool calls, and disposable because the next capture renumbers them.
+Refs (`v0`, `v1`, and so on) are assigned during the same walk. They are short because an agent passes them between tool calls, and disposable because the next capture renumbers them.
 
-### The semantics tree
+![Three nested containers and three nodes. A DecorView contains a scrolling View, whose clip rectangle is drawn across the lower half. One node sits entirely above the clip and reports null, one straddles the edge and reports a cropped rectangle, one sits fully inside and reports bounds equal to visibleBounds. The walk formula is printed below.](images/p2-fig3-coords-clip.png)
 
-`uiautomator dump` returns XML with attributes such as `text`, `content-desc`, `resource-id`, `class`, `clickable`, `enabled`, `checked`, and `bounds`. Parsing it is straightforward; deciding what the result means is not. The [UI Automator](https://developer.android.com/training/testing/other-components/ui-automator) documentation describes the same tree that accessibility services consume.
+*Same walk, three outcomes: clipped away, partially visible, fully visible. This is why `visibleBounds` exists as a second field.*
 
-Accessibility nodes are merged. A `Row` with a label and an icon may appear as one clickable node whose text comes from a descendant. Compose's `testTag` is invisible to this tree unless an ancestor enables `testTagsAsResourceId`, which is why the docs suggest relying on content descriptions when locator stability matters.
+### The accessibility tree
 
-The upside is reach. The semantics tree works on release builds, on any app, and without Android Studio. It takes roughly half a second to three seconds per capture, depending on the screen.
+`adb shell uiautomator dump` writes XML with `text`, `content-desc`, `resource-id`, `class`, `clickable`, `enabled`, `checked`, and `bounds` per node. This is the tree that [accessibility services](https://developer.android.com/guide/topics/ui/accessibility) consume, and it is the only content source that needs no debuggable build.
+
+It also merges nodes. A row with a label and an icon can arrive as one clickable node whose text comes from a descendant, and a Compose `testTag` stays invisible unless the app enables [`testTagsAsResourceId`](https://developer.android.com/develop/ui/compose/testing#test_tags). When locator stability matters, a content description survives more refactors than a text label.
 
 **Note**: some ROMs report an accessibility window shorter than the physical screen, which clips nodes at the bottom. The analyzer skips touch-target checks for those nodes instead of reporting false positives.
 
 ### The Compose tree
 
-This path borrows Android Studio's own tooling. The tool locates a Studio installation (`--studio`, `ALM_ANDROID_STUDIO`, the running process, or default paths), reads its build number, and stages five artifacts on the device: the gRPC `transport` daemon, the [JVMTI](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html) agent, `perfa.jar`, the View inspector jar, and the Compose inspector jar it fetched for the app's Compose version.
+This path borrows Android Studio's own tooling. The tool locates a Studio installation from `--studio`, `ALM_ANDROID_STUDIO`, a running process, or the default install paths; reads its build number; fetches the Compose inspector jar for the app's Compose version from Google Maven (1.8.3 unless you override it); and caches the jar plus a helper compiled against that exact Studio build under `~/.cache/android-layout/`.
 
-The Compose inspector jar does not come from the Studio install. It is extracted from the `ui-android` AAR on Google Maven for the app's Compose version (1.8.3 by default) and cached under `~/.cache/android-layout/`. The helper jar is compiled on first use against the exact Studio build and compiler version, then cached by a hash of build id, helper source, and compiler version. When no compiler is available, a committed helper jar is used instead.
+On the device it stages five artifacts: the gRPC `transport` binary, the JVMTI agent library, `perfa.jar`, the View inspector jar, and the Compose inspector jar. `run-as` copies the two jars into the app's `code_cache`, and the daemon starts with a hand-encoded protobuf config, since the project carries no protobuf runtime. It stays resident in `/data/local/tmp/alm-compose`, so later captures skip the startup cost.
 
-On the device, `run-as` copies the inspector jars into the app's `code_cache`, and the transport daemon starts with a hand-encoded protobuf config. There is no protobuf runtime in the project; the few messages needed are written as varint fields directly. The helper then drives the View and Compose inspectors over gRPC and prints JSON.
+The capture asks the View inspector for the root view id only and disables inspector screenshots. Leaving them on forces an SKP capture with a 78 MB peak on a 256 MB heap, which OOMs the app. What comes back is the data no other source has: `CommunityActivity.kt:85`, composable names, parameter text, and recompose counts.
 
-Two deliberate limits reduce the cost. The capture asks for the root view id only and disables inspector screenshots, which would allocate a large SKP buffer; the project notes a 78 MB peak when screenshots are left on. The daemon stays resident in `/data/local/tmp/alm-compose`, so later captures skip startup.
+The cost is why `compose` is opt-in: 8 to 12 seconds per capture, API 29 or newer, a local Android Studio, and device state that outlives the command until `android-layout compose-clean` runs.
 
-The result carries what the other sources cannot: `CommunityActivity.kt:85`, Composable names, parameter text, and recompose counts. It costs 8 to 12 seconds, needs API 29 or newer, and leaves state on the device until `android-layout compose-clean` runs.
+![A two-column staging diagram. The host locates Android Studio, fetches the inspector jar from Google Maven, compiles a helper against that exact build, and caches both under ~/.cache/android-layout. The device side shows five staged artifacts and the two jars copied into the app's code_cache, plus a note that the daemon stays resident between captures.](images/p2-fig4-device-staging.png)
 
-*[Figure 3: Studio artifacts staged on the device, the resident transport daemon, and the helper's gRPC calls]*
+*What is prepared once, what is pushed, and what survives the command.*
+
+### Release builds and dumpsys
+
+Release builds have no debugger, so the fourth path comes from the ActivityManager. `dumpsys activity <package>` prints an indented `View Hierarchy` with real View classes, resource ids, absolute window bounds, and a positional flag string, plus the `Active Fragments` records with lifecycle state.
+
+Fragments are unique to this source. A release build with obfuscated class names still prints a tag and a container id, which is enough to identify the Fragment behind a page.
+
+The gap is text: a `TextView{...}` line has no `mText`. `--source dumpsys` therefore captures the semantics tree as well and joins the two by geometry. The offset between window and screen coordinates varies across devices, so the merge measures it from the trees (the median top delta of text nodes, bounded to 10% of the screen height) and joins only unique matches whose classes belong to the same family. A `TextView` can receive text from a `MaterialTextView`; an `ImageView` cannot.
+
+![Two source panels at the top, dumpsys on the left listing real View classes with no text and semantics on the right carrying text with weaker classes. A pill between them describes the geometric join. Below, a before-and-after pair shows a lone class-and-id node becoming a node with a label, followed by three cards stating the join rules: unique match only, same class family, measured offset.](images/p2-fig5-dumpsys-merge.png)
+
+*Release builds give up text, so the fourth path borrows it — but only when the rectangle and the class family both agree.*
 
 ### Choosing a source
 
-`auto` decides from the View tree before it captures anything else. It first looks for `ComposeView` or `AndroidComposeView`; if neither exists, the screen is XML. If a Compose container exists, it then asks whether any non-Compose node carries text, a content description, a click action, a non-system resource id, or a leaf widget class. Any hit makes the screen mixed. A shortened version, with the structural container allow-list removed:
+`auto` starts from the view tree and classifies the screen before anything else happens. A `ComposeView` or `AndroidComposeView` decides whether Compose is present; a second pass asks whether any non-Compose node carries text, a content description, a click action, a non-system resource id, or a leaf widget class:
 
 ```ts
 const hasCompose = nodes.some((node) => /ComposeView|AndroidComposeView/.test(node.className));
@@ -117,49 +146,55 @@ const hasXmlContent = nodes.some((node) => {
 return hasXmlContent ? "mixed" : "compose";
 ```
 
-Pure XML screens use the View tree. Pure Compose screens use semantics, because it needs no debug build and already contains the text. Mixed screens carry both trees, and search plus hit testing query both.
+The result is `xml`, `compose`, `mixed`, or `unknown`. Pure XML screens use the view tree. Pure Compose screens use accessibility, which needs no debug build and already carries the text. Mixed screens keep both trees and search both.
 
-Why not use the Compose tree every time, since it carries the most detail? It needs a debug build, a local Studio, Java 17+, API 29+, and ten seconds. Most questions about labels, bounds, and clickability are answered by semantics in about a second.
+![A decision tree. The entry point is --source auto, which starts from the view tree. Question one asks whether any node is a ComposeView or AndroidComposeView; no means xml, yes leads to a second question about whether a non-Compose node carries real content, which decides mixed or compose. A table below lists each result with its primary tree, the reason, and the fallback when the primary fails.](images/p2-fig6-source-choice.png)
 
-When the View capture fails, for example on a release build, `auto` keeps the semantics tree and records a warning. An explicit `--source view` fails instead. The JSON carries a `sources` array, so a later reader can see which trees contributed.
+*Classification runs before the capture is returned, so the payload always states which path produced its numbers.*
+
+Why not use the Compose tree every time, since it knows the most? It needs a debug build, a local Studio, Java 17+, API 29+, and eight to twelve seconds. Most questions about labels, bounds, and clickability are answered in about a second.
+
+Two behaviors matter when a capture fails. If a tree fails, `auto` records a warning and uses the other one; an explicit `--source view` fails instead. A capture that races a window transition is retried once after 300 ms, while a JDWP attach failure is not retried, since each attempt spends its own ten-second connect timeout.
+
+The stability probe is newer. `settle=true` samples the app's frame counter from `dumpsys gfxinfo` every 250 ms before capturing and reports one of three outcomes:
+
+```json
+"stability": {
+  "stable": false,
+  "reason": "timeout",
+  "waitedMs": 3094,
+  "framesPerInterval": 20,
+  "measuredIntervalMs": 328
+}
+```
+
+Two quiet intervals mean `stable: yes`, and the JSON field says `true`. A ROM or process without the counter reports `stable: unknown`, and the JSON says `null`. Anything else means the UI was still producing frames, so the bounds describe a moment in an animation. Naming the node that keeps invalidating would require `UiAutomation.waitForIdle` inside the app process, which means installing an instrumentation APK; the frame counter is the approximation that needs no install.
 
 ### From tree to answer
 
-Four pieces turn the tree into an answer.
+Hit testing collects every node whose visible bounds contain the point, then sorts by visible area ascending, depth, and draw order, so the smallest element wins. Search matches text, content description, resource id, class, and ref, with `contains`, `exact`, and `/regex/` modes over the primary tree or both trees.
 
-**Hit testing** collects every node whose visible bounds contain the point, sorts by visible area ascending, then by depth, then by draw order. The smallest element wins, which matches what the user meant to point at.
+Analysis runs twelve rules: small touch targets, sibling overlap, clipping, children outside a non-scrollable parent, offscreen views, invisible clickables, zero sizes, unlabeled clickables, duplicate ids, deep nesting, overdraw, and RTL mirroring gaps. `deep_nesting` is skipped on the Compose source, where wrapper depth is an artifact of the framework, and the two property-based rules request raw View properties by default.
 
-**Search** matches text, content description, resource id, class (fully qualified or short), and ref. `contains` ignores case, `exact` does not, and `/pattern/flags` compiles to a regular expression. Invisible nodes are filtered out by default.
+![Twelve rules in four columns by the evidence they read: geometry (zero size, offscreen, small touch target, outside parent), visibility (clipped, invisible clickable, overlap), identity (unlabeled clickable, duplicate id, deep nesting), and raw View properties (overdraw, RTL issues). Each row carries its severity. Two notes follow: deep nesting is skipped on the Compose source, and the raw-property group reports itself as skipped under --no-props.](images/p2-fig7-rules.png)
 
-**Analysis** runs twelve rules over the normalized tree: small touch targets, sibling overlap, clipping, children outside a non-scrollable parent, offscreen views, invisible clickables, zero sizes, unlabeled clickables, duplicate ids, deep nesting, overdraw, and RTL mirroring gaps. `deep_nesting` is skipped for the Compose source, where wrapper depth is an artifact of the framework; `overdraw` and `rtl_issues` read raw View properties, so the analyzer requests them by default.
+*Four kinds of evidence, one list of rules. The last column is why a capture sometimes has to ask for the debug dump.*
 
-**Verifying a change** is a diff the agent performs, not a tool the server owns. Save a dump before the change and one after (`dump_ui(savePath=".alm/before.json")` / `.alm/after.json`, or `android-layout dump --json --out`), then compare the two JSON files. Refs expire with each capture, so the comparison keys on source, resource id, class, text, and path instead of `v12`/`s43`. `analyze_ui` then re-runs the rule set on the new capture.
-
-Source tracing is a separate pass. `locate_code` reads the repository, extracts string and layout anchors, finds `@Composable` definitions and call sites, follows layout includes, and scores candidates: 100 for a Composable definition matched by name or line, 90 for the file the inspector reported, 80 for an id usage next to a click listener, 78 for the layout that defines the id, 45 for a call site. Build output, generated code, and tests are excluded unless asked for.
-
-### Keeping the agent honest
-
-An agent can activate a device tool in the wrong repository. The plugin uses two mechanisms to prevent that in Claude Code, and a portable version of the same rule in every other client.
-
-Every skill and command body starts with a hard gate on Android project markers. A [`PreToolUse` hook](https://code.claude.com/docs/en/hooks) enforces the same rule at the tool layer: it walks up to ten directories looking for `settings.gradle(.kts)`, `gradlew`, an `AndroidManifest.xml`, or a module build file that applies `com.android.*`. If none exists, it denies `get_state`, `dump_ui`, `find_elements`, and `locate_code` unless the latest user message explicitly asks about a device screen or mentions Android.
-
-The hook fails open on internal errors, so a broken gate cannot block a legitimate session. The five skills divide work as well: `capture-ui` answers what is on screen and never calls `locate_code`; `inspect-view-attribute` reads one View's raw layout and style values; `trace-view-wiring` traces one element's implementation; `trace-ui-logic` maps one block's UI → state → data chain; `audit-ui` owns defect judgments from the rule set. The split is enforced by skill descriptions and tested, because a skill that does everything is hard for a model to route correctly.
-
-### When the agent is not Claude Code
-
-The hook is a Claude Code feature. Move the same skills into Codex CLI, CodeBuddy, or WorkBuddy and the hard gate disappears; the Android-project rule is left as prose in each skill body. That text stays effective because the files are copied unchanged. Their frontmatter carries only `name` and `description`, the portable subset of the Agent Skills standard, and executable paths resolve through `$ALM_ROOT` instead of `${CLAUDE_PLUGIN_ROOT}`. A sync script writes the same files into `.agents/skills`, `.codebuddy/skills`, or `.workbuddy/skills`, so every agent reads the same gate text without a plugin cache.
-
-The server needs no adaptation at all. It speaks MCP over stdio, and the tool set is identical across clients; a `--client <id>` flag reshapes only the config envelope, from `mcpServers` JSON to Codex TOML, VS Code `servers`, Zed `context_servers`, or Goose YAML. Twenty ids share seven shapes. Four clients were exercised end to end: OpenCode listed all 9 tools, CodeBuddy Code and Codex CLI called `list_devices` and got a real device, and WorkBuddy exposed the tools after a one-time GUI approval. Each stopped in a different place first. OpenCode rejects a loose config, CodeBuddy needs approval for project servers, `codex exec` waits on stdin in a non-interactive shell, and WorkBuddy trusts no server until you enable it in the GUI.
-
-Keeping that matrix honest needs a test that reads the docs. `test/cross-agent-compat.test.ts` takes `MCP_CLIENT_IDS` as its source of truth and checks that all six client tables, the CLI choices, and the config shapes agree with it. Add an id in code without updating the docs and the suite fails. The three other suites cover the config envelopes, the portable skill frontmatter, and byte-identical sync copies. The whole suite runs without a device.
+Projection is what keeps large screens affordable. `format=compact` drops nodes that neither say nor do anything, promotes the children of dropped containers, and reports how many nodes survived. The full tree stays in `format=json`, and `analyze` always runs on the full tree because the rules need it.
 
 ### What the design costs
 
-Four sources mean four sets of prerequisites. Two of them need a debug build, JDWP allows one debugger at a time, Composable-level detail needs a local Android Studio, and a Compose capture takes ten seconds. Release builds get semantics and dumpsys. Content drawn to a canvas, a `SurfaceView`, or a `WebView` has no text to find. Nothing here monitors the screen continuously; every command is a new snapshot.
+Four sources mean four sets of prerequisites. Captures carry warnings, a `sources` array, and the stability object when you asked for it. Refs expire with the snapshot. `compose` needs a local Android Studio and leaves a daemon behind. Content drawn to a canvas, a `SurfaceView`, or inside a `WebView` has no text to find in any tree.
 
-Those constraints appear in the output. Captures carry warnings, refs expire with the snapshot, and the JSON says which sources produced the tree. The next time an agent reports that a button sits at `(540, 2239)`, that number came from one of these paths, and the payload names it.
+The next time an agent tells you a button sits at `(540, 2239)`, the payload also says which path produced that number, whether the screen was still moving, and what the capture could not see.
 
-If you want to try it, [Part 1](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-getting-started.md) has the install steps.
+Part 1 has the install steps and the everyday commands: [Give Your Coding Agent a Live View of the Android Screen](https://github.com/Jayvinz/android-layout-mcp/blob/main/blog/2026-11-24-android-layout-mcp-getting-started.md).
+
+*The code snippets in this post use the project's MIT license:*
+
+```text
+// Copyright (c) Jayvinz. SPDX-License-Identifier: MIT
+```
 
 **Resources**
 
@@ -170,10 +205,6 @@ If you want to try it, [Part 1](https://github.com/Jayvinz/android-layout-mcp/bl
 - [JDWP specification](https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/jdwp-spec.html)
 - [JVMTI specification](https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html)
 - [UI Automator](https://developer.android.com/training/testing/other-components/ui-automator)
-- [Android Studio](https://developer.android.com/studio)
+- [ViewDebug source](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/view/ViewDebug.java)
 
-*The code snippets in this post use the project's MIT license:*
-
-```text
-// Copyright (c) Jayvinz. SPDX-License-Identifier: MIT
-```
+*P.S. Thanks to the people who captured the same screens with all four sources and compared the node counts.*

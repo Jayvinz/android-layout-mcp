@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1180px; padding: 30px 34px 26px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; }
+  .head h3 { margin: 0; font-size: 15px; }
+  .head .stat { font: 600 12px/1 ui-monospace, Consolas, monospace; color: #64748b; }
+
+  .cols { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: stretch; gap: 0; }
+  .panel { background: #fff; border: 1px solid #dfe6ee; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+  .panel .bar { padding: 9px 14px; background: #f8fafc; border-bottom: 1px solid #e8edf3; font: 700 11px/1.4 -apple-system, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #64748b; display: flex; justify-content: space-between; }
+  .panel .bar span:last-child { font-weight: 600; letter-spacing: 0; text-transform: none; font-family: ui-monospace, Consolas, monospace; color: #94a3b8; }
+  .tree { padding: 12px 14px 18px; flex: 1; font: 12.3px/1.85 ui-monospace, "SF Mono", Consolas, monospace; white-space: pre; }
+  .cap { color: #cbd5e1; } .cls { color: #334155; } .dim { color: #94a3b8; } .txt { color: #b45309; } .flag { color: #dc2626; }
+  .kept { color: #0f172a; font-weight: 600; }
+  .dropped { color: #cbd5e1; }
+  .arrowc { display: flex; align-items: center; justify-content: center; font-size: 20px; color: #94a3b8; height: 100%; align-self: stretch; }
+
+  .pn { display: flex; gap: 18px; margin-top: 18px; font-size: 12.5px; color: #64748b; flex-wrap: wrap; }
+  .pn .k { display: flex; align-items: center; gap: 7px; }
+  .sq { width: 10px; height: 10px; border-radius: 2px; }
+
+  .rules { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .rule { background: #fff; border: 1px solid #dfe6ee; border-left: 3px solid #7c3aed; border-radius: 8px; padding: 10px 13px; }
+  .rule .h { font: 700 11px/1 -apple-system, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #6d28d9; margin-bottom: 6px; }
+  .rule p { margin: 0; font-size: 12.4px; line-height: 1.55; color: #475569; }
+  .rule code { font: 600 11.5px/1.4 ui-monospace, Consolas, monospace; color: #0f172a; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="head">
+    <h3>compact drops the wrappers, then promotes their children</h3>
+    <span class="stat">fixture: 20 nodes → 9 kept, 11 dropped</span>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="bar"><span>full tree</span><span>20 nodes</span></div>
+      <div class="tree"><span class="dropped">v0  DecorView</span>
+<span class="dropped">  v1  ActionBarOverlayLayout </span><span class="dropped dim">id/decor_content_parent</span>
+<span class="dropped">    v2  FrameLayout </span><span class="dropped dim">id/content</span>
+<span class="dropped">      v3  LinearLayout</span>
+        <span class="kept">v4  TextView</span> <span class="txt">"Android SPI · variant self-check"</span>
+        <span class="kept">v5  TextView</span> <span class="txt">"variant = freeDebug …"</span>
+        <span class="kept">v6  TextView</span> <span class="txt">"SELF-CHECK  PASS   12/12"</span>
+        <span class="kept">v7  TextView</span> <span class="txt">"[PASS] C01 registry initialized …"</span>
+<span class="dropped">        v8  LinearLayout</span>
+          <span class="kept">v9  Button</span> <span class="txt">"Re-run checks"</span> <span class="flag">{click}</span>
+          <span class="kept">v10 Button</span> <span class="txt">"Camera module"</span> <span class="flag">{click}</span>
+        <span class="kept">v11 ScrollView</span> <span class="flag">{scroll}</span>
+          <span class="kept">v12 TextView</span> <span class="txt">"── provider table ── …"</span>
+<span class="dropped">    v13 ActionBarContainer </span><span class="dropped dim">id/action_bar_container</span>
+<span class="dropped">      v14 Toolbar </span><span class="dropped dim">id/action_bar</span>
+        <span class="kept">v15 TextView</span> <span class="txt">"Android SPI Demo"</span>
+<span class="dropped">      v16 ActionMenuView</span>
+<span class="dropped">    v17 ActionBarContextView</span>
+<span class="dropped">  v18 View </span><span class="dropped dim">id/navigationBarBackground</span>
+<span class="dropped">  v19 View </span><span class="dropped dim">id/statusBarBackground</span></div>
+    </div>
+
+    <div class="arrowc">→</div>
+
+    <div class="panel">
+      <div class="bar"><span>compact tree</span><span>9 nodes</span></div>
+      <div class="tree"><span class="kept">v4  TextView</span> <span class="txt">"Android SPI · variant self-check"</span>
+<span class="kept">v5  TextView</span> <span class="txt">"variant = freeDebug …"</span>
+<span class="kept">v6  TextView</span> <span class="txt">"SELF-CHECK  PASS   12/12"</span>
+<span class="kept">v7  TextView</span> <span class="txt">"[PASS] C01 registry initialized …"</span>
+<span class="kept">v9  Button</span> <span class="txt">"Re-run checks"</span> <span class="flag">{click}</span>
+<span class="kept">v10 Button</span> <span class="txt">"Camera module"</span> <span class="flag">{click}</span>
+<span class="kept">v11 ScrollView</span> <span class="flag">{scroll}</span>
+  <span class="kept">v12 TextView</span> <span class="txt">"── provider table ── …"</span>
+<span class="kept">v15 TextView</span> <span class="txt">"Android SPI Demo"</span>
+
+<span class="dim">// v9 and v10 moved up one level:</span>
+<span class="dim">// their parent v8 said and did nothing</span>
+
+<span class="dim">// the payload reports the trim:</span>
+<span class="dim">{</span> <span class="flag">"stats"</span><span class="dim">: { </span><span class="flag">"nodes"</span><span class="dim">: 20, </span><span class="flag">"kept"</span><span class="dim">: 9,</span>
+  <span class="flag">"dropped"</span><span class="dim">: 11, </span><span class="flag">"truncated"</span><span class="dim">: false } }</span>
+
+<span class="dim">// format=flat keeps the same 9 nodes</span>
+<span class="dim">// but adds </span><span class="cls">depth</span><span class="dim">, so parentage survives</span>
+<span class="dim">// even when a wrapper was removed.</span></div>
+    </div>
+  </div>
+
+  <div class="pn">
+    <span class="k"><span class="sq" style="background:#0f172a"></span>kept: says or does something</span>
+    <span class="k"><span class="sq" style="background:#cbd5e1"></span>dropped: pure layout wrapper</span>
+    <span style="margin-left:auto">stats reported in the payload: <code style="font-family:ui-monospace,Consolas,monospace">nodes · kept · dropped · truncated</code></span>
+  </div>
+
+  <div class="rules">
+    <div class="rule">
+      <div class="h">what earns a place</div>
+      <p>Text, a content description, any interaction flag, a checked/selected state, disabled, or a non-system id.</p>
+    </div>
+    <div class="rule">
+      <div class="h">what gets promoted</div>
+      <p>A dropped container's children attach to the nearest retained ancestor, so nothing under it is lost.</p>
+    </div>
+    <div class="rule">
+      <div class="h">what still sees all</div>
+      <p><code>analyze</code> always runs on the full tree: overlap and clipping rules need the wrappers.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

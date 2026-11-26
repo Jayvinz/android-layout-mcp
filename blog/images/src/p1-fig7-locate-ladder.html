@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f8fa; }
+  .canvas { width: 1188px; padding: 28px 32px 26px; font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; color: #1f2933; }
+
+  .top { margin-bottom: 18px; }
+  .t { font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+  .s { font-size: 12.6px; line-height: 1.6; color: #64748b; margin-top: 4px; }
+
+  .ladder { display: flex; flex-direction: column; gap: 0; }
+  .rung { display: grid; grid-template-columns: 62px 200px 1fr; gap: 14px; align-items: center; padding: 11px 14px; border-radius: 8px; margin-bottom: 7px; background: #fff; border: 1px solid #e2e8f0; }
+  .rung.top1 { border-left: 4px solid #7c3aed; background: #faf7ff; }
+  .rung.top2 { border-left: 4px solid #2563eb; background: #f5f9ff; }
+  .rung.mid  { border-left: 4px solid #0d9488; background: #f4fdfb; }
+  .rung.low  { border-left: 4px solid #94a3b8; background: #f8fafc; }
+
+  .score { font: 700 18px/1 ui-monospace, Consolas, monospace; }
+  .score.p { color: #7c3aed; } .score.b { color: #2563eb; } .score.t { color: #0d9488; } .score.g { color: #94a3b8; }
+  .kind { font: 600 11.4px/1 ui-monospace, Consolas, monospace; color: #0f172a; }
+  .kind small { display: block; font: 500 11px/1.4 -apple-system, sans-serif; color: #94a3b8; margin-top: 3px; letter-spacing: 0; }
+  .why { font-size: 12.4px; line-height: 1.55; color: #475569; }
+
+  .cue { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; font-size: 12.3px; color: #64748b; }
+  .cue .bar { flex: none; width: 4px; height: 13px; border-radius: 1px; background: #cbd5e1; }
+
+  .result { background: #0d1117; border-radius: 9px; padding: 13px 16px; font: 12px/1.72 ui-monospace, "SF Mono", Consolas, monospace; color: #c9d1d9; white-space: pre; margin-top: 2px; }
+  .result .num { color: #79c0ff; } .result .fil { color: #7ee787; } .result .knd { color: #d2a8ff; }
+  .result .cm { color: #6e7681; }
+
+  .foot { font-size: 11.9px; line-height: 1.6; color: #94a3b8; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="top">
+    <div class="t">What one anchor is worth</div>
+    <div class="s">The scores are a confidence ladder, not a ranking of files. A definition beats a usage, a usage beats a mention of the same string.</div>
+  </div>
+
+  <div class="cue"><span class="bar"></span><span>Strongest evidence first: the code that defines the thing your anchor names.</span></div>
+
+  <div class="ladder">
+    <div class="rung top1"><div class="score p">100</div><div class="kind">compose-definition<small>@Composable InputBar</small></div><div class="why">The composable itself, matched by name or by the line the inspector reported.</div></div>
+    <div class="rung top2"><div class="score b">90</div><div class="kind">compose-location<small>file from the inspector</small></div><div class="why">The inspector named the file but not a composable that resolves, so the file stands in.</div></div>
+    <div class="rung top2"><div class="score b">80</div><div class="kind">id-usage-strong<small>R.id near a listener</small></div><div class="why">An id reference that sits in a file which also wires up a click listener.</div></div>
+    <div class="rung top2"><div class="score b">78</div><div class="kind">layout-id<small>&lt;View android:id&gt;</small></div><div class="why">The layout that defines the id. Geometry and label usually live here.</div></div>
+  </div>
+
+  <div class="cue" style="margin-top:2px;"><span class="bar" style="background:#5eead4;"></span><span>Weaker: the anchor appears, but the line may be a duplicate of the real one.</span></div>
+
+  <div class="ladder">
+    <div class="rung mid"><div class="score t">48</div><div class="kind">literal-text<small>Text("发送")</small></div><div class="why">A string literal on a Text/Button/setText line. Two stages can both match it.</div></div>
+    <div class="rung low"><div class="score g">45</div><div class="kind">compose-callsite<small>InputBar( … )</small></div><div class="why">Whoever calls the composable. Useful for the tree, not for the handler.</div></div>
+  </div>
+
+  <div class="result"><span class="cm">$ android-layout locate-code --compose-name InputBar --text 发送</span>
+<span class="num"> 100</span> <span class="fil">…/stage1/ui/ChatScreen.kt:163</span> <span class="knd">[compose-definition]</span> @Composable InputBar definition
+<span class="num">  48</span> <span class="fil">…/stage1/ui/ChatScreen.kt:184</span> <span class="knd">[literal-text]</span> Text("发送")
+<span class="num">  48</span> <span class="fil">…/stage2/ui/ChatScreen.kt:108</span> <span class="knd">[literal-text]</span> Text("发送")
+<span class="num">  45</span> <span class="fil">…/stage1/ui/ChatScreen.kt:103</span> <span class="knd">[compose-callsite]</span> Calls InputBar</div>
+
+  <div class="foot">Ties break by path, then by line, so the same anchor produces the same order twice. `locate_code` ranks files and stops there: opening the file is still the agent's job.</div>
+</div>
+</body>
+</html>
