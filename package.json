@@ -1,6 +1,6 @@
 {
   "name": "android-layout-mcp",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "CLI + MCP server for layout capture and UI-to-code location on Android: view hierarchy, Compose tree, and accessibility semantics over ADB",
   "type": "module",
   "license": "MIT",
