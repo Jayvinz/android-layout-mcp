@@ -32,6 +32,12 @@ export declare class Adb {
     devices(): Promise<DeviceInfo[]>;
     resolveDevice(explicitSerial?: string): Promise<DeviceInfo>;
     packagePids(packageName: string): Promise<number[]>;
+    /**
+     * Total frames rendered by the app's process, from `dumpsys gfxinfo`.
+     * `null` when the ROM does not report it or the process is gone; the settle
+     * probe treats that as "unknown", never as "idle".
+     */
+    frameCount(packageName: string): Promise<number | null>;
     screenInfo(): Promise<ScreenInfo>;
     foregroundApp(): Promise<ForegroundApp>;
     forwardJdwp(pid: number): Promise<number>;

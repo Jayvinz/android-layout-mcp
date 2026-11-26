@@ -54,3 +54,23 @@ test("assigns parents and unique refs", () => {
   assert.ok(createButtonText);
   assert.equal(createButtonText.parent?.clickable, true);
 });
+
+test("sorts a transposed bounds rect instead of producing a negative size", () => {
+  // Accessibility can report left>right; Android's Rect.sort normalizes it, and
+  // a negative width would poison visibleBounds, center, hit_test and analyze.
+  const parsed = parseSemanticsXml(
+    "<?xml version='1.0'?><hierarchy rotation=\"0\"><node index=\"0\" text=\"x\" " +
+      "class=\"android.widget.TextView\" bounds=\"[100,80][20,50]\" /></hierarchy>",
+    "com.example.droidreel.debug",
+  );
+  assert.deepEqual(parsed.roots[0].bounds, {
+    left: 20,
+    top: 50,
+    right: 100,
+    bottom: 80,
+    width: 80,
+    height: 30,
+  });
+  assert.equal(parsed.roots[0].center.x, 60);
+  assert.equal(parsed.roots[0].center.y, 65);
+});

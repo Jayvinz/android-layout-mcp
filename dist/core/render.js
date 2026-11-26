@@ -16,8 +16,12 @@ export function renderCapture(result, source, options = {}) {
     lines.push(`primary source: ${result.source} (captured: ${result.sources.join(", ")})`);
     lines.push(`ui kind: ${result.uiKind}` +
         (result.uiKind === "mixed" ? " (view + semantics; both trees rendered below)" : ""));
+    if (result.stability)
+        lines.push(formatStability(result.stability));
     if (result.view) {
-        lines.push(`view window: ${result.view.window} (${result.view.captureMs}ms)`);
+        lines.push(result.view.windows && result.view.windows.length > 1
+            ? `view windows: ${result.view.windows.length} (primary: ${result.view.window}, ${result.view.captureMs}ms)`
+            : `view window: ${result.view.window} (${result.view.captureMs}ms)`);
     }
     if (result.semantics) {
         lines.push(`semantics rotation=${result.semantics.rotation} (${result.semantics.captureMs}ms)`);
@@ -47,7 +51,7 @@ export function renderCapture(result, source, options = {}) {
     if (renderBoth) {
         if (result.view) {
             lines.push("", "── view hierarchy ──");
-            lines.push(...renderTrees(result.view.roots, options));
+            lines.push(...renderViewTrees(result.view, options));
         }
         if (result.semantics) {
             lines.push("", "── semantics tree ──");
@@ -70,10 +74,29 @@ export function renderCapture(result, source, options = {}) {
                                 : result.source === "dumpsys"
                                     ? result.dumpsys?.roots
                                     : result.view?.roots;
-        if (roots)
-            lines.push("", ...renderTrees(roots, options));
+        if (roots) {
+            const viewTrees = source === "view" || (source === undefined && result.source === "view")
+                ? result.view
+                : undefined;
+            lines.push("", ...(viewTrees ? renderViewTrees(viewTrees, options) : renderTrees(roots, options)));
+        }
     }
     return lines.join("\n");
+}
+/**
+ * One window per section when `window=all` captured several, otherwise the
+ * single tree as before. The primary window is named and marked so a reader can
+ * tell which tree the rest of the capture (find/hit/analyze) used.
+ */
+function renderViewTrees(view, options) {
+    if (!view.windows || view.windows.length < 2)
+        return renderTrees(view.roots, options);
+    const lines = [];
+    for (const window of view.windows) {
+        lines.push(`${window.selected ? "primary" : "window"}: ${window.name}`, ...renderTrees(window.roots, options), "");
+    }
+    lines.pop();
+    return lines;
 }
 export function renderTrees(roots, options = {}) {
     const lines = [];
@@ -102,6 +125,18 @@ export function renderTrees(roots, options = {}) {
         lines.push(`… truncated at ${maxNodes} nodes (use --depth/--max-nodes or JSON output for more)`);
     }
     return lines;
+}
+/** One header line for the optional settle probe. */
+export function formatStability(stability) {
+    if (stability.stable === true) {
+        return `stable: yes (settled in ${stability.waitedMs}ms, ${stability.samples.length} samples)`;
+    }
+    if (stability.stable === false) {
+        return (`stable: no — ${stability.framesPerInterval ?? "?"} frames in the last ` +
+            `${stability.measuredIntervalMs ?? stability.intervalMs}ms ` +
+            `after ${stability.waitedMs}ms; the snapshot may be mid-animation`);
+    }
+    return `stable: unknown (${stability.hint ?? "frame counter unavailable"})`;
 }
 function formatLine(node, options) {
     const parts = [`${node.ref}`, node.shortClassName];

@@ -66,7 +66,8 @@ Then decide whether to capture more based on `uiKind`:
 Notes:
 
 - `ref` values (`v*` / `s*` / `c*`) are valid only for one capture. Re-capture after the UI changes; never reuse stale refs.
-- `visibleOnly` only affects `format="tree"`; JSON output still contains invisible nodes, so filter them yourself.
+- `visibleOnly` only affects `format="tree"`; JSON output still contains invisible nodes, so filter them yourself. `format="compact"` already drops nodes that say nothing and do nothing (and their invisible children are gone too), so prefer it when the tree is large and you only need labels and targets.
+- When the screen may be animating (loading spinner, list scrolling, transition), pass `settle=true`: a `stability` object with `stable: false` means the bounds you just read are a mid-animation snapshot, so re-capture before drawing conclusions.
 - When the user refers to "the top-left of the screen" or "the position in the screenshot", call `screenshot` and use the returned `width` / `originalWidth` / `scale` for coordinate mapping. Never treat image pixels as device coordinates; map them with `coordinateMapping.imageToDevice` and then call `hit_test` in device coordinates.
 - Take screenshots only when visual information is genuinely needed. Text, ids, and Compose anchors are usually sufficient.
 - If Compose capture fails (non-debuggable app, Android Studio not installed, Compose version mismatch), do not retry repeatedly. Fall back to semantics plus string/id anchors and mark source confidence as medium or low in the conclusion. Do not claim the result came from the Compose tree.
@@ -94,7 +95,7 @@ When nothing is found:
 
 1. The target may be offscreen or collapsed: say it is not in this capture, and ask the user to scroll or expand it. Then re-run `dump_ui` and `find_elements`; remind the user that old refs are invalid. This skill never scrolls the device itself.
 2. Icon buttons without text: use `by="desc"` or `by="id"`.
-3. A dialog/overlay may belong to another window: inspect `windows` in `get_state`, then `dump_ui(source="view", window="<index>")` if needed.
+3. A dialog/overlay may belong to another window: inspect `windows` in `get_state`, then `dump_ui(source="view", window="all")` to capture every window at once (each tree is under `view.windows`), or `window="<index>"` for one.
 4. Still nothing: go to Step 3 and fall back to code search using nearby static text, ids, or class names; follow `references/repo-search-recipes.md`.
 
 **Do not turn "not in this capture" into "not in the repository".** One frame is evidence about the screen, not about the codebase.

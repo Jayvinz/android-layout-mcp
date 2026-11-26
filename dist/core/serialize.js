@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { serializeNode } from "./viewdump.js";
 export function serializeDump(result, includeProperties = true) {
+    const roots = (nodes) => nodes.map((node) => serializeNode(node, { includeProps: includeProperties }));
     return {
         version: 1,
         createdAt: new Date().toISOString(),
@@ -16,7 +17,17 @@ export function serializeDump(result, includeProperties = true) {
                 view: {
                     window: result.view.window,
                     captureMs: result.view.captureMs,
-                    roots: result.view.roots.map((node) => serializeNode(node, { includeProps: includeProperties })),
+                    // A multi-window capture lists every tree under `windows`; the
+                    // primary is marked selected, so `roots` is not duplicated here.
+                    ...(result.view.windows
+                        ? {
+                            windows: result.view.windows.map((window) => ({
+                                name: window.name,
+                                ...(window.selected ? { selected: true } : {}),
+                                roots: roots(window.roots),
+                            })),
+                        }
+                        : { roots: roots(result.view.roots) }),
                 },
             }
             : {}),
@@ -25,7 +36,7 @@ export function serializeDump(result, includeProperties = true) {
                 semantics: {
                     rotation: result.semantics.rotation,
                     captureMs: result.semantics.captureMs,
-                    roots: result.semantics.roots.map((node) => serializeNode(node, { includeProps: includeProperties })),
+                    roots: roots(result.semantics.roots),
                 },
             }
             : {}),
@@ -50,6 +61,7 @@ export function serializeDump(result, includeProperties = true) {
             }
             : {}),
         warnings: result.warnings,
+        ...(result.stability ? { stability: result.stability } : {}),
     };
 }
 function filterTarget(target) {

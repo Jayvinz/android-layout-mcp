@@ -4,7 +4,34 @@ import { JdwpClient } from "./jdwp.js";
 import { mergeSemanticsText, parseDumpsys } from "./dumpsys.js";
 import { fragmentsFromDump } from "./fragments.js";
 import { parseSemanticsXml } from "./semantics.js";
+import { delay, waitForStableUi } from "./settle.js";
 import { flattenNodes, parseViewHierarchy } from "./viewdump.js";
+/** One retry covers the usual "dump raced a window transition" failure. */
+const CAPTURE_ATTEMPTS = 2;
+const CAPTURE_RETRY_DELAY_MS = 300;
+/**
+ * JDWP attach failures are deterministic (non-debuggable app, another debugger
+ * attached, no process) and each attempt costs its own ~10s connect timeout, so
+ * retrying only doubles the wait. Same for bad input.
+ */
+const NO_RETRY_CODES = new Set(["BAD_INPUT", "NO_PID", "JDWP_FAILED"]);
+async function withRetry(label, progress, run) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= CAPTURE_ATTEMPTS; attempt++) {
+        try {
+            return await run();
+        }
+        catch (error) {
+            lastError = error;
+            const retryable = !(error instanceof AlmError && NO_RETRY_CODES.has(error.code));
+            if (attempt >= CAPTURE_ATTEMPTS || !retryable)
+                break;
+            progress(`${label} capture failed (${errorMessage(error)}), retrying`);
+            await delay(CAPTURE_RETRY_DELAY_MS);
+        }
+    }
+    throw lastError;
+}
 const STRUCTURAL_CONTAINER_CLASSES = new Set([
     "com.android.internal.policy.DecorView",
     "android.widget.FrameLayout",
@@ -83,6 +110,21 @@ export async function capture(options) {
         target.pid = pids[0] ?? null;
     }
     progress(target.pid ? `pid ${target.pid}` : "no running process found for the package");
+    // The settle probe runs before any tree capture so the snapshot that follows
+    // is the settled one whenever the UI cooperates. Its own result is attached
+    // to the capture either way, so a mid-animation snapshot is never silent.
+    let stability;
+    if (options.settle) {
+        stability = await waitForStableUi(adb, packageName, {
+            timeoutMs: options.settleTimeoutMs,
+            intervalMs: options.settleIntervalMs,
+        });
+        progress(stability.stable === true
+            ? `UI settled after ${stability.waitedMs}ms`
+            : stability.stable === false
+                ? `UI still changing after ${stability.waitedMs}ms (${stability.framesPerInterval} frames in ${stability.intervalMs}ms)`
+                : "frame counter unavailable; capture stability unknown");
+    }
     const wantView = sourceMode === "view" || sourceMode === "auto" || sourceMode === "both";
     // dumpsys carries no text, so it always pairs with the semantics tree.
     const wantSemantics = sourceMode !== "view" && sourceMode !== "compose";
@@ -98,9 +140,10 @@ export async function capture(options) {
         }
         else {
             try {
-                viewResult = await captureViewHierarchy(adb, target, screen, options);
+                viewResult = await withRetry("view hierarchy", progress, () => captureViewHierarchy(adb, target, screen, options, warnings, foreground));
                 target.debuggable = true;
-                progress(`captured view hierarchy (${viewResult.roots.length} root, ${flattenNodes(viewResult.roots).length} nodes)`);
+                progress(`captured view hierarchy (${viewResult.roots.length} root, ${flattenNodes(viewResult.roots).length} nodes` +
+                    `${viewResult.windows ? `, ${viewResult.windows.length} windows` : ""})`);
             }
             catch (error) {
                 const message = errorMessage(error);
@@ -113,7 +156,7 @@ export async function capture(options) {
     }
     if (wantSemantics) {
         try {
-            semanticsResult = await captureSemantics(adb, packageName, options);
+            semanticsResult = await withRetry("semantics", progress, () => captureSemantics(adb, packageName, options));
             progress(`captured semantics tree (${flattenNodes(semanticsResult.roots).length} nodes)`);
         }
         catch (error) {
@@ -126,7 +169,7 @@ export async function capture(options) {
     }
     if (wantDumpsys) {
         try {
-            dumpsysResult = await captureDumpsys(adb, packageName, target, screen, options);
+            dumpsysResult = await withRetry("dumpsys", progress, () => captureDumpsys(adb, packageName, target, screen, options));
             // dumpsys has no text; merge the semantics tree when one is available so
             // a non-debuggable screen still answers "what does this element say".
             if (semanticsResult) {
@@ -216,9 +259,10 @@ export async function capture(options) {
         ...(dumpsysResult ? { dumpsys: dumpsysResult } : {}),
         ...(composeResult ? { compose: composeResult } : {}),
         warnings,
+        ...(stability ? { stability } : {}),
     };
 }
-async function captureViewHierarchy(adb, target, screen, options) {
+async function captureViewHierarchy(adb, target, screen, options, warnings, foreground) {
     if (target.pid === null) {
         throw new AlmError("NO_PID", "The app does not have a running process.");
     }
@@ -232,9 +276,20 @@ async function captureViewHierarchy(adb, target, screen, options) {
         if (windows.length === 0) {
             throw new AlmError("VIEW_DUMP_FAILED", "The app reported no windows.");
         }
-        const candidates = chooseWindows(windows, options.window, target.packageName);
+        const candidates = orderByFocus(chooseWindows(windows, options.window, target.packageName), focusToken(foreground, target.packageName));
+        const captureAll = options.window === CAPTURE_ALL_WINDOWS;
+        // A single-window capture stops at the first window that parses, as before.
+        // `all` captures every window and tolerates per-window failures, so one
+        // broken popup cannot cost the whole capture.
+        const limit = captureAll
+            ? Math.min(candidates.length, MAX_CAPTURED_WINDOWS)
+            : Math.min(candidates.length, 4);
+        if (captureAll && candidates.length > limit) {
+            warnings.push(`Captured ${limit} of ${candidates.length} windows; pass --window <index> for the rest.`);
+        }
+        const captured = [];
         let lastError = null;
-        for (const window of candidates.slice(0, 4)) {
+        for (const window of candidates.slice(0, limit)) {
             try {
                 const bytes = await client.dumpViewHierarchy(window.name);
                 const roots = parseViewHierarchy(bytes, {
@@ -244,44 +299,89 @@ async function captureViewHierarchy(adb, target, screen, options) {
                 });
                 if (roots.length === 0) {
                     lastError = new AlmError("VIEW_DUMP_FAILED", "The view hierarchy was empty.");
+                    if (captureAll)
+                        warnings.push(`Window "${window.name}" was empty and was skipped.`);
                     continue;
                 }
-                target.selectedWindow = window.name;
-                return { window: window.name, roots, captureMs: Date.now() - started };
+                captured.push({ name: window.name, roots });
+                if (!captureAll)
+                    break;
             }
             catch (error) {
                 lastError = error;
+                if (captureAll)
+                    warnings.push(`Window "${window.name}" failed: ${errorMessage(error)}`);
             }
         }
-        throw lastError instanceof Error
-            ? lastError
-            : new AlmError("VIEW_DUMP_FAILED", "Could not capture any window.");
+        if (captured.length === 0) {
+            throw lastError instanceof Error
+                ? lastError
+                : new AlmError("VIEW_DUMP_FAILED", "Could not capture any window.");
+        }
+        const [primary] = captured;
+        target.selectedWindow = primary.name;
+        const captureMs = Date.now() - started;
+        if (!captureAll) {
+            return { window: primary.name, roots: primary.roots, captureMs };
+        }
+        return {
+            window: primary.name,
+            roots: primary.roots,
+            captureMs,
+            windows: captured.map((window, index) => (index === 0 ? { ...window, selected: true } : window)),
+        };
     }
     finally {
         await client.close();
     }
 }
-function chooseWindows(windows, requested, packageName) {
-    if (requested) {
-        const index = Number.parseInt(requested, 10);
-        if (/^\d+$/.test(requested) && Number.isFinite(index)) {
-            const match = windows[index];
-            if (!match) {
-                throw new AlmError("BAD_INPUT", `Window index ${index} does not exist (0-${windows.length - 1}).`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
-            }
-            return [match];
-        }
-        const matches = windows.filter((window) => window.name.includes(requested));
-        if (matches.length === 0) {
-            throw new AlmError("BAD_INPUT", `No window matches "${requested}".`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
-        }
-        return matches;
-    }
+/** The `window` value that captures every window of the app's process. */
+export const CAPTURE_ALL_WINDOWS = "all";
+/** `pkg/activity` of the focused window, when it belongs to the captured app. */
+function focusToken(foreground, packageName) {
+    if (!foreground.activity || !foreground.packageName)
+        return null;
+    if (packageName && foreground.packageName !== packageName)
+        return null;
+    return `${foreground.packageName}/${foreground.activity}`;
+}
+/**
+ * JDWP lists windows in creation order, not focus order: when a translucent
+ * activity or a dialog sits on top, the first window can be the invisible one
+ * behind it. Put the focused window first so the default capture (and the
+ * primary tree of `window=all`) is the one the user is looking at.
+ */
+export function orderByFocus(windows, token) {
+    if (!token)
+        return windows;
+    const focused = windows.filter((window) => window.name.includes(token));
+    if (focused.length === 0)
+        return windows;
+    return [...focused, ...windows.filter((window) => !window.name.includes(token))];
+}
+/** Each extra window costs a JDWP dump; beyond this the caller should pick one. */
+const MAX_CAPTURED_WINDOWS = 8;
+export function chooseWindows(windows, requested, packageName) {
     const samePackage = packageName
         ? windows.filter((window) => window.packageName === packageName)
         : [];
     const rest = windows.filter((window) => !samePackage.includes(window));
-    return [...samePackage, ...rest];
+    const ordered = [...samePackage, ...rest];
+    if (requested === undefined || requested === CAPTURE_ALL_WINDOWS)
+        return ordered;
+    const index = Number.parseInt(requested, 10);
+    if (/^\d+$/.test(requested) && Number.isFinite(index)) {
+        const match = windows[index];
+        if (!match) {
+            throw new AlmError("BAD_INPUT", `Window index ${index} does not exist (0-${windows.length - 1}).`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
+        }
+        return [match];
+    }
+    const matches = windows.filter((window) => window.name.includes(requested));
+    if (matches.length === 0) {
+        throw new AlmError("BAD_INPUT", `No window matches "${requested}".`, `Windows: ${windows.map((w, i) => `${i}: ${w.name}`).join(", ")}`);
+    }
+    return matches;
 }
 async function captureSemantics(adb, packageName, options) {
     const started = Date.now();

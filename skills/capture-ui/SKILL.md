@@ -63,13 +63,15 @@ Call `dump_ui(source="auto", format="tree", visibleOnly=true)`.
 
 Summarize the top 2–3 levels, then the visible leaf labels and clickable entries. Never paste hundreds of lines.
 
+When the screen may be moving (a spinner, a list still scrolling, a transition), add `settle=true`. Its `stability` object tells you whether the capture is trustworthy: `stable: false` means the bounds are a mid-animation snapshot, so re-capture before reporting positions.
+
 ### Step 3 — Answer a specific element
 
 Search in this order: `find_elements(by="text")` → `by="desc"` → `by="id"` → `by="class"`. For a positional question ("屏幕坐标 300,800 是什么"), call `hit_test(x, y)` and use `index` to cycle overlapping candidates.
 
 Report `bounds`, `center`, `clickable`, `enabled`, `className`. If several matches stay plausible, list them with bounds instead of picking one.
 
-If nothing matches, the element may be offscreen, in another window, or labeled only by description. Check `windows`, retry with `by="desc"`, and say it is not in this capture rather than claiming it does not exist.
+If nothing matches, the element may be offscreen, in another window, or labeled only by description. Check `windows`, pass `window="<index-or-name>"` to `find_elements` for an unfocused dialog, retry with `by="desc"`, and say it is not in this capture rather than claiming it does not exist.
 
 ### Step 4 — Artifacts
 

@@ -11,6 +11,7 @@ import { capture, treesFor } from "./core/capture.js";
 import { AlmError, errorMessage } from "./core/errors.js";
 import { readFragments } from "./core/fragments.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
+import { buildCompactPayload } from "./core/prune.js";
 import { renderCapture, renderSource } from "./core/render.js";
 import { saveScreenshot, screenshotMetadata, takeScreenshot, writeAnnotatedSvgFromCapture, } from "./core/screenshot.js";
 import { captureState } from "./core/state.js";
@@ -58,6 +59,8 @@ export async function startMcpServer(options = {}) {
             pid: args.pid,
             window: args.window,
             includeProperties: args.includeProperties,
+            settle: args.settle,
+            settleTimeoutMs: args.settleTimeoutMs,
             requestTimeoutMs: options.timeout ?? 30_000,
             studioPath: options.studioPath,
             javaPath: options.javaPath,
@@ -131,17 +134,34 @@ export async function startMcpServer(options = {}) {
     });
     server.registerTool("dump_ui", {
         title: "Dump the UI hierarchy",
-        description: "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/elements; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\"). Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+        description: "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/elements; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. format=tree renders a readable tree, format=json (default) returns the full structured tree, format=compact drops nodes with no text/content description/interaction/state and promotes their children, and format=flat emits those same nodes in pre-order with depth. settle=true waits for the app to stop producing frames and reports stability, so an animation or a loading spinner cannot silently produce a wrong snapshot. window=all captures every window of the app (dialogs, popups, separate ViewRootImpls) and returns them under view.windows instead of a single view.roots. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\"). Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
         inputSchema: {
             serial: z.string().optional().describe("Device serial."),
             package: z.string().optional().describe("Package to inspect; defaults to foreground app."),
             source: sourceSchema.optional().describe("auto (default), view, semantics, dumpsys, compose, or both."),
-            format: z.enum(["json", "tree"]).optional().describe("json (default) or tree."),
-            depth: z.number().int().min(0).max(100).optional().describe("Limit JSON tree depth; omit for full depth."),
-            maxNodes: z.number().int().min(1).max(5000).optional().describe("Limit JSON nodes (default 800)."),
+            format: z
+                .enum(["json", "tree", "compact", "flat"])
+                .optional()
+                .describe("json (default, full tree), tree (readable), compact (content/interactive nodes only, children promoted), or flat (compact in pre-order with depth)."),
+            depth: z.number().int().min(0).max(100).optional().describe("Limit JSON/compact tree depth; omit for full depth."),
+            maxNodes: z.number().int().min(1).max(5000).optional().describe("Limit JSON/compact nodes (default 800)."),
             includeProperties: z.boolean().optional().describe("Include every ViewDebug property in JSON."),
             visibleOnly: z.boolean().optional().describe("For format=tree, hide invisible/gone views."),
-            window: z.string().optional().describe("ViewRootImpl window name or index for source=view."),
+            settle: z
+                .boolean()
+                .optional()
+                .describe("Wait for the UI to stop animating before capturing and report stability."),
+            settleTimeoutMs: z
+                .number()
+                .int()
+                .min(250)
+                .max(15000)
+                .optional()
+                .describe("Maximum settle wait in ms (default 3000)."),
+            window: z
+                .string()
+                .optional()
+                .describe('ViewRootImpl window to capture for source=view: a 0-based index, a name substring, or "all" for every window of the app.'),
             savePath: z.string().optional().describe("Write the full JSON dump to this file."),
         },
         annotations: { readOnlyHint: true, openWorldHint: true },
@@ -153,6 +173,8 @@ export async function startMcpServer(options = {}) {
                 window: args.window,
                 source: args.source,
                 includeProperties: args.includeProperties,
+                settle: args.settle,
+                settleTimeoutMs: args.settleTimeoutMs,
             });
             if (args.savePath)
                 await saveDump(result, args.savePath);
@@ -164,6 +186,14 @@ export async function startMcpServer(options = {}) {
                     showCenter: true,
                 });
                 return textResult(text + (args.savePath ? `\n\ndump saved to ${args.savePath}` : ""));
+            }
+            if (args.format === "compact" || args.format === "flat") {
+                return jsonResult(buildCompactPayload(result, {
+                    format: args.format,
+                    depth: args.depth,
+                    maxNodes: args.maxNodes ?? 800,
+                    savedTo: args.savePath,
+                }));
             }
             return jsonResult(buildDumpUiPayload(result, args));
         }
@@ -183,6 +213,10 @@ export async function startMcpServer(options = {}) {
             both: z.boolean().optional().describe("Search both view and semantics trees (default: primary tree only)."),
             source: sourceSchema.optional(),
             limit: z.number().int().min(1).max(200).optional().describe("Maximum matches (default 30)."),
+            window: z
+                .string()
+                .optional()
+                .describe("View window to search (index or name substring from get_state); default is the focused window."),
             serial: z.string().optional(),
             package: z.string().optional(),
         },
@@ -190,7 +224,12 @@ export async function startMcpServer(options = {}) {
     }, async (args) => {
         try {
             const captureSource = args.both && (!args.source || args.source === "auto") ? "both" : args.source ?? "auto";
-            const result = await captureFor({ serial: args.serial, package: args.package, source: captureSource });
+            const result = await captureFor({
+                serial: args.serial,
+                package: args.package,
+                source: captureSource,
+                window: args.window,
+            });
             const limit = args.limit ?? 30;
             const matches = [];
             for (const [treeSource, roots] of treesFor(result, captureSource, args.both)) {
@@ -311,6 +350,10 @@ export async function startMcpServer(options = {}) {
             y: z.number().int().min(0),
             index: z.number().int().min(0).optional().describe("Candidate index for overlapping nodes (default 0)."),
             source: sourceSchema.optional(),
+            window: z
+                .string()
+                .optional()
+                .describe("View window to hit-test (index or name substring); default is the focused window."),
             serial: z.string().optional(),
             package: z.string().optional(),
         },
@@ -318,7 +361,12 @@ export async function startMcpServer(options = {}) {
     }, async (args) => {
         try {
             const captureSource = hitTestSource(args.source);
-            const result = await captureFor({ serial: args.serial, package: args.package, source: captureSource });
+            const result = await captureFor({
+                serial: args.serial,
+                package: args.package,
+                source: captureSource,
+                window: args.window,
+            });
             const reports = buildHitTestReports(result, args);
             return jsonResult({
                 point: { x: args.x, y: args.y },
@@ -343,6 +391,17 @@ export async function startMcpServer(options = {}) {
                 .boolean()
                 .optional()
                 .describe("Capture raw View properties (default true); overdraw and rtl_issues need them. Pass false for a faster, smaller capture."),
+            settle: z
+                .boolean()
+                .optional()
+                .describe("Wait for the UI to stop animating before capturing and report stability."),
+            settleTimeoutMs: z
+                .number()
+                .int()
+                .min(250)
+                .max(15000)
+                .optional()
+                .describe("Maximum settle wait in ms (default 3000)."),
             serial: z.string().optional(),
             package: z.string().optional(),
         },
@@ -353,6 +412,8 @@ export async function startMcpServer(options = {}) {
                 serial: args.serial,
                 package: args.package,
                 source: args.source,
+                settle: args.settle,
+                settleTimeoutMs: args.settleTimeoutMs,
                 ...analyzeCaptureArgs(args),
             });
             const analysis = analyzeCapture(result, {
@@ -363,6 +424,7 @@ export async function startMcpServer(options = {}) {
             return jsonResult({
                 uiKind: result.uiKind,
                 ...issuesToJson(analysis),
+                ...(result.stability ? { stability: result.stability } : {}),
                 warnings: result.warnings,
                 hint: analysis.issues.length === 0 ? "No issues detected in the captured tree." : undefined,
             });
@@ -457,14 +519,27 @@ export async function startMcpServer(options = {}) {
 /** Builds the `dump_ui` JSON payload; one tree per captured source. */
 export function buildDumpUiPayload(result, options = {}) {
     const maxNodes = options.maxNodes ?? 800;
-    const tree = (roots) => {
-        const treeCounter = { value: 0 };
-        return roots.map((root) => serializeNode(root, {
-            depth: options.depth,
-            includeProps: options.includeProperties,
-            maxNodes,
-            counter: treeCounter,
-        }));
+    const tree = (roots, counter = { value: 0 }) => roots.map((root) => serializeNode(root, {
+        depth: options.depth,
+        includeProps: options.includeProperties,
+        maxNodes,
+        counter,
+    }));
+    // A `window=all` capture shares one node budget across its windows, so N
+    // windows cannot each spend `maxNodes`; the primary tree is not restated at
+    // the top level, only named by `window`.
+    const viewTree = (view) => {
+        if (!view.windows)
+            return { window: view.window, roots: tree(view.roots) };
+        const counter = { value: 0 };
+        return {
+            window: view.window,
+            windows: view.windows.map((window) => ({
+                name: window.name,
+                ...(window.selected ? { selected: true } : {}),
+                roots: tree(window.roots, counter),
+            })),
+        };
     };
     return {
         device: {
@@ -485,8 +560,9 @@ export function buildDumpUiPayload(result, options = {}) {
         source: result.source,
         sources: result.sources,
         uiKind: result.uiKind,
+        ...(result.stability ? { stability: result.stability } : {}),
         warnings: result.warnings,
-        ...(result.view ? { view: { window: result.view.window, roots: tree(result.view.roots) } } : {}),
+        ...(result.view ? { view: viewTree(result.view) } : {}),
         ...(result.semantics
             ? { semantics: { rotation: result.semantics.rotation, roots: tree(result.semantics.roots) } }
             : {}),

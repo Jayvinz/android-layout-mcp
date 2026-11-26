@@ -111,10 +111,13 @@ function parseBounds(value) {
     const match = value.match(/\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]/);
     if (!match)
         return null;
-    const left = Number.parseInt(match[1], 10);
-    const top = Number.parseInt(match[2], 10);
-    const right = Number.parseInt(match[3], 10);
-    const bottom = Number.parseInt(match[4], 10);
+    // Accessibility sometimes reports a rect with left>right or top>bottom; sort
+    // it the way Android does (`Rect.sort`) so width/height never go negative and
+    // every downstream consumer (visibleBounds, center, hit test) sees a valid box.
+    const left = Math.min(Number.parseInt(match[1], 10), Number.parseInt(match[3], 10));
+    const top = Math.min(Number.parseInt(match[2], 10), Number.parseInt(match[4], 10));
+    const right = Math.max(Number.parseInt(match[1], 10), Number.parseInt(match[3], 10));
+    const bottom = Math.max(Number.parseInt(match[2], 10), Number.parseInt(match[4], 10));
     return {
         left,
         top,

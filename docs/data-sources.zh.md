@@ -37,6 +37,7 @@
 - 跨页面自动切换：XML 页面走 view、Compose 页面走 semantics，无需配置。
 - 混合页面：`dump` 会自动打印 view + semantics 两棵树；
   `find`/`hit` 在 auto 下会自动同时搜索 view + semantics。
+- `view` 源默认抓取**有输入焦点的窗口**；`--window all`（MCP 里 `window="all"`）会抓取该进程上报的全部窗口，主窗口在首位，因此弹窗或半透明 Activity 不会被静默漏掉。
 - `--source both` 显式获取 view + semantics；`--source compose` 单独使用 JVMTI Compose 树。
 - `hit`/MCP 的 `hit_test` 默认同时查询 view 和 semantics；显式指定 `--source`/`source`（`view`、`semantics`、`dumpsys`、`compose`）时只查那一棵树。
 - `auto` 会降级而不是直接失败：某棵树抓不到时（例如 App 不可调试，或目标包未运行），跳过它并给出 warning，改用另一棵树。warning 会写入 JSON 的 `warnings` 数组并出现在文本树中；显式指定 `--source view` 时则直接报错。
@@ -207,6 +208,34 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 对 locator 稳定性要求高时，优先加 `Modifier.semantics { contentDescription = "..." }`
 或 `testTag`，不要依赖文本（文本会随语言/大小写变化）。
 
+## 抓取稳定性
+
+每个数据源都是一次快照，而“动画中间的快照”如果没有任何标记，就是错误结论。`--settle`（CLI
+`dump`/`analyze`，MCP `settle`）在抓取前先探测 `dumpsys gfxinfo <package>` 里的
+“Total frames rendered”帧计数：
+
+- 连续两个 250ms 间隔没有新帧 → `stable: true`、`reason: settled`；
+- ROM 或进程不提供帧计数 → `stable: null`、`reason: unavailable`；
+- 一直到 `--settle-timeout`（默认 3000ms）仍在产帧 → 照常抓取，并报 `stable: false`，附
+  `framesPerInterval` 与实际测量间隔。
+
+每次采样一次 `adb shell dumpsys gfxinfo`（真机上约 100–300ms，因此页面静止时 settle 抓取会晚
+0.5–1s 开始）。它说不出“是谁在持续刷新”——那需要进程内的 `UiAutomation.waitForIdle`，也就是必须
+装一个 instrumentation APK——但它回答了读 bounds 之前真正关键的问题：这一刻页面还在动吗？
+
+`stability` 会写进 dump 文件（`version: 1` 新增可选字段）、MCP `dump_ui`/`analyze_ui` 的返回
+和文本树头部。不带 `--settle` 时该字段缺省，而不是 `false`。
+
+## 重试与几何
+
+抓取正好撞上窗口切换时，第一次会失败、第二次成功，因此 `view`、`semantics`、`dumpsys` 各自在
+300ms 后重试一次，之后才走 `auto` 的换源回退。JDWP attach 失败是确定性的（App 不可调试、已有调试器
+占用），每次尝试都要付出自己的约 10s 连接超时，因此这类错误不重试。
+
+从 `uiautomator` XML 或 `dumpsys` 解析出的矩形会做排序（`left<=right`、`top<=bottom`），与
+Android 的 `Rect.sort` 一致。无障碍偶尔会返回转置的矩形，排序后 `width`/`height` 不会变成负数，
+`visibleBounds`、`center`、`hit_test` 与分析规则都不会读到无效框。
+
 ## 限制与边界
 
 - `view` 要求 App `android:debuggable=true`；Release/未开启调试的包可以用 `semantics` 或 `dumpsys`（结构 + id，没有文本）。
@@ -219,4 +248,4 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 - 某些 ROM（如 MIUI）的 uiautomator 返回的无障碍窗口高度小于真实屏幕，底部节点会被裁剪；
   `analyze` 会自动跳过这类触摸区测量，但 `hit` 仍可用（中心点仍落在控件内）。
 - `input text` 只可靠支持 ASCII；中文输入需要额外输入法（如 ADBKeyboard）。
-- 没有实时监听；每次命令都会重新抓取。
+- 没有实时监听；每次命令都会重新抓取。不带 `--settle`/`settle=true` 时，无法知道这次快照是否取自动画中间。

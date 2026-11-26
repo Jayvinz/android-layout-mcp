@@ -9,8 +9,9 @@ import { detectRunningStudioRoots, locateAndroidStudio } from "./core/compose.js
 import { AlmError, errorMessage } from "./core/errors.js";
 import { readFragments } from "./core/fragments.js";
 import { MCP_CLIENT_IDS, mcpClientConfig, isMcpClient } from "./core/mcp-config.js";
+import { buildCompactPayload } from "./core/prune.js";
 import { findNodes, hitTest, nodePath, nodeSummary } from "./core/query.js";
-import { renderCapture, renderIssues, renderSource } from "./core/render.js";
+import { formatStability, renderCapture, renderIssues, renderSource } from "./core/render.js";
 import { saveScreenshot, screenshotMetadata, takeScreenshot, writeAnnotatedSvgFromCapture, } from "./core/screenshot.js";
 import { captureState, readWindows } from "./core/state.js";
 import { flattenNodes, serializeNode } from "./core/viewdump.js";
@@ -191,27 +192,38 @@ program
     .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--package <package>", "package name (defaults to foreground app)")
     .option("--pid <pid>", "process id")
-    .option("--window <name-or-index>", "ViewRootImpl window to dump (view source)")
+    .option("--window <name-or-index|all>", "ViewRootImpl window to dump: index, name substring, or all (view source)")
     .option("--depth <n>", "limit tree depth", parseNonNegativeInt)
     .option("--max-nodes <n>", "limit rendered nodes in text output", parsePositiveInt, 2000)
     .option("--visible-only", "hide invisible/gone views in text output")
     .option("--props", "include every ViewDebug property")
+    .option("--format <format>", "output format: tree (default), json, compact, or flat")
     .option("--json", "output JSON (dump file format)")
+    .option("--settle", "wait for the UI to stop animating before capturing")
+    .option("--settle-timeout <ms>", "maximum settle wait in milliseconds", parsePositiveInt, 3000)
     .option("--out <file>", "write the JSON dump to a file")
     .action(async (options, command) => {
+    const format = outputFormat(options.format, options.json ? "json" : "tree");
     const result = await captureFor(command, options);
     const source = parseSource(options.source);
-    if (options.json || options.out) {
-        const file = serializeDump(result, options.props);
-        if (options.out) {
-            await saveDump(result, options.out);
-            if (!options.json) {
-                console.log(`captured ${options.out}`);
-                return;
-            }
+    if (options.out) {
+        await saveDump(result, options.out);
+        if (format === "tree") {
+            console.log(`captured ${options.out}`);
+            return;
         }
-        if (options.json)
-            printJson(file);
+    }
+    if (format === "json") {
+        printJson(serializeDump(result, options.props));
+        return;
+    }
+    if (format === "compact" || format === "flat") {
+        printJson(buildCompactPayload(result, {
+            format,
+            depth: options.depth,
+            maxNodes: options.maxNodes,
+            savedTo: options.out,
+        }));
         return;
     }
     console.log(renderCapture(result, renderSource(source), {
@@ -230,6 +242,7 @@ program
     .option("--both", "search both view and semantics trees")
     .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--limit <n>", "maximum matches", parsePositiveInt, 50)
+    .option("--window <name-or-index>", "view window to capture (index or name substring; default: focused window)")
     .option("--json", "output JSON")
     .action(async (query, options, command) => {
     const result = await captureFor(command, {
@@ -268,6 +281,7 @@ program
     .option("--both", "hit-test both view and semantics trees")
     .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
     .option("--index <n>", "select the n-th candidate at the same point (cycles overlapping views)", parseNonNegativeInt, 0)
+    .option("--window <name-or-index>", "view window to capture (index or name substring; default: focused window)")
     .option("--json", "output JSON")
     .action(async (xArg, yArg, options, command) => {
     const x = parseCoordinate(xArg, "x");
@@ -326,6 +340,8 @@ program
     .option("--no-props", "skip raw View properties (overdraw and rtl_issues need them)")
     .option("--json", "output JSON")
     .option("--paths", "include full node paths in text output")
+    .option("--settle", "wait for the UI to stop animating before capturing")
+    .option("--settle-timeout <ms>", "maximum settle wait in milliseconds", parsePositiveInt, 3000)
     .action(async (options, command) => {
     // overdraw and rtl_issues read raw View properties, so request them by
     // default; --no-props opts out for a faster, smaller capture.
@@ -339,10 +355,15 @@ program
         maxDepth: options.maxDepth,
     });
     if (options.json) {
-        printJson(issuesToJson(analysis));
+        printJson({
+            ...issuesToJson(analysis),
+            ...(result.stability ? { stability: result.stability } : {}),
+        });
         return;
     }
     console.log(renderIssues(analysis, { showPaths: options.paths }));
+    if (result.stability)
+        console.error(formatStability(result.stability));
     for (const warning of result.warnings)
         console.error(`warning: ${warning}`);
 });
@@ -350,6 +371,7 @@ program
     .command("inspect <ref-or-path>")
     .description("show full details for one node (ref like v12/s12 or id path like 0.2.1)")
     .option("--source <mode>", "auto | view | semantics | dumpsys | compose | both", "auto")
+    .option("--window <name-or-index>", "view window to capture (index or name substring; default: focused window)")
     .option("--json", "output JSON (default)")
     .action(async (ref, options, command) => {
     const result = await captureFor(command, { ...options, props: true });
@@ -513,6 +535,8 @@ async function captureFor(command, options) {
         pid: options.pid ? parsePositiveInt(options.pid) : undefined,
         window: options.window,
         includeProperties: options.props,
+        settle: options.settle,
+        settleTimeoutMs: options.settleTimeout === undefined ? undefined : Number(options.settleTimeout),
         requestTimeoutMs: globals.timeout,
         studioPath: globals.studio,
         javaPath: globals.java,
@@ -523,7 +547,9 @@ async function captureFor(command, options) {
         return await capture(captureOptions);
     }
     catch (error) {
-        if (globals.fallbackScreenshot !== false) {
+        // A bad flag needs no screenshot: the device was never the problem.
+        const badInput = error instanceof AlmError && error.code === "BAD_INPUT";
+        if (globals.fallbackScreenshot !== false && !badInput) {
             try {
                 const shot = await takeScreenshot(adb, { maxWidth: 720 });
                 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -557,6 +583,17 @@ function parseSource(value) {
         return value;
     }
     throw new AlmError("BAD_INPUT", `Invalid --source "${value}" (expected auto, view, semantics, dumpsys, compose, or both).`);
+}
+/**
+ * `--format` wins over the legacy `--json` alias. `compact` and `flat` are
+ * JSON payloads too, so a caller that asks for one still gets machine output.
+ */
+function outputFormat(value, fallback) {
+    if (value === undefined)
+        return fallback;
+    if (value === "tree" || value === "json" || value === "compact" || value === "flat")
+        return value;
+    throw new AlmError("BAD_INPUT", `Invalid --format "${value}" (expected tree, json, compact, or flat).`);
 }
 async function resolvePackage(adb, packageOption, pidOption) {
     // Only probe the foreground app when the package is not given: `windows

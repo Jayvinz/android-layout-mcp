@@ -74,3 +74,10 @@ claude plugin eval . --case 'scaffold-android-workspace-analyze' --scaffold --ru
 Compose 树通过独立的 Java helper（`helper/src/alm/ComposeInspectorHelper.java`）桥接
 Android Studio 自带的 transport/JVMTI/inspector 工件，输出 JSON 后转换为统一的节点树。
 设备侧细节、缓存策略与前置条件见 [data-sources.zh.md](data-sources.zh.md#compose-jvmti-树android-studio-级)。
+
+### 抓取控制
+
+- **窗口选择。** JDWP `VULW` 按创建顺序返回窗口，因此 `foregroundApp()` 已经读到的 `mCurrentFocus` 对应的焦点窗口会被排到首位，也是默认抓取对象——否则半透明 Activity 或弹窗会让其后不可见的窗口成为“主树”。`window=all`（MCP 里 `window="all"`）把该进程的全部窗口写入 `CaptureResult.view.windows`（主窗口标记 `selected`，上限 8 个，失败窗口逐条告警），JSON 载荷在这些窗口间共享一个 `maxNodes` 预算。`find_elements`/`hit_test`/`find`/`hit`/`inspect` 接受同一个窗口选择器，便于后续追问。
+- **稳定性探针。** `src/core/settle.ts` 在抓取前每 250ms 采样一次 `dumpsys gfxinfo` 的 `Total frames rendered`：连续两个静默间隔 → `stable: true`；预算耗尽 → `stable: false`，附帧增量与实际测量间隔；拿不到计数器 → `stable: null`。它是不装 instrumentation APK 时对 `UiAutomation.waitForIdle` 的近似，无法指出是哪个节点在持续刷新。
+- **主机侧投影。** `src/core/prune.ts` 支撑 `format=compact`/`flat`：保留“有内容”（text/desc）或“有行为”（交互/状态）的节点，丢弃不可见与零尺寸节点，把被丢容器的子节点上提，并返回 `stats`（`nodes`/`kept`/`dropped`/`truncated`）。`analyze` 从不使用它——规则需要完整树。
+- **重试与几何。** `view`/`semantics`/`dumpsys` 在 300ms 后重试一次；JDWP attach 失败是确定性的、每次约 10s，因此不重试。从 `uiautomator` XML 或 `dumpsys` 解析的矩形会像 Android `Rect.sort` 一样排序，转置矩形不会产生负宽高。

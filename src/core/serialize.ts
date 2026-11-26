@@ -4,6 +4,8 @@ import type { CaptureResult, DumpFile, UiNode } from "./model.js";
 import { serializeNode } from "./viewdump.js";
 
 export function serializeDump(result: CaptureResult, includeProperties = true): DumpFile {
+  const roots = (nodes: UiNode[]) =>
+    nodes.map((node) => serializeNode(node, { includeProps: includeProperties })) as unknown as UiNode[];
   return {
     version: 1,
     createdAt: new Date().toISOString(),
@@ -18,9 +20,17 @@ export function serializeDump(result: CaptureResult, includeProperties = true): 
           view: {
             window: result.view.window,
             captureMs: result.view.captureMs,
-            roots: result.view.roots.map((node) =>
-              serializeNode(node, { includeProps: includeProperties }),
-            ) as unknown as UiNode[],
+            // A multi-window capture lists every tree under `windows`; the
+            // primary is marked selected, so `roots` is not duplicated here.
+            ...(result.view.windows
+              ? {
+                  windows: result.view.windows.map((window) => ({
+                    name: window.name,
+                    ...(window.selected ? { selected: true } : {}),
+                    roots: roots(window.roots),
+                  })),
+                }
+              : { roots: roots(result.view.roots) }),
           },
         }
       : {}),
@@ -29,9 +39,7 @@ export function serializeDump(result: CaptureResult, includeProperties = true): 
           semantics: {
             rotation: result.semantics.rotation,
             captureMs: result.semantics.captureMs,
-            roots: result.semantics.roots.map((node) =>
-              serializeNode(node, { includeProps: includeProperties }),
-            ) as unknown as UiNode[],
+            roots: roots(result.semantics.roots),
           },
         }
       : {}),
@@ -60,6 +68,7 @@ export function serializeDump(result: CaptureResult, includeProperties = true): 
         }
       : {}),
     warnings: result.warnings,
+    ...(result.stability ? { stability: result.stability } : {}),
   };
 }
 

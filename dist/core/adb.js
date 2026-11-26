@@ -177,6 +177,22 @@ export class Adb {
         }
         return [];
     }
+    /**
+     * Total frames rendered by the app's process, from `dumpsys gfxinfo`.
+     * `null` when the ROM does not report it or the process is gone; the settle
+     * probe treats that as "unknown", never as "idle".
+     */
+    async frameCount(packageName) {
+        const output = await this.shell(`dumpsys gfxinfo ${shellQuote(packageName)}`, {
+            timeoutMs: 10_000,
+            allowFailure: true,
+        });
+        const match = /Total frames rendered:\s*(\d+)/.exec(output);
+        if (!match)
+            return null;
+        const frames = Number.parseInt(match[1], 10);
+        return Number.isFinite(frames) ? frames : null;
+    }
     async screenInfo() {
         const [sizeText, densityText, rotationText] = await Promise.all([
             this.shell("wm size", { timeoutMs: 10_000 }).catch(() => ""),

@@ -124,7 +124,7 @@ v0 DecorView [0,0][1080,2400] 1080x2400 @(540,1200)
 |---|---|---|
 | `list_devices` | 连了哪些设备？ | — |
 | `get_state` | 屏幕、前台 App、pid、ViewRootImpl 窗口 | `serial`、`package` |
-| `dump_ui` | 整棵树是什么样？ | `source`、`format=json\|tree`、`depth`、`maxNodes`、`includeProperties`、`visibleOnly`、`window`、`savePath` |
+| `dump_ui` | 整棵树是什么样？ | `source`、`format=json\|tree\|compact\|flat`、`depth`、`maxNodes`、`includeProperties`、`visibleOnly`、`settle`、`window`、`savePath` |
 | `find_elements` | 这段文本 / id / 类名 / ref 在哪？ | `query`、`by`、`match`、`clickable`、`both`、`includeInvisible`、`limit` |
 | `hit_test` | (x, y) 上是什么？ | `x`、`y`、`index`、`source` |
 | `locate_code` | 哪个源文件渲染了这个元素？ | `text[]`、`desc[]`、`id[]`、`className[]`、`composeName`、`composeFile` + `composeLine`、`root`、`limit`、`includeTests`、`exclude[]` |

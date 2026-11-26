@@ -141,3 +141,17 @@ test("rejects a dump with no activity block", () => {
   assert.equal(parsed.roots.length, 0);
   assert.equal(parsed.activities.length, 0);
 });
+test("sorts a transposed dumpsys bounds rect", () => {
+  // A transposed rect (left>right) must be normalized, not turned into a
+  // negative width that would poison visibleBounds and the analysis rules.
+  const transposed = dumpsys.replace("66,352-1014,484", "1014,484-66,352");
+  const parsed = parseDumpsys(transposed, { packageName: "com.example.studymixed", screen });
+  const button = flattenNodes(parsed.roots).find((node) => node.resourceId === "app:id/btnXml");
+  assert.ok(button, "expected the btnXml button");
+  assert.deepEqual(
+    { left: button.bounds.left, top: button.bounds.top, right: button.bounds.right, bottom: button.bounds.bottom },
+    { left: 66, top: 352, right: 1014, bottom: 484 },
+  );
+  assert.equal(button.bounds.width, 948);
+  assert.equal(button.bounds.height, 132);
+});

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { CaptureResult, ScreenInfo } from "../src/core/model.js";
+import type { Bounds, CaptureResult, ScreenInfo, UiNode } from "../src/core/model.js";
 import { parseSemanticsXml } from "../src/core/semantics.js";
 import { parseViewHierarchy } from "../src/core/viewdump.js";
 
@@ -72,4 +72,49 @@ export async function withEnv(
       else process.env[key] = value;
     }
   }
+}
+
+let nodeRef = 0;
+
+export function box(left: number, top: number, right: number, bottom: number): Bounds {
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+/**
+ * A minimal semantics-shaped node for unit tests; pass `children` for a tree.
+ * Defaults describe a visible, enabled, unlabeled container that compacts away.
+ */
+export function makeTestNode(overrides: Partial<UiNode> = {}): UiNode {
+  const bounds = overrides.bounds ?? box(0, 0, 100, 100);
+  nodeRef++;
+  return {
+    id: "0",
+    ref: `s${nodeRef}`,
+    source: "semantics",
+    index: 0,
+    depth: 0,
+    className: "android.widget.FrameLayout",
+    shortClassName: "FrameLayout",
+    packageName: "com.example",
+    resourceId: null,
+    text: null,
+    contentDescription: null,
+    bounds,
+    visibleBounds: overrides.visible === false ? null : bounds,
+    center: { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 },
+    visible: true,
+    enabled: true,
+    clickable: false,
+    longClickable: false,
+    focusable: false,
+    focused: false,
+    scrollable: false,
+    checkable: false,
+    checked: false,
+    selected: false,
+    password: false,
+    children: [],
+    parent: null,
+    ...overrides,
+  };
 }

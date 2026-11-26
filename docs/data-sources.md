@@ -34,6 +34,7 @@ The classification comes from a heuristic over the ViewDebug tree (`classifyUi`)
 
 - Automatic cross-page switching: XML pages go to view, Compose pages to semantics — no configuration needed.
 - Mixed pages: `dump` prints both view + semantics trees; `find`/`hit` search both trees under auto.
+- The `view` source captures the window that has input focus by default; `--window all` (`window="all"` in MCP) captures every window the process reports, primary first, so a dialog or a translucent activity is not silently left out.
 - `--source both` explicitly captures view + semantics; `--source compose` uses the JVMTI Compose tree alone.
 - `hit` / MCP `hit_test` query view and semantics together by default; an explicit `--source`/`source` (`view`, `semantics`, `dumpsys`, `compose`) queries only that tree.
 - `auto` degrades instead of failing: when one tree cannot be captured (for example a non-debuggable app, or a package that is not running), it is skipped with a warning and the other tree is used. Warnings appear in the JSON `warnings` array and in the text tree. An explicit `--source view` fails instead.
@@ -176,6 +177,24 @@ Box(modifier = Modifier.semantics { testTagsAsResourceId = true }) {
 Then `find --by id submit` can locate it (older Compose versions may need `@OptIn(ExperimentalComposeUiApi::class)`).
 When locator stability matters, prefer `Modifier.semantics { contentDescription = "..." }` or `testTag` over text (text changes with locale and casing).
 
+## Capture stability
+
+Every source is a snapshot, and a snapshot taken mid-animation is wrong without saying so. `--settle` (CLI `dump`/`analyze`, MCP `settle`) probes `dumpsys gfxinfo <package>` — the per-process "Total frames rendered" counter — before capturing:
+
+- two consecutive 250 ms intervals with no new frame → `stable: true`, `reason: settled`;
+- a ROM or process that does not report the counter → `stable: null`, `reason: unavailable`;
+- frames keep arriving until `--settle-timeout` (default 3000 ms) → the capture proceeds and reports `stable: false` with `framesPerInterval` and the measured interval.
+
+The probe costs one `adb shell dumpsys gfxinfo` per sample (about 100–300 ms on a real device, so a settle capture starts 0.5–1 s later when the UI is idle). It cannot name the node that keeps invalidating the layout — that needs an in-process `UiAutomation.waitForIdle`, which requires an instrumentation APK — but it does answer the question that matters before reading bounds: was the UI still moving?
+
+`stability` is attached to the dump file (`version: 1` gained an optional field), to the MCP `dump_ui`/`analyze_ui` payload, and to the text tree header. Without `--settle` the field is absent, not `false`.
+
+## Retries and geometry
+
+A capture that races a window transition fails once and succeeds on the next attempt, so `view`, `semantics`, and `dumpsys` each retry once after 300 ms before the `auto` policy falls back to another source. JDWP attach failures are deterministic (non-debuggable app, another debugger attached) and cost their own ~10 s connect timeout per attempt, so they are not retried.
+
+Rectangles parsed from `uiautomator` XML or `dumpsys` are sorted (`left<=right`, `top<=bottom`), the same normalization as Android's `Rect.sort`. Accessibility occasionally reports a transposed rect; sorting keeps `width`/`height` positive so `visibleBounds`, `center`, `hit_test`, and the analysis rules never see a negative box.
+
 ## Limitations
 
 - `view` requires `android:debuggable=true`; release/non-debuggable builds can use `semantics` or `dumpsys` (structure and ids, no text).
@@ -186,4 +205,4 @@ When locator stability matters, prefer `Modifier.semantics { contentDescription 
 - `view` text comes from framework text widgets; a custom view that draws its own labels exposes no text property.
 - Some ROMs (e.g. MIUI) report an accessibility window shorter than the real screen through uiautomator, clipping bottom nodes; `analyze` skips touch-target measurement in that case, but `hit` still works (the center point stays inside the element).
 - `input text` reliably supports ASCII only; Chinese input needs an extra IME (e.g. ADBKeyboard).
-- No live monitoring; every command captures a fresh snapshot.
+- No live monitoring; every command captures a fresh snapshot. Without `--settle`/`settle=true` there is no signal that the snapshot was taken mid-animation.

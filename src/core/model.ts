@@ -147,6 +147,14 @@ export interface WindowInfo {
   activity: string | null;
 }
 
+/** One window's ViewDebug tree, as captured by `window=all`. */
+export interface WindowTree {
+  name: string;
+  roots: UiNode[];
+  /** True for the window `CaptureResult.view.window` names. */
+  selected?: boolean;
+}
+
 export interface CaptureTarget {
   serial: string;
   packageName: string | null;
@@ -172,6 +180,24 @@ export interface FragmentSummary {
   activity: string | null;
 }
 
+/**
+ * Result of the optional settle probe: whether the app kept producing frames
+ * while the capture was taken. `stable: null` means the device could not be
+ * measured (no gfxinfo counter).
+ */
+export interface StabilityInfo {
+  stable: boolean | null;
+  reason: "settled" | "timeout" | "unavailable";
+  waitedMs: number;
+  intervalMs: number;
+  samples: Array<{ atMs: number; frames: number | null }>;
+  /** Frames rendered in the last sampling interval; 0 when settled. */
+  framesPerInterval: number | null;
+  /** Wall time actually spanned by that interval (adb adds ~100ms per sample). */
+  measuredIntervalMs?: number;
+  hint?: string;
+}
+
 export interface CaptureResult {
   device: DeviceInfo;
   target: CaptureTarget;
@@ -180,9 +206,15 @@ export interface CaptureResult {
   sources: NodeSource[];
   uiKind: UiKind;
   view?: {
+    /** Name of the primary window (the one `roots` belongs to). */
     window: string;
     roots: UiNode[];
     captureMs: number;
+    /**
+     * Every window captured by `window=all`, primary first. Absent for a
+     * single-window capture, where `roots` is the only tree.
+     */
+    windows?: WindowTree[];
   };
   semantics?: {
     rotation: number;
@@ -204,6 +236,8 @@ export interface CaptureResult {
     captureMs: number;
   };
   warnings: string[];
+  /** Present only when the capture ran with `settle` enabled. */
+  stability?: StabilityInfo;
 }
 
 export interface Issue {
@@ -237,9 +271,20 @@ export interface DumpFile {
   source: NodeSource;
   sources: NodeSource[];
   uiKind: UiKind;
-  view?: CaptureResult["view"];
+  /**
+   * A single-window capture carries `roots`; `window=all` carries `windows`
+   * instead, so the primary tree is not duplicated in the file.
+   */
+  view?: {
+    window: string;
+    captureMs: number;
+    roots?: UiNode[];
+    windows?: WindowTree[];
+  };
   semantics?: CaptureResult["semantics"];
   dumpsys?: CaptureResult["dumpsys"];
   compose?: CaptureResult["compose"];
   warnings: string[];
+  /** Present only when the capture ran with `settle` enabled. */
+  stability?: StabilityInfo;
 }

@@ -124,7 +124,7 @@ Skills, commands, and MCP tools are layers over one shared core.
 |---|---|---|
 | `list_devices` | Which devices are connected? | — |
 | `get_state` | Screen, foreground app, pid, ViewRootImpl windows | `serial`, `package` |
-| `dump_ui` | What is the whole tree? | `source`, `format=json\|tree`, `depth`, `maxNodes`, `includeProperties`, `visibleOnly`, `window`, `savePath` |
+| `dump_ui` | What is the whole tree? | `source`, `format=json\|tree\|compact\|flat`, `depth`, `maxNodes`, `includeProperties`, `visibleOnly`, `settle`, `window`, `savePath` |
 | `find_elements` | Where is this text / id / class / ref? | `query`, `by`, `match`, `clickable`, `both`, `includeInvisible`, `limit` |
 | `hit_test` | What is at (x, y)? | `x`, `y`, `index`, `source` |
 | `locate_code` | Which source file renders this element? | `text[]`, `desc[]`, `id[]`, `className[]`, `composeName`, `composeFile` + `composeLine`, `root`, `limit`, `includeTests`, `exclude[]` |

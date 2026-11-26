@@ -244,10 +244,12 @@ function parseBounds(value) {
     const match = /^(-?\d+),(-?\d+)-(-?\d+),(-?\d+)$/.exec(value);
     if (!match)
         return null;
-    const left = Number.parseInt(match[1], 10);
-    const top = Number.parseInt(match[2], 10);
-    const right = Number.parseInt(match[3], 10);
-    const bottom = Number.parseInt(match[4], 10);
+    // Same normalization as the semantics parser: a rect is always sorted, so a
+    // transposed pair cannot produce a negative width or height.
+    const left = Math.min(Number.parseInt(match[1], 10), Number.parseInt(match[3], 10));
+    const top = Math.min(Number.parseInt(match[2], 10), Number.parseInt(match[4], 10));
+    const right = Math.max(Number.parseInt(match[1], 10), Number.parseInt(match[3], 10));
+    const bottom = Math.max(Number.parseInt(match[2], 10), Number.parseInt(match[4], 10));
     return { left, top, right, bottom, width: right - left, height: bottom - top };
 }
 /**

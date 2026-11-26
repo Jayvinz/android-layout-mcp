@@ -39,6 +39,8 @@ Mapping a defect to source needs an Android module. If the user mentions Android
 
 `get_state`, then `analyze_ui(source="auto")` over the whole screen.
 
+Add `settle=true` when the screen may still be animating: an unsettled capture produces false `small_touch_target`/`overlap`/`clipped` findings from elements caught mid-transition, and the `stability` object is how you know.
+
 **The default target is the current screen. A block becomes the target only when the user names one** ("这块", "这个列表", "顶部这一栏", "this card group"). When they name a block:
 
 1. Locate it in the captured tree with `find_elements` (by text/id) or `hit_test` for a point.

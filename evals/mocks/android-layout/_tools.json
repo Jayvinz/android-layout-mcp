@@ -46,7 +46,7 @@
     {
       "name": "dump_ui",
       "title": "Dump the UI hierarchy",
-      "description": "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/elements; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. Use format=tree for a compact human-readable tree or format=json (default) for structured data. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\"). Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
+      "description": "Capture the current UI. source=view uses the ViewDebug hierarchy over JDWP (full View classes, layout params, padding, visibility, margins; requires a debuggable app). source=semantics uses the accessibility tree via uiautomator (best zero-config option for Compose text/elements; works on any app). source=compose uses Android Studio's transport/JVMTI Compose inspector to return composable names, file/line, bounds, parameters/text and recomposition counts (requires a debuggable app, a local Android Studio install, and Compose 1.8.3 by default). auto selects semantics for Compose apps and view otherwise. format=tree renders a readable tree, format=json (default) returns the full structured tree, format=compact drops nodes with no text/content description/interaction/state and promotes their children, and format=flat emits those same nodes in pre-order with depth. settle=true waits for the app to stop producing frames and reports stability, so an animation or a loading spinner cannot silently produce a wrong snapshot. window=all captures every window of the app (dialogs, popups, separate ViewRootImpls) and returns them under view.windows instead of a single view.roots. Nodes include ref, bounds, visibleBounds, center, clickable and the full parent path is available in find_elements. Use this for requests such as \"抓取当前页面布局\", \"导出布局树\", \"当前界面有什么\", or \"dump the screen\": call get_state first, then dump_ui(source=\"auto\", format=\"tree\"). Android repos only; non-Android: call only on an explicit device/screen request or Android mention.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -72,21 +72,23 @@
             ]
           },
           "format": {
-            "description": "json (default) or tree.",
+            "description": "json (default, full tree), tree (readable), compact (content/interactive nodes only, children promoted), or flat (compact in pre-order with depth).",
             "type": "string",
             "enum": [
               "json",
-              "tree"
+              "tree",
+              "compact",
+              "flat"
             ]
           },
           "depth": {
-            "description": "Limit JSON tree depth; omit for full depth.",
+            "description": "Limit JSON/compact tree depth; omit for full depth.",
             "type": "integer",
             "minimum": 0,
             "maximum": 100
           },
           "maxNodes": {
-            "description": "Limit JSON nodes (default 800).",
+            "description": "Limit JSON/compact nodes (default 800).",
             "type": "integer",
             "minimum": 1,
             "maximum": 5000
@@ -99,8 +101,18 @@
             "description": "For format=tree, hide invisible/gone views.",
             "type": "boolean"
           },
+          "settle": {
+            "description": "Wait for the UI to stop animating before capturing and report stability.",
+            "type": "boolean"
+          },
+          "settleTimeoutMs": {
+            "description": "Maximum settle wait in ms (default 3000).",
+            "type": "integer",
+            "minimum": 250,
+            "maximum": 15000
+          },
           "window": {
-            "description": "ViewRootImpl window name or index for source=view.",
+            "description": "ViewRootImpl window to capture for source=view: a 0-based index, a name substring, or \"all\" for every window of the app.",
             "type": "string"
           },
           "savePath": {
@@ -178,6 +190,10 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 200
+          },
+          "window": {
+            "description": "View window to search (index or name substring from get_state); default is the focused window.",
+            "type": "string"
           },
           "serial": {
             "type": "string"
@@ -314,6 +330,10 @@
               "both"
             ]
           },
+          "window": {
+            "description": "View window to hit-test (index or name substring); default is the focused window.",
+            "type": "string"
+          },
           "serial": {
             "type": "string"
           },
@@ -389,6 +409,16 @@
           "includeProperties": {
             "description": "Capture raw View properties (default true); overdraw and rtl_issues need them. Pass false for a faster, smaller capture.",
             "type": "boolean"
+          },
+          "settle": {
+            "description": "Wait for the UI to stop animating before capturing and report stability.",
+            "type": "boolean"
+          },
+          "settleTimeoutMs": {
+            "description": "Maximum settle wait in ms (default 3000).",
+            "type": "integer",
+            "minimum": 250,
+            "maximum": 15000
           },
           "serial": {
             "type": "string"

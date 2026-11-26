@@ -318,3 +318,40 @@ test("every shipped tool description carries the Android gate", () => {
     assert.ok(carriesGate, `${name} description is missing the Android gate sentence`);
   }
 });
+
+test("dump_ui exposes compact/flat formats and the settle probe", () => {
+  const block = toolBlock("dump_ui", "find_elements");
+  assert.match(block, /"compact"/);
+  assert.match(block, /"flat"/);
+  assert.match(block, /settleTimeoutMs/);
+  assert.match(block, /settle: args\.settle/);
+  // The gate sentence must survive description edits.
+  assert.match(block, /Android repos only; non-Android: call only on an explicit device\/screen request or Android mention\./);
+});
+
+test("analyze_ui forwards the settle probe", () => {
+  const block = toolBlock("analyze_ui", "list_fragments");
+  assert.match(block, /settleTimeoutMs/);
+  assert.match(block, /settle: args\.settle/);
+});
+
+test("dump_ui json payload reports stability when the capture settled", () => {
+  const capture: CaptureResult = {
+    ...dumpsysCapture(),
+    stability: {
+      stable: false,
+      reason: "timeout",
+      waitedMs: 3000,
+      intervalMs: 250,
+      samples: [{ atMs: 0, frames: 1 }, { atMs: 250, frames: 13 }],
+      framesPerInterval: 12,
+      hint: "still animating",
+    },
+  };
+  const payload = buildDumpUiPayload(capture, { includeProperties: false }) as Record<string, any>;
+  assert.equal(payload.stability.stable, false);
+  assert.equal(payload.stability.framesPerInterval, 12);
+  // Without the probe the field is absent, not false.
+  const plain = buildDumpUiPayload(dumpsysCapture(), { includeProperties: false }) as Record<string, any>;
+  assert.equal("stability" in plain, false);
+});

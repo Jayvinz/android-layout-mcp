@@ -1,5 +1,5 @@
 import type { Adb } from "./adb.js";
-import type { CaptureResult, NodeSource, SourceMode, UiKind, UiNode } from "./model.js";
+import type { CaptureResult, NodeSource, SourceMode, UiKind, UiNode, WindowInfo } from "./model.js";
 export interface CaptureOptions {
     adb: Adb;
     source?: SourceMode;
@@ -12,6 +12,10 @@ export interface CaptureOptions {
     javaPath?: string;
     composeVersion?: string;
     composeInspectorJar?: string;
+    /** Wait for the app to stop producing frames before capturing. */
+    settle?: boolean;
+    settleTimeoutMs?: number;
+    settleIntervalMs?: number;
     onProgress?: (message: string) => void;
 }
 /**
@@ -22,6 +26,16 @@ export interface CaptureOptions {
  */
 export declare function classifyUi(viewRoots: UiNode[]): UiKind;
 export declare function capture(options: CaptureOptions): Promise<CaptureResult>;
+/** The `window` value that captures every window of the app's process. */
+export declare const CAPTURE_ALL_WINDOWS = "all";
+/**
+ * JDWP lists windows in creation order, not focus order: when a translucent
+ * activity or a dialog sits on top, the first window can be the invisible one
+ * behind it. Put the focused window first so the default capture (and the
+ * primary tree of `window=all`) is the one the user is looking at.
+ */
+export declare function orderByFocus(windows: WindowInfo[], token: string | null): WindowInfo[];
+export declare function chooseWindows(windows: WindowInfo[], requested: string | undefined, packageName: string | null): WindowInfo[];
 /**
  * The single source-to-trees policy shared by the CLI and MCP server.
  * `auto` follows the captured primary source, but mixed screens expose both

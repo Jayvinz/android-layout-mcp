@@ -62,7 +62,7 @@ Call in parallel:
 
 Inspect `windows` from `get_state`:
 
-- A dialog, bottom sheet, or overlay in a separate window → `dump_ui(source="view", window="<index-or-name>")` to capture that window. A View window may also be captured per window when the primary tree shows only the Activity.
+- A dialog, bottom sheet, or overlay in a separate window → `dump_ui(source="view", window="all")` captures every window in one call and returns them under `view.windows` (the primary is marked `selected`). Use `window="<index-or-name>"` when you want only one of them.
 - A Compose dialog may share the Activity window; if the dialog nodes are in the primary tree, no extra window dump is needed.
 - If the dialog belongs to another package (system dialog, IME, another app), say so and analyze only the target app's part.
 
@@ -177,7 +177,7 @@ Answer in the user's language, compactly, without full-file pastes:
 - **No device / offline:** run `list_devices`, then guide the user to `adb devices` or `ANDROID_SERIAL`; do not retry `dump_ui` in a loop.
 - **Non-debuggable app:** `source="view"` fails; use `source="semantics"`, state that View properties are unavailable, and lower source confidence.
 - **Compose capture fails:** fall back to semantics plus string/id anchors; do not claim the result came from the Compose tree.
-- **Dialog not in the primary tree:** inspect `windows` and dump that window by index/name.
+- **Dialog not in the primary tree:** inspect `windows` and capture all of them with `dump_ui(source="view", window="all")`, or one by index/name.
 - **No code candidates:** try longer static text, nearby labels/ids, or a wider root; conclude server-driven content rather than inventing a file.
 
 ## Additional resources
